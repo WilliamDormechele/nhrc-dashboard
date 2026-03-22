@@ -1,11 +1,47 @@
 // js/auth.js
 
+function getPasswordResetActionCodeSettings(email = "") {
+  const baseUrl = "https://williamdormechele.github.io/nhrc-dashboard/";
+  const params = new URLSearchParams();
+
+  if (email) {
+    params.set("prefillEmail", email);
+  }
+
+  params.set("fromReset", "1");
+
+  return {
+    url: `${baseUrl}?${params.toString()}`,
+    handleCodeInApp: false
+  };
+}
+
+function applyAuthPageStateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const prefillEmail = params.get("prefillEmail") || "";
+  const fromReset = params.get("fromReset") === "1";
+
+  const emailInput = document.getElementById("emailInput");
+  const authMessage = document.getElementById("authMessage");
+
+  if (emailInput && prefillEmail && !emailInput.value.trim()) {
+    emailInput.value = prefillEmail;
+  }
+
+  if (authMessage && fromReset) {
+    authMessage.style.color = "#047857";
+    authMessage.textContent =
+      "Your password has been reset. Please sign in below with your email and new password.";
+  }
+}
+
 async function signInUser() {
   const email = document.getElementById("emailInput").value.trim();
   const password = document.getElementById("passwordInput").value.trim();
   const authMessage = document.getElementById("authMessage");
 
   authMessage.textContent = "";
+  authMessage.style.color = "#b91c1c";
 
   if (!email || !password) {
     authMessage.textContent = "Please enter your email and PIN.";
@@ -41,10 +77,11 @@ async function fetchUserProfile(uid) {
 }
 
 async function sendResetEmail() {
-  const email = document.getElementById("emailInput").value.trim();
+  const email = document.getElementById("emailInput").value.trim().toLowerCase();
   const authMessage = document.getElementById("authMessage");
 
   authMessage.textContent = "";
+  authMessage.style.color = "#b91c1c";
 
   if (!email) {
     authMessage.textContent = "Enter your email first, then click 'Forgot password?'.";
@@ -52,9 +89,12 @@ async function sendResetEmail() {
   }
 
   try {
-    await auth.sendPasswordResetEmail(email);
+    const actionCodeSettings = getPasswordResetActionCodeSettings(email);
+    await auth.sendPasswordResetEmail(email, actionCodeSettings);
+
     authMessage.style.color = "#047857";
-    authMessage.textContent = "Password reset email sent. Please check your inbox.";
+    authMessage.textContent =
+      "Password reset email sent. After resetting your password, return to the NHRC dashboard login page and sign in.";
   } catch (error) {
     authMessage.style.color = "#b91c1c";
     authMessage.textContent = error.message;
@@ -66,6 +106,8 @@ function setupAuthUI() {
   const forgotPasswordLink = document.getElementById("forgotPasswordLink");
   const togglePassword = document.getElementById("togglePassword");
   const passwordInput = document.getElementById("passwordInput");
+
+  applyAuthPageStateFromUrl();
 
   loginBtn.addEventListener("click", signInUser);
   forgotPasswordLink.addEventListener("click", function (e) {

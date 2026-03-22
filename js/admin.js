@@ -516,15 +516,17 @@ async function saveUserFromAdminForm() {
     });
 
     try {
-      await auth.sendPasswordResetEmail(email);
+      const actionCodeSettings = getPasswordResetActionCodeSettings(email);
+      await auth.sendPasswordResetEmail(email, actionCodeSettings);
     } catch (emailError) {
       console.error("Failed to send account setup email:", emailError);
     }
 
     setAdminMessage(
       "adminUserMessage",
-      "New user created successfully. A password setup/reset email has been sent to the user."
+      "New user created successfully. A password setup email has been sent. After resetting the password, the user should return to the NHRC dashboard login page and sign in."
     );
+
     await clearUserForm();
     await loadUsersForAdmin();
   } catch (error) {
@@ -532,8 +534,6 @@ async function saveUserFromAdminForm() {
     setAdminMessage("adminUserMessage", error.message, true);
   }
 }
-
-
 
 /**
  * Load all user profiles for the admin table.
