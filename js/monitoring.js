@@ -182,54 +182,6 @@ async function loadMonitoringUsersAndFilters() {
   monitoringFieldworkers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
   monitoringFilterOptionsLoaded = true;
 }
-  // Field headquarters must read from monitoring_directory, not users
-  const allowedProjectCodes = getAllowedMonitoringProjectCodes();
-
-  if (!allowedProjectCodes.length) {
-    monitoringFilterOptionsLoaded = true;
-    return;
-  }
-
-  const projectChunks = chunkArray(allowedProjectCodes, 10);
-
-  const snapshots = await Promise.all(
-    projectChunks.map((projectChunk) =>
-      db.collection("monitoring_directory")
-        .where("isActive", "==", true)
-        .where("assignedProjects", "array-contains-any", projectChunk)
-        .get()
-    )
-  );
-
-  const userMap = new Map();
-
-  snapshots.forEach((snapshot) => {
-    snapshot.forEach((doc) => {
-      const user = { id: doc.id, ...doc.data() };
-      userMap.set(doc.id, user);
-    });
-  });
-
-  [...userMap.values()].forEach((user) => {
-    const emailKey = (user.email || "").toLowerCase();
-
-    if (emailKey) {
-      monitoringUsersByEmail[emailKey] = user;
-    }
-
-    if (user.role === "field_supervisor") {
-      monitoringSupervisors.push(user);
-    }
-
-    if (user.role === "field_worker") {
-      monitoringFieldworkers.push(user);
-    }
-  });
-
-  monitoringSupervisors.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
-  monitoringFieldworkers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
-  monitoringFilterOptionsLoaded = true;
-}
 
 /**
  * Return current main monitoring filters.

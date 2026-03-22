@@ -204,6 +204,9 @@ auth.onAuthStateChanged(async (user) => {
 
     if (permissions.canManageUsers || permissions.canManageProjects) {
       renderProjectCheckboxesForAdmin([]);
+      await loadSupervisorOptions("");
+      updateSupervisorFieldVisibility();
+      await loadMonitoringDirectorySyncStatus();
     }
 
     if (permissions.canMonitorUsers) {
