@@ -60,7 +60,7 @@ function getAllowedMonitoringProjectCodes() {
 }
 
 /**
- * Split an array into chunks for Firestore "in" queries.
+ * Split an array into chunks for Firestore "in" / "array-contains-any" queries.
  */
 function chunkArray(values, size) {
   const chunks = [];
@@ -94,13 +94,19 @@ function populateSelectOptions(selectId, items, placeholderText) {
 
 /**
  * Load users for monitoring filter relationships.
+ *
+ * Admin/developer:
+ * - can read all users
+ *
+ * Field headquarters:
+ * - can only read users tied to their allowed assigned projects
+ * - this matches the stricter Firestore rules
  */
 async function loadMonitoringUsersAndFilters() {
   monitoringUsersByEmail = {};
   monitoringSupervisors = [];
   monitoringFieldworkers = [];
 
-  // Admin/developer can still read all users
   if (canMonitorAllProjects()) {
     const snapshot = await db.collection("users").orderBy("fullName").get();
 
@@ -127,7 +133,6 @@ async function loadMonitoringUsersAndFilters() {
     return;
   }
 
-  // Field headquarters: read only users from assigned projects
   const allowedProjectCodes = getAllowedMonitoringProjectCodes();
 
   if (!allowedProjectCodes.length) {
@@ -136,6 +141,7 @@ async function loadMonitoringUsersAndFilters() {
   }
 
   const projectChunks = chunkArray(allowedProjectCodes, 10);
+
   const snapshots = await Promise.all(
     projectChunks.map((projectChunk) =>
       db.collection("users")
@@ -293,7 +299,7 @@ function rebuildMonitoringFilterDropdowns() {
 }
 
 /**
- * Rebuild table-only filter options from currently visible monitoring logs.
+ * Rebuild table-only dropdowns from currently visible primary-filtered logs.
  */
 function rebuildMonitoringTableFilterDropdowns(logs) {
   const actionItems = [...new Set(logs.map((log) => log.action).filter(Boolean))]
@@ -310,6 +316,10 @@ function rebuildMonitoringTableFilterDropdowns(logs) {
 
 /**
  * Apply project restriction + project/supervisor/fieldworker hierarchy.
+ *
+ * Supervisor filter includes:
+ * - the supervisor's own activity
+ * - all fieldworkers assigned to that supervisor
  */
 function applyMonitoringFilters(logs) {
   const filters = getMonitoringFilters();
@@ -403,6 +413,7 @@ async function fetchMonitoringLogs(startTimestamp) {
     snapshot.forEach((doc) => {
       logs.push({ id: doc.id, ...doc.data() });
     });
+
     return logs;
   }
 
@@ -411,6 +422,7 @@ async function fetchMonitoringLogs(startTimestamp) {
   }
 
   const chunks = chunkArray(allowedProjectCodes, 10);
+
   const snapshots = await Promise.all(
     chunks.map((projectChunk) =>
       db.collection("activity_logs")
@@ -439,12 +451,15 @@ async function fetchMonitoringLogs(startTimestamp) {
 }
 
 /**
- * Load activity logs from Firestore for the selected time window.
+ * Load monitoring data.
  */
 async function loadMonitoringData() {
   const days = parseInt(document.getElementById("monitoringDays").value, 10);
   const tbody = document.getElementById("monitoringTableBody");
-  tbody.innerHTML = `<tr><td colspan="8">Loading activity logs...</td></tr>`;
+
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="8">Loading activity logs...</td></tr>`;
+  }
 
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -466,7 +481,9 @@ async function loadMonitoringData() {
     renderFilteredMonitoringView();
   } catch (error) {
     console.error(error);
-    tbody.innerHTML = `<tr><td colspan="8">Failed to load monitoring data.</td></tr>`;
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8">Failed to load monitoring data.</td></tr>`;
+    }
   }
 }
 
@@ -478,7 +495,7 @@ async function loadMonitoringData() {
  * - charts
  * - table
  *
- * Table-only advanced filters affect:
+ * Table-only filters affect:
  * - Recent Activity Logs only
  */
 function renderFilteredMonitoringView() {
@@ -489,10 +506,18 @@ function renderFilteredMonitoringView() {
   renderMonitoringSummary(primaryFilteredLogs);
   renderMonitoringCharts(primaryFilteredLogs);
 
-  rebuildMonitoringTableFilterDropdowns(primaryFilteredLogs);
+  const hasAdvancedTableFilters =
+    document.getElementById("monitoringActionFilter") &&
+    document.getElementById("monitoringPageFilter") &&
+    document.getElementById("monitoringPageSize");
 
-  const tableFilteredLogs = applyMonitoringTableFilters(primaryFilteredLogs);
-  renderMonitoringTable(tableFilteredLogs);
+  if (hasAdvancedTableFilters) {
+    rebuildMonitoringTableFilterDropdowns(primaryFilteredLogs);
+    const tableFilteredLogs = applyMonitoringTableFilters(primaryFilteredLogs);
+    renderMonitoringTable(tableFilteredLogs);
+  } else {
+    renderMonitoringTable(primaryFilteredLogs);
+  }
 }
 
 /**
@@ -513,10 +538,15 @@ function renderMonitoringSummary(logs) {
 
   const totalMinutes = Math.round(totalDurationSeconds / 60);
 
-  document.getElementById("statLogins").textContent = loginCount;
-  document.getElementById("statDownloads").textContent = downloadCount;
-  document.getElementById("statUsers").textContent = uniqueUsers;
-  document.getElementById("statMinutes").textContent = totalMinutes;
+  const statLogins = document.getElementById("statLogins");
+  const statDownloads = document.getElementById("statDownloads");
+  const statUsers = document.getElementById("statUsers");
+  const statMinutes = document.getElementById("statMinutes");
+
+  if (statLogins) statLogins.textContent = loginCount;
+  if (statDownloads) statDownloads.textContent = downloadCount;
+  if (statUsers) statUsers.textContent = uniqueUsers;
+  if (statMinutes) statMinutes.textContent = totalMinutes;
 }
 
 /**
@@ -524,14 +554,49 @@ function renderMonitoringSummary(logs) {
  */
 function renderMonitoringTable(logs) {
   const tbody = document.getElementById("monitoringTableBody");
+  if (!tbody) return;
+
   const countEl = document.getElementById("monitoringLogsCount");
   const pageInfoEl = document.getElementById("monitoringPageInfo");
   const prevBtn = document.getElementById("monitoringPrevPageBtn");
   const nextBtn = document.getElementById("monitoringNextPageBtn");
+  const pageSizeSelect = document.getElementById("monitoringPageSize");
 
   tbody.innerHTML = "";
 
-  const pageSize = parseInt(document.getElementById("monitoringPageSize")?.value || "25", 10);
+  const hasPagination = !!pageSizeSelect;
+
+  if (!hasPagination) {
+    if (logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8">No activity logs found for the selected period and filters.</td></tr>`;
+      return;
+    }
+
+    logs.forEach((log) => {
+      const tr = document.createElement("tr");
+
+      const dateText = log.createdAt && log.createdAt.toDate
+        ? log.createdAt.toDate().toLocaleString()
+        : "";
+
+      tr.innerHTML = `
+        <td>${safeText(dateText)}</td>
+        <td>${safeText(log.fullName || log.email)}</td>
+        <td>${safeText(log.role)}</td>
+        <td>${safeText(log.currentProject)}</td>
+        <td>${safeText(log.action)}</td>
+        <td>${safeText(log.page)}</td>
+        <td>${safeText(log.target)}</td>
+        <td>${safeText(log.durationSeconds)}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    return;
+  }
+
+  const pageSize = parseInt(pageSizeSelect.value || "25", 10);
   monitoringTableState.pageSize = pageSize;
 
   const totalRows = logs.length;
@@ -548,11 +613,21 @@ function renderMonitoringTable(logs) {
   const endIndex = startIndex + pageSize;
   const pageLogs = logs.slice(startIndex, endIndex);
 
-  countEl.textContent = `${totalRows} record${totalRows === 1 ? "" : "s"}`;
-  pageInfoEl.textContent = `Page ${monitoringTableState.currentPage} of ${totalPages}`;
+  if (countEl) {
+    countEl.textContent = `${totalRows} record${totalRows === 1 ? "" : "s"}`;
+  }
 
-  prevBtn.disabled = monitoringTableState.currentPage <= 1;
-  nextBtn.disabled = monitoringTableState.currentPage >= totalPages;
+  if (pageInfoEl) {
+    pageInfoEl.textContent = `Page ${monitoringTableState.currentPage} of ${totalPages}`;
+  }
+
+  if (prevBtn) {
+    prevBtn.disabled = monitoringTableState.currentPage <= 1;
+  }
+
+  if (nextBtn) {
+    nextBtn.disabled = monitoringTableState.currentPage >= totalPages;
+  }
 
   if (pageLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8">No activity logs found for the selected filters.</td></tr>`;
@@ -610,14 +685,23 @@ function renderMonitoringCharts(logs) {
   renderProjectsChart(logs);
   renderUsersChart(logs);
   renderDailyChart(logs);
-  renderRolesChart(logs);
-  renderPagesChart(logs);
+
+  if (document.getElementById("rolesChart")) {
+    renderRolesChart(logs);
+  }
+
+  if (document.getElementById("pagesChart")) {
+    renderPagesChart(logs);
+  }
 }
 
 /**
  * Activity by action.
  */
 function renderActionsChart(logs) {
+  const canvas = document.getElementById("actionsChart");
+  if (!canvas) return;
+
   const counts = countBy(logs, (x) => x.action);
   const entries = topEntriesFromCounts(counts, 8);
 
@@ -625,7 +709,7 @@ function renderActionsChart(logs) {
   const values = entries.map((x) => x[1]);
 
   destroyChart(actionsChartInstance);
-  actionsChartInstance = new Chart(document.getElementById("actionsChart"), {
+  actionsChartInstance = new Chart(canvas, {
     type: "bar",
     data: {
       labels,
@@ -645,6 +729,9 @@ function renderActionsChart(logs) {
  * Activity by project.
  */
 function renderProjectsChart(logs) {
+  const canvas = document.getElementById("projectsChart");
+  if (!canvas) return;
+
   const counts = countBy(logs, (x) => x.currentProject || "No Project");
   const entries = topEntriesFromCounts(counts, 8);
 
@@ -652,7 +739,7 @@ function renderProjectsChart(logs) {
   const values = entries.map((x) => x[1]);
 
   destroyChart(projectsChartInstance);
-  projectsChartInstance = new Chart(document.getElementById("projectsChart"), {
+  projectsChartInstance = new Chart(canvas, {
     type: "doughnut",
     data: {
       labels,
@@ -669,6 +756,9 @@ function renderProjectsChart(logs) {
  * Top active users.
  */
 function renderUsersChart(logs) {
+  const canvas = document.getElementById("usersChart");
+  if (!canvas) return;
+
   const counts = countBy(logs, (x) => x.fullName || x.email || "Unknown");
   const entries = topEntriesFromCounts(counts, 10);
 
@@ -676,7 +766,7 @@ function renderUsersChart(logs) {
   const values = entries.map((x) => x[1]);
 
   destroyChart(usersChartInstance);
-  usersChartInstance = new Chart(document.getElementById("usersChart"), {
+  usersChartInstance = new Chart(canvas, {
     type: "bar",
     data: {
       labels,
@@ -694,6 +784,9 @@ function renderUsersChart(logs) {
  * Daily activity trend.
  */
 function renderDailyChart(logs) {
+  const canvas = document.getElementById("dailyChart");
+  if (!canvas) return;
+
   const counts = {};
 
   logs.forEach((log) => {
@@ -706,7 +799,7 @@ function renderDailyChart(logs) {
   const values = labels.map((label) => counts[label]);
 
   destroyChart(dailyChartInstance);
-  dailyChartInstance = new Chart(document.getElementById("dailyChart"), {
+  dailyChartInstance = new Chart(canvas, {
     type: "line",
     data: {
       labels,
@@ -723,13 +816,16 @@ function renderDailyChart(logs) {
  * Activity by role.
  */
 function renderRolesChart(logs) {
+  const canvas = document.getElementById("rolesChart");
+  if (!canvas) return;
+
   const counts = countBy(logs, (x) => x.role || "Unknown");
 
   const labels = Object.keys(counts);
   const values = Object.values(counts);
 
   destroyChart(rolesChartInstance);
-  rolesChartInstance = new Chart(document.getElementById("rolesChart"), {
+  rolesChartInstance = new Chart(canvas, {
     type: "bar",
     data: {
       labels,
@@ -749,6 +845,9 @@ function renderRolesChart(logs) {
  * Most visited pages.
  */
 function renderPagesChart(logs) {
+  const canvas = document.getElementById("pagesChart");
+  if (!canvas) return;
+
   const counts = countBy(logs, (x) => x.page || "Unknown");
   const entries = topEntriesFromCounts(counts, 10);
 
@@ -756,7 +855,7 @@ function renderPagesChart(logs) {
   const values = entries.map((x) => x[1]);
 
   destroyChart(pagesChartInstance);
-  pagesChartInstance = new Chart(document.getElementById("pagesChart"), {
+  pagesChartInstance = new Chart(canvas, {
     type: "bar",
     data: {
       labels,
@@ -771,99 +870,149 @@ function renderPagesChart(logs) {
 }
 
 /**
- * Reset top-level filters.
+ * Reset filters.
  */
 function clearMonitoringFilters() {
-  document.getElementById("monitoringProjectFilter").value = "";
-  document.getElementById("monitoringSupervisorFilter").value = "";
-  document.getElementById("monitoringFieldworkerFilter").value = "";
+  const projectFilter = document.getElementById("monitoringProjectFilter");
+  const supervisorFilter = document.getElementById("monitoringSupervisorFilter");
+  const fieldworkerFilter = document.getElementById("monitoringFieldworkerFilter");
+  const actionFilter = document.getElementById("monitoringActionFilter");
+  const pageFilter = document.getElementById("monitoringPageFilter");
+  const startDate = document.getElementById("monitoringStartDate");
+  const endDate = document.getElementById("monitoringEndDate");
+  const searchText = document.getElementById("monitoringSearchText");
+  const pageSize = document.getElementById("monitoringPageSize");
 
-  document.getElementById("monitoringActionFilter").value = "";
-  document.getElementById("monitoringPageFilter").value = "";
-  document.getElementById("monitoringStartDate").value = "";
-  document.getElementById("monitoringEndDate").value = "";
-  document.getElementById("monitoringSearchText").value = "";
-  document.getElementById("monitoringPageSize").value = "25";
+  if (projectFilter) projectFilter.value = "";
+  if (supervisorFilter) supervisorFilter.value = "";
+  if (fieldworkerFilter) fieldworkerFilter.value = "";
+
+  if (actionFilter) actionFilter.value = "";
+  if (pageFilter) pageFilter.value = "";
+  if (startDate) startDate.value = "";
+  if (endDate) endDate.value = "";
+  if (searchText) searchText.value = "";
+  if (pageSize) pageSize.value = "25";
 
   monitoringTableState.currentPage = 1;
   renderFilteredMonitoringView();
 }
 
 /**
- * Go to previous table page.
+ * Pagination helpers.
  */
 function goToPreviousMonitoringPage() {
   monitoringTableState.currentPage -= 1;
   renderFilteredMonitoringView();
 }
 
-/**
- * Go to next table page.
- */
 function goToNextMonitoringPage() {
   monitoringTableState.currentPage += 1;
   renderFilteredMonitoringView();
 }
 
 /**
- * Wire up event listeners.
+ * Wire up monitoring events.
  */
 function setupMonitoringUI() {
-  document.getElementById("refreshMonitoringBtn").addEventListener("click", loadMonitoringData);
-  document.getElementById("monitoringDays").addEventListener("change", loadMonitoringData);
-
-  document.getElementById("monitoringProjectFilter").addEventListener("change", () => {
-    document.getElementById("monitoringSupervisorFilter").value = "";
-    document.getElementById("monitoringFieldworkerFilter").value = "";
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringSupervisorFilter").addEventListener("change", () => {
-    document.getElementById("monitoringFieldworkerFilter").value = "";
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringFieldworkerFilter").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringActionFilter").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringPageFilter").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringStartDate").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringEndDate").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringSearchText").addEventListener("input", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringPageSize").addEventListener("change", () => {
-    monitoringTableState.currentPage = 1;
-    renderFilteredMonitoringView();
-  });
-
-  document.getElementById("monitoringPrevPageBtn").addEventListener("click", goToPreviousMonitoringPage);
-  document.getElementById("monitoringNextPageBtn").addEventListener("click", goToNextMonitoringPage);
-
+  const refreshBtn = document.getElementById("refreshMonitoringBtn");
+  const daysSelect = document.getElementById("monitoringDays");
+  const projectFilter = document.getElementById("monitoringProjectFilter");
+  const supervisorFilter = document.getElementById("monitoringSupervisorFilter");
+  const fieldworkerFilter = document.getElementById("monitoringFieldworkerFilter");
   const clearBtn = document.getElementById("clearMonitoringFiltersBtn");
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", loadMonitoringData);
+  }
+
+  if (daysSelect) {
+    daysSelect.addEventListener("change", loadMonitoringData);
+  }
+
+  if (projectFilter) {
+    projectFilter.addEventListener("change", () => {
+      if (supervisorFilter) supervisorFilter.value = "";
+      if (fieldworkerFilter) fieldworkerFilter.value = "";
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (supervisorFilter) {
+    supervisorFilter.addEventListener("change", () => {
+      if (fieldworkerFilter) fieldworkerFilter.value = "";
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (fieldworkerFilter) {
+    fieldworkerFilter.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  const actionFilter = document.getElementById("monitoringActionFilter");
+  const pageFilter = document.getElementById("monitoringPageFilter");
+  const startDate = document.getElementById("monitoringStartDate");
+  const endDate = document.getElementById("monitoringEndDate");
+  const searchText = document.getElementById("monitoringSearchText");
+  const pageSize = document.getElementById("monitoringPageSize");
+  const prevBtn = document.getElementById("monitoringPrevPageBtn");
+  const nextBtn = document.getElementById("monitoringNextPageBtn");
+
+  if (actionFilter) {
+    actionFilter.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (pageFilter) {
+    pageFilter.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (startDate) {
+    startDate.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (endDate) {
+    endDate.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (searchText) {
+    searchText.addEventListener("input", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (pageSize) {
+    pageSize.addEventListener("change", () => {
+      monitoringTableState.currentPage = 1;
+      renderFilteredMonitoringView();
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", goToPreviousMonitoringPage);
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", goToNextMonitoringPage);
+  }
+
   if (clearBtn) {
     clearBtn.addEventListener("click", clearMonitoringFilters);
   }

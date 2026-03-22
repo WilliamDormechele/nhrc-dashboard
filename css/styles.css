@@ -548,16 +548,72 @@ textarea:focus {
   margin-bottom: 18px;
 }
 
+.monitoring-charts-grid {
+  align-items: stretch;
+}
+
 .chart-card {
   background: #fff;
   border: 1px solid #dde2ec;
   border-radius: 14px;
   padding: 16px;
+  min-height: 360px;
+}
+
+.chart-card.chart-card-compact {
+  min-height: 285px;
 }
 
 .chart-card h3 {
   margin-top: 0;
+  margin-bottom: 12px;
   color: #1f3044;
+}
+
+.chart-canvas {
+  display: block;
+  width: 100% !important;
+}
+
+.chart-canvas-standard {
+  height: 280px !important;
+}
+
+.chart-canvas-compact {
+  height: 185px !important;
+}
+
+.monitoring-log-header {
+  margin-bottom: 12px;
+}
+
+.monitoring-log-filters-row {
+  background: #f8fbff;
+  border: 1px solid #dbe6f5;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.monitoring-meta-text {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.monitoring-pagination {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.monitoring-pagination-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .table-wrap {
