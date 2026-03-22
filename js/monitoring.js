@@ -107,6 +107,7 @@ async function loadMonitoringUsersAndFilters() {
   monitoringSupervisors = [];
   monitoringFieldworkers = [];
 
+  // Admin / developer can read the full users collection
   if (canMonitorAllProjects()) {
     const snapshot = await db.collection("users").orderBy("fullName").get();
 
@@ -133,6 +134,7 @@ async function loadMonitoringUsersAndFilters() {
     return;
   }
 
+  // Field headquarters must read from monitoring_directory, not users
   const allowedProjectCodes = getAllowedMonitoringProjectCodes();
 
   if (!allowedProjectCodes.length) {
@@ -144,7 +146,8 @@ async function loadMonitoringUsersAndFilters() {
 
   const snapshots = await Promise.all(
     projectChunks.map((projectChunk) =>
-      db.collection("users")
+      db.collection("monitoring_directory")
+        .where("isActive", "==", true)
         .where("assignedProjects", "array-contains-any", projectChunk)
         .get()
     )
@@ -468,9 +471,7 @@ async function loadMonitoringData() {
   try {
     await loadProjectsRegistry();
 
-    if (!monitoringFilterOptionsLoaded) {
-      await loadMonitoringUsersAndFilters();
-    }
+    await loadMonitoringUsersAndFilters();
 
     rebuildMonitoringFilterDropdowns();
 
