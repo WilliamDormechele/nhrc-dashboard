@@ -172,6 +172,22 @@ function getSupervisorPayloadFromForm(role) {
   };
 }
 
+
+async function saveMonitoringDirectoryRecord(userId, userPayload) {
+  await db.collection("monitoring_directory").doc(userId).set({
+    fullName: userPayload.fullName || "",
+    email: userPayload.email || "",
+    role: userPayload.role || "",
+    isActive: userPayload.isActive === true,
+    assignedProjects: Array.isArray(userPayload.assignedProjects) ? userPayload.assignedProjects : [],
+    supervisorId: userPayload.supervisorId || null,
+    supervisorEmail: userPayload.supervisorEmail || null,
+    supervisorName: userPayload.supervisorName || null,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: window.currentUserProfile.email
+  }, { merge: true });
+}
+
 /**
  * Create a new user profile or update an existing one.
  */
@@ -215,6 +231,7 @@ async function saveUserFromAdminForm() {
     // Update existing user
     if (editingUserId) {
       await db.collection("users").doc(editingUserId).update(userPayload);
+      await saveMonitoringDirectoryRecord(editingUserId, userPayload);
 
       await logActivity("admin_update_user", {
         page: "admin",
@@ -240,6 +257,8 @@ async function saveUserFromAdminForm() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdBy: window.currentUserProfile.email
     });
+
+    await saveMonitoringDirectoryRecord(newUid, userPayload);
 
     await logActivity("admin_create_user", {
       page: "admin",

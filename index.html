@@ -163,112 +163,176 @@
     </section>
 
     <!-- Monitoring -->
-    <section id="tab-monitoring" class="tab-content panel">
-      <div class="section-header">
-        <h2>Strategic Oversight</h2>
-        <p>Track logins, downloads, user engagement, and operational activity across projects.</p>
-      </div>
-
-<div class="toolbar-row monitoring-filters-row">
-  <div>
-    <label for="monitoringDays">Time window</label>
-    <select id="monitoringDays">
-      <option value="7">Last 7 days</option>
-      <option value="14">Last 14 days</option>
-      <option value="30" selected>Last 30 days</option>
-      <option value="90">Last 90 days</option>
-    </select>
+<!-- Monitoring -->
+<section id="tab-monitoring" class="tab-content panel">
+  <div class="section-header">
+    <h2>Strategic Oversight</h2>
+    <p>Track logins, downloads, user engagement, and operational activity across projects.</p>
   </div>
 
-  <div>
-    <label for="monitoringProjectFilter">Project</label>
-    <select id="monitoringProjectFilter">
-      <option value="">All projects</option>
-    </select>
+  <div class="toolbar-row monitoring-filters-row">
+    <div>
+      <label for="monitoringDays">Time window</label>
+      <select id="monitoringDays">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="monitoringProjectFilter">Project</label>
+      <select id="monitoringProjectFilter">
+        <option value="">All projects</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="monitoringSupervisorFilter">Supervisor</label>
+      <select id="monitoringSupervisorFilter">
+        <option value="">All supervisors</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="monitoringFieldworkerFilter">Fieldworker</label>
+      <select id="monitoringFieldworkerFilter">
+        <option value="">All fieldworkers</option>
+      </select>
+    </div>
+
+    <div class="toolbar-end monitoring-actions">
+      <button id="clearMonitoringFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+      <button id="refreshMonitoringBtn" class="btn btn-primary">Refresh Monitoring</button>
+    </div>
   </div>
 
-  <div>
-    <label for="monitoringSupervisorFilter">Supervisor</label>
-    <select id="monitoringSupervisorFilter">
-      <option value="">All supervisors</option>
-    </select>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Logins</div>
+      <div class="stat-value" id="statLogins">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Downloads</div>
+      <div class="stat-value" id="statDownloads">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unique Users</div>
+      <div class="stat-value" id="statUsers">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tracked Minutes</div>
+      <div class="stat-value" id="statMinutes">0</div>
+    </div>
   </div>
 
-  <div>
-    <label for="monitoringFieldworkerFilter">Fieldworker</label>
-    <select id="monitoringFieldworkerFilter">
-      <option value="">All fieldworkers</option>
-    </select>
+<div class="charts-grid monitoring-charts-grid">
+  <div class="chart-card chart-card-compact">
+    <h3>Activity by Action</h3>
+    <canvas id="actionsChart" class="chart-canvas chart-canvas-compact"></canvas>
   </div>
 
-  <div class="toolbar-end monitoring-actions">
-    <button id="clearMonitoringFiltersBtn" class="btn btn-secondary">Clear Filters</button>
-    <button id="refreshMonitoringBtn" class="btn btn-primary">Refresh Monitoring</button>
+  <div class="chart-card chart-card-compact">
+    <h3>Activity by Project</h3>
+    <canvas id="projectsChart" class="chart-canvas chart-canvas-compact"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h3>Top Active Users</h3>
+    <canvas id="usersChart" class="chart-canvas chart-canvas-standard"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h3>Daily Activity Trend</h3>
+    <canvas id="dailyChart" class="chart-canvas chart-canvas-standard"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h3>Activity by Role</h3>
+    <canvas id="rolesChart" class="chart-canvas chart-canvas-standard"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h3>Most Visited Pages</h3>
+    <canvas id="pagesChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 </div>
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Logins</div>
-          <div class="stat-value" id="statLogins">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Downloads</div>
-          <div class="stat-value" id="statDownloads">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Unique Users</div>
-          <div class="stat-value" id="statUsers">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Tracked Minutes</div>
-          <div class="stat-value" id="statMinutes">0</div>
-        </div>
-      </div>
+<div class="panel inner-panel">
+  <div class="section-row monitoring-log-header">
+    <h3>Recent Activity Logs</h3>
+    <div id="monitoringLogsCount" class="monitoring-meta-text">0 records</div>
+  </div>
 
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>Activity by Action</h3>
-          <canvas id="actionsChart"></canvas>
-        </div>
+  <div class="toolbar-row monitoring-log-filters-row">
+    <div>
+      <label for="monitoringActionFilter">Action</label>
+      <select id="monitoringActionFilter">
+        <option value="">All actions</option>
+      </select>
+    </div>
 
-        <div class="chart-card">
-          <h3>Activity by Project</h3>
-          <canvas id="projectsChart"></canvas>
-        </div>
+    <div>
+      <label for="monitoringPageFilter">Page</label>
+      <select id="monitoringPageFilter">
+        <option value="">All pages</option>
+      </select>
+    </div>
 
-        <div class="chart-card">
-          <h3>Top Active Users</h3>
-          <canvas id="usersChart"></canvas>
-        </div>
+    <div>
+      <label for="monitoringStartDate">Start date</label>
+      <input type="date" id="monitoringStartDate" />
+    </div>
 
-        <div class="chart-card">
-          <h3>Daily Activity Trend</h3>
-          <canvas id="dailyChart"></canvas>
-        </div>
-      </div>
+    <div>
+      <label for="monitoringEndDate">End date</label>
+      <input type="date" id="monitoringEndDate" />
+    </div>
 
-      <div class="panel inner-panel">
-        <h3>Recent Activity Logs</h3>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date/Time</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Project</th>
-                <th>Action</th>
-                <th>Page</th>
-                <th>Target</th>
-                <th>Duration</th>
-              </tr>
-            </thead>
-            <tbody id="monitoringTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <div>
+      <label for="monitoringSearchText">Search</label>
+      <input type="text" id="monitoringSearchText" placeholder="user, target, email, action..." />
+    </div>
+
+    <div>
+      <label for="monitoringPageSize">Rows per page</label>
+      <select id="monitoringPageSize">
+        <option value="10">10</option>
+        <option value="25" selected>25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date/Time</th>
+          <th>User</th>
+          <th>Role</th>
+          <th>Project</th>
+          <th>Action</th>
+          <th>Page</th>
+          <th>Target</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody id="monitoringTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="monitoring-pagination">
+    <div id="monitoringPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
+    <div class="monitoring-pagination-actions">
+      <button id="monitoringPrevPageBtn" class="btn btn-secondary">Previous</button>
+      <button id="monitoringNextPageBtn" class="btn btn-secondary">Next</button>
+    </div>
+  </div>
+</div>
+</section>
 
     <!-- Admin -->
     <section id="tab-admin" class="tab-content panel">
