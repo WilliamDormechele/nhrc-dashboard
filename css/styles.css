@@ -97,6 +97,93 @@ body {
   padding-left: 18px;
 }
 
+.password-strength-wrap {
+  margin-top: 10px;
+}
+
+.password-strength-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.password-strength-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.password-strength-fill-weak {
+  background: #dc2626;
+}
+
+.password-strength-fill-medium {
+  background: #d97706;
+}
+
+.password-strength-fill-strong {
+  background: #16a34a;
+}
+
+.password-strength-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #64748b;
+}
+
+.password-strength-text.password-strength-weak {
+  color: #dc2626;
+}
+
+.password-strength-text.password-strength-medium {
+  color: #d97706;
+}
+
+.password-strength-text.password-strength-strong {
+  color: #16a34a;
+}
+
+.password-criteria {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.password-criterion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.password-criterion .criterion-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.password-criterion.passed {
+  color: #166534;
+}
+
+.password-criterion.passed .criterion-icon {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
 .panel {
   margin-bottom: 16px;
 }

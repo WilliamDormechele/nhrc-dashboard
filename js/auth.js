@@ -16,6 +16,110 @@ function getPasswordResetActionCodeSettings(email = "") {
   };
 }
 
+function getPasswordChecks(password) {
+  return {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password)
+  };
+}
+
+function getPasswordStrength(password) {
+  if (!password) {
+    return {
+      label: "",
+      className: ""
+    };
+  }
+
+  const checks = getPasswordChecks(password);
+  const score = Object.values(checks).filter(Boolean).length;
+
+  if (password.length < 8 || score <= 2) {
+    return {
+      label: "Weak",
+      className: "password-strength-weak"
+    };
+  }
+
+  if (score === 3 || score === 4) {
+    return {
+      label: "Medium",
+      className: "password-strength-medium"
+    };
+  }
+
+  return {
+    label: "Strong",
+    className: "password-strength-strong"
+  };
+}
+
+function renderPasswordCriteria(password) {
+  const checks = getPasswordChecks(password);
+
+  const items = [
+    { key: "length", label: "At least 8 characters" },
+    { key: "upper", label: "At least 1 uppercase letter" },
+    { key: "lower", label: "At least 1 lowercase letter" },
+    { key: "number", label: "At least 1 number" },
+    { key: "special", label: "At least 1 special character" }
+  ];
+
+  const container = document.getElementById("passwordCriteria");
+  if (!container) return;
+
+  container.innerHTML = items
+    .map((item) => {
+      const passed = checks[item.key];
+      return `
+        <div class="password-criterion ${passed ? "passed" : ""}">
+          <span class="criterion-icon">${passed ? "✓" : "○"}</span>
+          <span>${item.label}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function updatePasswordStrengthUI() {
+  const passwordInput = document.getElementById("passwordInput");
+  const strengthText = document.getElementById("passwordStrengthText");
+  const strengthFill = document.getElementById("passwordStrengthFill");
+
+  if (!passwordInput || !strengthText || !strengthFill) return;
+
+  const password = passwordInput.value;
+  const strength = getPasswordStrength(password);
+
+  renderPasswordCriteria(password);
+
+  strengthText.className = "password-strength-text";
+  strengthFill.className = "password-strength-fill";
+
+  if (!password) {
+    strengthText.textContent = "Password strength: not entered";
+    strengthFill.style.width = "0%";
+    return;
+  }
+
+  strengthText.textContent = `Password strength: ${strength.label}`;
+  strengthText.classList.add(strength.className);
+
+  if (strength.label === "Weak") {
+    strengthFill.style.width = "33%";
+    strengthFill.classList.add("password-strength-fill-weak");
+  } else if (strength.label === "Medium") {
+    strengthFill.style.width = "66%";
+    strengthFill.classList.add("password-strength-fill-medium");
+  } else {
+    strengthFill.style.width = "100%";
+    strengthFill.classList.add("password-strength-fill-strong");
+  }
+}
+
 function applyAuthPageStateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const prefillEmail = params.get("prefillEmail") || "";
@@ -36,20 +140,15 @@ function applyAuthPageStateFromUrl() {
 }
 
 async function signInUser() {
-  const email = document.getElementById("emailInput").value.trim();
-  const password = document.getElementById("passwordInput").value.trim();
+  const email = document.getElementById("emailInput").value.trim().toLowerCase();
+  const password = document.getElementById("passwordInput").value;
   const authMessage = document.getElementById("authMessage");
 
   authMessage.textContent = "";
   authMessage.style.color = "#b91c1c";
 
   if (!email || !password) {
-    authMessage.textContent = "Please enter your email and PIN.";
-    return;
-  }
-
-  if (!/^\d{6}$/.test(password)) {
-    authMessage.textContent = "PIN must be exactly 6 digits.";
+    authMessage.textContent = "Please enter your email and password.";
     return;
   }
 
@@ -108,8 +207,10 @@ function setupAuthUI() {
   const passwordInput = document.getElementById("passwordInput");
 
   applyAuthPageStateFromUrl();
+  updatePasswordStrengthUI();
 
   loginBtn.addEventListener("click", signInUser);
+
   forgotPasswordLink.addEventListener("click", function (e) {
     e.preventDefault();
     sendResetEmail();
@@ -124,6 +225,8 @@ function setupAuthUI() {
       togglePassword.textContent = "Show";
     }
   });
+
+  passwordInput.addEventListener("input", updatePasswordStrengthUI);
 
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     await logActivity("logout", { page: "header" });

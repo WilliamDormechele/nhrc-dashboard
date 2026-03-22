@@ -41,22 +41,39 @@
       </div>
 
       <h2>Sign in</h2>
-      <p>Enter your NHRC email and 6-digit PIN.</p>
+      <p>Enter your NHRC email and password.</p>
 
       <div class="form-group">
         <label for="emailInput">Email</label>
         <input type="email" id="emailInput" placeholder="name@nhrc.org" />
       </div>
 
-      <div class="form-group">
-        <label for="passwordInput">PIN (6 digits)</label>
-        <div class="password-row">
-          <input type="password" id="passwordInput" maxlength="6" inputmode="numeric" placeholder="******" />
-          <button type="button" id="togglePassword" class="btn btn-small">Show</button>
-        </div>
-        <div class="hint">PIN must be exactly 6 digits.</div>
-      </div>
+<div class="form-group">
+  <label for="passwordInput">Password</label>
+  <div class="password-row">
+    <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password" />
+    <button type="button" id="togglePassword" class="btn btn-small">Show</button>
+  </div>
 
+  <div class="hint">
+    Use your password. After a reset, you can sign in with any standard secure password.
+  </div>
+
+  <div class="password-strength-wrap">
+    <div class="password-strength-bar">
+      <div id="passwordStrengthFill" class="password-strength-fill"></div>
+    </div>
+    <div id="passwordStrengthText" class="password-strength-text">Password strength: not entered</div>
+  </div>
+
+  <div id="passwordCriteria" class="password-criteria">
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase letter</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 number</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span></div>
+  </div>
+</div>
       <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
 
       <div class="forgot-line">
