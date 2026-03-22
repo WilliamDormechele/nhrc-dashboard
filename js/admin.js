@@ -899,7 +899,7 @@ function setupAdminUI() {
     await loadProjectsForAdmin();
   });
 
-  loadSupervisorOptions("");
+  // Do not load admin-only Firestore data here.
+  // These are loaded only after sign-in, and only for admin/developer users.
   updateSupervisorFieldVisibility();
-  loadMonitoringDirectorySyncStatus();
 }
