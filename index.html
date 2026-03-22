@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>NHRC Multi-Project Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div>
+      <h1 id="siteTitle">NHRC Multi-Project Dashboard</h1>
+      <div class="topbar-subtitle">
+        Secure dashboard access by project, role, and privilege
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <span id="userEmailDisplay">Not signed in</span>
+      <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
+    </div>
+  </header>
+
+  <div id="systemInfoBar" class="info-bar">
+    Secure access enabled. Please sign in.
+  </div>
+
+  <!-- LOGIN -->
+  <main id="auth-container" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-banner">
+        <strong>How access works now</strong>
+        <ol>
+          <li>Accounts are created by the administrator.</li>
+          <li>Users can only see projects assigned to them.</li>
+          <li>Access is controlled by role and privilege level.</li>
+        </ol>
+      </div>
+
+      <h2>Sign in</h2>
+      <p>Enter your NHRC email and 6-digit PIN.</p>
+
+      <div class="form-group">
+        <label for="emailInput">Email</label>
+        <input type="email" id="emailInput" placeholder="name@nhrc.org" />
+      </div>
+
+      <div class="form-group">
+        <label for="passwordInput">PIN (6 digits)</label>
+        <div class="password-row">
+          <input type="password" id="passwordInput" maxlength="6" inputmode="numeric" placeholder="******" />
+          <button type="button" id="togglePassword" class="btn btn-small">Show</button>
+        </div>
+        <div class="hint">PIN must be exactly 6 digits.</div>
+      </div>
+
+      <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+
+      <div class="forgot-line">
+        <a href="#" id="forgotPasswordLink">Forgot password?</a>
+      </div>
+
+      <div id="authMessage" class="auth-message"></div>
+    </div>
+  </main>
+
+  <!-- APP -->
+  <main id="app-container" class="app-container" style="display:none;">
+    <!-- Top controls -->
+    <section class="panel">
+      <div class="controls-grid">
+        <div>
+          <label for="projectSelect">Project</label>
+          <select id="projectSelect"></select>
+        </div>
+
+        <div>
+          <label for="roleDisplay">Role</label>
+          <input type="text" id="roleDisplay" readonly />
+        </div>
+
+        <div>
+          <label for="nameDisplay">Full name</label>
+          <input type="text" id="nameDisplay" readonly />
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabs -->
+    <section class="panel">
+      <div class="tab-bar">
+        <button class="tab-button active" data-tab="tab-dashboard">Dashboard</button>
+        <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">QA Reports</button>
+        <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">Queries</button>
+        <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">Senior Monitoring</button>
+        <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">Admin</button>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="tab-dashboard" class="tab-content active panel">
+      <div class="section-header">
+        <h2 id="dashboardTitle">Project Dashboard</h2>
+        <p id="dashboardDescription">Select a project to view its dashboard.</p>
+      </div>
+
+      <div class="download-actions">
+        <a id="downloadPdfBtn" class="action-btn pdf" href="#" target="_blank" rel="noopener">⬇ Download PDF</a>
+        <a id="downloadPptBtn" class="action-btn ppt" href="#" target="_blank" rel="noopener">⬇ Download PPT</a>
+      </div>
+
+      <div class="dashboard-instructions">
+        Use the project dropdown to switch between projects you are assigned to.
+      </div>
+
+      <div class="powerbi-container">
+        <iframe id="dashboardFrame" title="Project Dashboard" allowfullscreen></iframe>
+      </div>
+    </section>
+
+    <!-- Reports -->
+    <section id="tab-reports" class="tab-content panel">
+      <div class="section-header">
+        <h2>QA Reports</h2>
+        <p>Reports shown here depend on your role and the selected project.</p>
+      </div>
+
+      <div id="reportsContainer" class="reports-layout"></div>
+    </section>
+
+    <!-- Queries -->
+    <section id="tab-queries" class="tab-content panel">
+      <div class="section-header">
+        <h2>Queries</h2>
+        <p>This area is available only to users with query access.</p>
+      </div>
+
+      <div id="queriesContainer" class="reports-layout"></div>
+    </section>
+
+    <!-- Monitoring -->
+    <section id="tab-monitoring" class="tab-content panel">
+      <div class="section-header">
+        <h2>Senior Monitoring</h2>
+        <p>Track logins, downloads, time spent on pages, and recent activity.</p>
+      </div>
+
+      <div class="toolbar-row">
+        <div>
+          <label for="monitoringDays">Time window</label>
+          <select id="monitoringDays">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+
+        <div class="toolbar-end">
+          <button id="refreshMonitoringBtn" class="btn btn-primary">Refresh Monitoring</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Logins</div>
+          <div class="stat-value" id="statLogins">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Downloads</div>
+          <div class="stat-value" id="statDownloads">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Unique Users</div>
+          <div class="stat-value" id="statUsers">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tracked Minutes</div>
+          <div class="stat-value" id="statMinutes">0</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Activity by Action</h3>
+          <canvas id="actionsChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Activity by Project</h3>
+          <canvas id="projectsChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Top Active Users</h3>
+          <canvas id="usersChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Daily Activity Trend</h3>
+          <canvas id="dailyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel inner-panel">
+        <h3>Recent Activity Logs</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date/Time</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Project</th>
+                <th>Action</th>
+                <th>Page</th>
+                <th>Target</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="monitoringTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admin -->
+    <section id="tab-admin" class="tab-content panel">
+      <div class="section-header">
+        <h2>Admin Control</h2>
+        <p>Create users, assign projects, manage privileges, and manage projects.</p>
+      </div>
+
+      <!-- User management -->
+      <div class="panel inner-panel">
+        <h3>Create / Edit User</h3>
+
+        <!-- Hidden field stores the UID when editing an existing user -->
+        <input type="hidden" id="editingUserId" />
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="adminUserFullName">Full name</label>
+            <input type="text" id="adminUserFullName" />
+          </div>
+
+          <div class="form-group">
+            <label for="adminUserEmail">Email</label>
+            <input type="email" id="adminUserEmail" />
+          </div>
+
+          <div class="form-group">
+            <label for="adminUserPassword">Temporary PIN / Password</label>
+            <input type="text" id="adminUserPassword" placeholder="For new users only" />
+          </div>
+
+          <div class="form-group">
+            <label for="adminUserRole">Role</label>
+            <select id="adminUserRole">
+              <option value="field_worker">Field Worker</option>
+              <option value="field_supervisor">Field Supervisor</option>
+              <option value="field_headquarters">Field Headquarters</option>
+              <option value="administrator">Administrator</option>
+              <option value="developer">Developer</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="adminUserIsActive">Is Active?</label>
+            <select id="adminUserIsActive">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Assigned Projects</label>
+          <div id="adminUserProjectsBox" class="checkbox-grid"></div>
+        </div>
+
+        <div class="button-row">
+          <button id="saveUserBtn" class="btn btn-primary">Save User</button>
+          <button id="clearUserFormBtn" class="btn btn-secondary">Clear Form</button>
+        </div>
+
+        <div id="adminUserMessage" class="admin-message"></div>
+      </div>
+
+      <div class="panel inner-panel">
+        <div class="section-row">
+          <h3>User List</h3>
+          <button id="refreshUsersBtn" class="btn btn-secondary">Refresh Users</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Active</th>
+                <th>Assigned Projects</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Project management -->
+      <div class="panel inner-panel">
+        <h3>Create / Edit Project</h3>
+
+        <input type="hidden" id="editingProjectCode" />
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="projectCodeInput">Project Code</label>
+            <input type="text" id="projectCodeInput" placeholder="e.g. brave" />
+          </div>
+
+          <div class="form-group">
+            <label for="projectNameInput">Project Name</label>
+            <input type="text" id="projectNameInput" placeholder="e.g. BRAVE" />
+          </div>
+
+          <div class="form-group">
+            <label for="projectDescriptionInput">Description</label>
+            <input type="text" id="projectDescriptionInput" />
+          </div>
+
+          <div class="form-group">
+            <label for="projectEnabledInput">Enabled?</label>
+            <select id="projectEnabledInput">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="projectDashboardUrlInput">Dashboard Embed URL</label>
+            <input type="text" id="projectDashboardUrlInput" />
+          </div>
+
+          <div class="form-group">
+            <label for="projectPdfInput">Dashboard PDF Path</label>
+            <input type="text" id="projectPdfInput" />
+          </div>
+
+          <div class="form-group full-span">
+            <label for="projectPptInput">Dashboard PPT Path</label>
+            <input type="text" id="projectPptInput" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="projectReportsJsonInput">Reports JSON</label>
+          <textarea id="projectReportsJsonInput" rows="8" class="code-textarea"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="projectQueriesJsonInput">Queries JSON</label>
+          <textarea id="projectQueriesJsonInput" rows="5" class="code-textarea"></textarea>
+        </div>
+
+        <div class="button-row">
+          <button id="saveProjectBtn" class="btn btn-primary">Save Project</button>
+          <button id="clearProjectFormBtn" class="btn btn-secondary">Clear Project Form</button>
+          <button id="seedProjectsBtn" class="btn btn-secondary">Seed Fallback Projects to Firestore</button>
+        </div>
+
+        <div id="adminProjectMessage" class="admin-message"></div>
+      </div>
+
+      <div class="panel inner-panel">
+        <div class="section-row">
+          <h3>Project List</h3>
+          <button id="refreshProjectsBtn" class="btn btn-secondary">Refresh Projects</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Enabled</th>
+                <th>Dashboard</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="projectsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-main">NHRC Dashboard Platform</div>
+    <div class="footer-sub">Multi-project secure access • HeMAB • HDSS • BRAVE • Future projects</div>
+  </footer>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Chart.js for monitoring charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- App scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="data/project-config.js"></script>
+  <script src="js/permissions.js"></script>
+  <script src="js/tracker.js"></script>
+  <script src="js/projects.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/monitoring.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
