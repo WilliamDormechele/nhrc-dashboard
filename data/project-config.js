@@ -46,15 +46,15 @@ const PROJECTS = {
     name: "HDSS",
     description: "HDSS dashboard and reports.",
     dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiNzAyOGRjY2QtYjJkMS00MjNkLTg0OWEtYzZkYTk4ZmUxZThmIiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9&pageName=9c0e0090daad13b8cc2e",
-    dashboardPdf: "reports/HDSS/HDSS_Dashboard_Latest.pdf",
-    dashboardPpt: "reports/HDSS/HDSS_Dashboard_Latest.pptx",
+    dashboardPdf: "reports/hdss/HDSS_Dashboard_Latest.pdf",
+    dashboardPpt: "reports/hdss/HDSS_Dashboard_Latest.pptx",
 
     reports: [
       {
         category: "HDSS Core Reports",
         items: [
           { title: "HDSS Summary Report", file: "reports/HDSS/hdss_summary_report.pdf" },
-          { title: "HDSS Error Log", file: "reports/HDSS/hdss_error_log.pdf" }
+          { title: "HDSS Error Log", file: "reports/hdss/hdss_error_log.pdf" }
         ]
       }
     ],
@@ -69,15 +69,15 @@ const PROJECTS = {
     name: "BRAVE",
     description: "BRAVE AESI surveillance dashboard and reports.",
     dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiNzAyOGRjY2QtYjJkMS00MjNkLTg0OWEtYzZkYTk4ZmUxZThmIiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9&pageName=9c0e0090daad13b8cc2e",
-    dashboardPdf: "reports/BRAVE/BRAVE_Dashboard_Latest.pdf",
-    dashboardPpt: "reports/BRAVE/BRAVE_Dashboard_Latest.pptx",
+    dashboardPdf: "reports/brave/BRAVE_Dashboard_Latest.pdf",
+    dashboardPpt: "reports/brave/BRAVE_Dashboard_Latest.pptx",
 
     reports: [
       {
         category: "BRAVE Reports",
         items: [
-          { title: "BRAVE Summary Report", file: "reports/BRAVE/brave_summary_report.pdf" },
-          { title: "BRAVE Error Log", file: "reports/BRAVE/brave_error_log.pdf" }
+          { title: "BRAVE Summary Report", file: "reports/brave/brave_summary_report.pdf" },
+          { title: "BRAVE Error Log", file: "reports/brave/brave_error_log.pdf" }
         ]
       }
     ],
