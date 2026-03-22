@@ -223,25 +223,85 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+/* Tab bar container */
 .tab-bar {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  border-bottom: 1px solid #dbe3ef;
+  padding-bottom: 6px;
 }
 
+/* Tab button base */
 .tab-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+
   border: none;
-  border-radius: 999px;
-  padding: 10px 16px;
-  background: #e6ebf3;
-  color: #1f3044;
+  border-radius: 10px 10px 0 0;
+  padding: 11px 16px;
+
+  background: transparent;
+  color: #4b5563;
   cursor: pointer;
   font-weight: 700;
+  font-size: 0.94rem;
+
+  transition: all 0.25s ease;
 }
 
+/* Icons */
+.tab-button i {
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+/* Hover effect */
+.tab-button:hover {
+  background: #f5f8ff;
+  color: #1d4ed8;
+}
+
+.tab-button:hover i {
+  transform: scale(1.1);
+}
+
+/* Active tab */
 .tab-button.active {
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+/* Underline animation (premium feel) */
+.tab-button::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -7px;
+  width: 0;
+  height: 3px;
+  border-radius: 999px;
   background: #1d4ed8;
-  color: #fff;
+  transition: width 0.25s ease;
+}
+
+/* Optional hover underline preview */
+.tab-button:hover::after {
+  width: 100%;
+  background: #9dbcf7;
+}
+
+/* Expand underline on active */
+.tab-button.active {
+  color: #1d4ed8;
+  background: #f8fbff;
+}
+
+.tab-button.active::after {
+  width: 100%;
+  background: #1d4ed8;
 }
 
 .tab-content {
