@@ -7,19 +7,46 @@ window.projectRegistry = {};
  * If no Firestore projects exist yet, use the local fallback config from data/project-config.js.
  */
 async function loadProjectsRegistry() {
-  const snapshot = await db.collection("projects").get();
   const firestoreProjects = {};
+  const assignedProjects = Array.isArray(window.currentUserProfile?.assignedProjects)
+    ? window.currentUserProfile.assignedProjects
+    : [];
+  const role = window.currentUserProfile?.role || "";
+  const canReadAllProjects = role === "administrator" || role === "developer";
 
-  snapshot.forEach((doc) => {
-    const data = doc.data();
+  if (canReadAllProjects) {
+    const snapshot = await db.collection("projects").get();
 
-    if (data.enabled !== false) {
-      firestoreProjects[doc.id] = {
-        code: doc.id,
-        ...data
-      };
-    }
-  });
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+
+      if (data.enabled !== false) {
+        firestoreProjects[doc.id] = {
+          code: doc.id,
+          ...data
+        };
+      }
+    });
+  } else {
+    const reads = assignedProjects.map((projectCode) =>
+      db.collection("projects").doc(projectCode).get()
+    );
+
+    const docs = await Promise.all(reads);
+
+    docs.forEach((doc) => {
+      if (!doc.exists) return;
+
+      const data = doc.data();
+
+      if (data.enabled !== false) {
+        firestoreProjects[doc.id] = {
+          code: doc.id,
+          ...data
+        };
+      }
+    });
+  }
 
   if (Object.keys(firestoreProjects).length > 0) {
     window.projectRegistry = firestoreProjects;
