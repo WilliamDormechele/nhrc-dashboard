@@ -16,6 +16,7 @@ if (!firebase.apps.length) {
 }
 const auth = firebase.auth();
 const db = firebase.firestore();
+const functions = firebase.app().functions("us-central1");
 
 // Secondary app/auth instance for creating new users from the admin panel
 // This avoids replacing the currently logged-in administrator session.

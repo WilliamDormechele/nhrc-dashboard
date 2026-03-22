@@ -553,7 +553,9 @@ async function loadUsersForAdmin() {
     tbody.innerHTML = "";
 
     snapshot.forEach((doc) => {
-      const data = doc.data();
+      const data = doc.data() || {};
+      const isActive = data.isActive === true;
+
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
@@ -561,22 +563,227 @@ async function loadUsersForAdmin() {
         <td>${data.email || ""}</td>
         <td>${data.role || ""}</td>
         <td>${data.supervisorName || data.supervisorEmail || "-"}</td>
-        <td>${data.isActive === true ? "Yes" : "No"}</td>
+        <td>${isActive ? "Yes" : "No"}</td>
         <td>${safeArray(data.assignedProjects).join(", ")}</td>
-        <td><button class="btn btn-secondary btn-edit-user" data-id="${doc.id}">Edit</button></td>
+        <td>
+          <div class="button-row">
+            <button class="btn btn-secondary btn-edit-user" data-id="${doc.id}">Edit</button>
+            <button class="btn btn-secondary btn-reset-user" data-id="${doc.id}">Reset</button>
+            <button
+              class="btn ${isActive ? "btn-warning" : "btn-success"} btn-toggle-user"
+              data-id="${doc.id}"
+              data-email="${data.email || ""}"
+              data-active="${isActive ? "true" : "false"}"
+            >
+              ${isActive ? "Deactivate" : "Activate"}
+            </button>
+            <button
+              class="btn btn-danger btn-delete-user"
+              data-id="${doc.id}"
+              data-email="${data.email || ""}"
+            >
+              Delete
+            </button>
+          </div>
+        </td>
       `;
 
       tbody.appendChild(tr);
     });
 
+    // EDIT
     document.querySelectorAll(".btn-edit-user").forEach((btn) => {
       btn.addEventListener("click", async () => {
         await loadUserIntoForm(btn.dataset.id);
       });
     });
+
+    // RESET
+    document.querySelectorAll(".btn-reset-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await sendPasswordResetForUser(btn.dataset.id);
+      });
+    });
+
+    // ACTIVATE / DEACTIVATE
+    document.querySelectorAll(".btn-toggle-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const uid = btn.dataset.id;
+        const email = btn.dataset.email || "";
+        const current = btn.dataset.active === "true";
+
+        await toggleUserActiveStatus(uid, email, !current);
+      });
+    });
+
+    // DELETE
+    document.querySelectorAll(".btn-delete-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const uid = btn.dataset.id;
+        const email = btn.dataset.email || "";
+
+        await deleteUserCompletelyFromAdmin(uid, email);
+      });
+    });
+
   } catch (error) {
     console.error(error);
     tbody.innerHTML = `<tr><td colspan="7">Failed to load users.</td></tr>`;
+  }
+}
+
+/**
+ * Send a password reset email for a selected user.
+ */
+async function sendPasswordResetForUser(userId) {
+  try {
+    const doc = await db.collection("users").doc(userId).get();
+
+    if (!doc.exists) {
+      throw new Error("User not found.");
+    }
+
+    const data = doc.data() || {};
+    const email = (data.email || "").trim().toLowerCase();
+    const fullName = data.fullName || "User";
+
+    if (!email) {
+      throw new Error("This user does not have a valid email address.");
+    }
+
+    const useSweetAlert = typeof Swal !== "undefined";
+
+    if (useSweetAlert) {
+      const result = await Swal.fire({
+        title: "Send password reset email?",
+        html: `Send a password reset email to <b>${fullName}</b><br><small>${email}</small>?`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, send reset email",
+        cancelButtonText: "Cancel"
+      });
+
+      if (!result.isConfirmed) return;
+    } else {
+      const confirmed = confirm(`Send a password reset email to ${fullName} (${email})?`);
+      if (!confirmed) return;
+    }
+
+    const actionCodeSettings = getPasswordResetActionCodeSettings(email);
+    await auth.sendPasswordResetEmail(email, actionCodeSettings);
+
+    await logActivity("admin_send_password_reset", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage(
+      "adminUserMessage",
+      `Password reset email sent successfully to ${fullName} (${email}).`
+    );
+
+    if (useSweetAlert) {
+      await Swal.fire({
+        icon: "success",
+        title: "Reset Email Sent",
+        text: `A password reset email has been sent to ${email}.`
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Failed to send reset email: ${error.message}`, true);
+
+    if (typeof Swal !== "undefined") {
+      await Swal.fire({
+        icon: "error",
+        title: "Reset Failed",
+        text: error.message
+      });
+    }
+  }
+}
+
+/**
+ * Delete a user from Firestore and monitoring_directory.
+ * Note: This does NOT delete the Firebase Authentication account.
+ * Full Auth deletion requires a backend / Cloud Function using Firebase Admin SDK.
+ */
+async function deleteUserFromAdmin(userId) {
+  try {
+    const doc = await db.collection("users").doc(userId).get();
+
+    if (!doc.exists) {
+      throw new Error("User not found.");
+    }
+
+    const data = doc.data() || {};
+    const fullName = data.fullName || "User";
+    const email = (data.email || "").trim().toLowerCase();
+
+    if (window.currentUserProfile?.uid === userId) {
+      throw new Error("You cannot delete your own currently signed-in admin account from this screen.");
+    }
+
+    const useSweetAlert = typeof Swal !== "undefined";
+
+    if (useSweetAlert) {
+      const result = await Swal.fire({
+        title: "Delete this user?",
+        html:
+          `This will remove <b>${fullName}</b><br><small>${email}</small><br><br>` +
+          `from the dashboard user records and monitoring directory.<br><br>` +
+          `<b>Note:</b> This does not remove the Firebase Authentication login account.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete user",
+        cancelButtonText: "Cancel"
+      });
+
+      if (!result.isConfirmed) return;
+    } else {
+      const confirmed = confirm(
+        `Delete ${fullName} (${email}) from dashboard records?\n\n` +
+        `This removes the user from Firestore and monitoring directory only.\n` +
+        `It does NOT remove the Firebase Authentication account.`
+      );
+
+      if (!confirmed) return;
+    }
+
+    await db.collection("users").doc(userId).delete();
+    await db.collection("monitoring_directory").doc(userId).delete();
+
+    await logActivity("admin_delete_user_record", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage(
+      "adminUserMessage",
+      `User record deleted successfully for ${fullName} (${email}).`
+    );
+
+    await clearUserForm();
+    await loadUsersForAdmin();
+
+    if (useSweetAlert) {
+      await Swal.fire({
+        icon: "success",
+        title: "User Deleted",
+        text: `${fullName} was removed from the dashboard records.`
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Delete failed: ${error.message}`, true);
+
+    if (typeof Swal !== "undefined") {
+      await Swal.fire({
+        icon: "error",
+        title: "Delete Failed",
+        text: error.message
+      });
+    }
   }
 }
 
@@ -934,3 +1141,342 @@ function setupAdminUI() {
   // These are loaded only after sign-in, and only for admin/developer users.
   updateSupervisorFieldVisibility();
 }
+
+const setUserActiveStateCallable = functions.httpsCallable("setUserActiveState");
+const softDeleteUserCallable = functions.httpsCallable("softDeleteUser");
+const restoreDeletedUserCallable = functions.httpsCallable("restoreDeletedUser");
+const hardDeleteUserCallable = functions.httpsCallable("hardDeleteUser");
+
+function getAdminUserFilterValue() {
+  return document.getElementById("adminUserStatusFilter")?.value || "all";
+}
+
+function getUserStatusLabel(user) {
+  if (user.isDeleted === true) return "Deleted";
+  if (user.isActive === true) return "Active";
+  return "Inactive";
+}
+
+async function loadAdminUserMetricsFromSnapshot(snapshot) {
+  let total = 0;
+  let active = 0;
+  let inactive = 0;
+  let deleted = 0;
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    total += 1;
+
+    if (data.isDeleted === true) {
+      deleted += 1;
+    } else if (data.isActive === true) {
+      active += 1;
+    } else {
+      inactive += 1;
+    }
+  });
+
+  const totalEl = document.getElementById("adminUserTotalCount");
+  const activeEl = document.getElementById("adminUserActiveCount");
+  const inactiveEl = document.getElementById("adminUserInactiveCount");
+  const deletedEl = document.getElementById("adminUserDeletedCount");
+
+  if (totalEl) totalEl.textContent = total;
+  if (activeEl) activeEl.textContent = active;
+  if (inactiveEl) inactiveEl.textContent = inactive;
+  if (deletedEl) deletedEl.textContent = deleted;
+}
+
+async function loadRecentAdminAuditLogs() {
+  const tbody = document.getElementById("adminAuditTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5">Loading audit trail...</td></tr>`;
+
+  try {
+    const snapshot = await db
+      .collection("admin_audit_logs")
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .get();
+
+    if (snapshot.empty) {
+      tbody.innerHTML = `<tr><td colspan="5">No admin audit logs found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      const tr = document.createElement("tr");
+
+      const dateText = data.createdAt && data.createdAt.toDate
+        ? data.createdAt.toDate().toLocaleString()
+        : "";
+
+      tr.innerHTML = `
+        <td>${dateText}</td>
+        <td>${data.action || ""}</td>
+        <td>${data.targetName || data.targetEmail || data.targetUserId || ""}</td>
+        <td>${data.actorName || data.actorEmail || ""}</td>
+        <td>${data.note || ""}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  } catch (error) {
+    console.error(error);
+    tbody.innerHTML = `<tr><td colspan="5">Failed to load audit trail.</td></tr>`;
+  }
+}
+
+async function toggleUserActiveStatus(userId, email, nextIsActive) {
+  try {
+    const actionText = nextIsActive ? "activate" : "deactivate";
+    const confirmed = confirm(`Are you sure you want to ${actionText} ${email}?`);
+    if (!confirmed) return;
+
+    await setUserActiveStateCallable({
+      userId,
+      isActive: nextIsActive
+    });
+
+    await logActivity(nextIsActive ? "admin_activate_user" : "admin_deactivate_user", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage(
+      "adminUserMessage",
+      nextIsActive
+        ? `User activated successfully: ${email}`
+        : `User deactivated successfully: ${email}`
+    );
+
+    await loadUsersForAdmin();
+    await loadRecentAdminAuditLogs();
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Status update failed: ${error.message}`, true);
+  }
+}
+
+async function softDeleteUserFromAdmin(userId, email) {
+  try {
+    const confirmed = confirm(
+      `Soft delete ${email}?\n\nThis will:\n- mark the user as deleted\n- disable login immediately\n- keep the record for restore later`
+    );
+    if (!confirmed) return;
+
+    await softDeleteUserCallable({
+      userId,
+      reason: "Soft deleted from admin panel"
+    });
+
+    await logActivity("admin_soft_delete_user", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage("adminUserMessage", `User soft deleted successfully: ${email}`);
+    await loadUsersForAdmin();
+    await loadRecentAdminAuditLogs();
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Soft delete failed: ${error.message}`, true);
+  }
+}
+
+async function restoreDeletedUserFromAdmin(userId, email) {
+  try {
+    const confirmed = confirm(`Restore deleted user ${email}?`);
+    if (!confirmed) return;
+
+    await restoreDeletedUserCallable({ userId });
+
+    await logActivity("admin_restore_deleted_user", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage("adminUserMessage", `Deleted user restored successfully: ${email}`);
+    await loadUsersForAdmin();
+    await loadRecentAdminAuditLogs();
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Restore failed: ${error.message}`, true);
+  }
+}
+
+async function deleteUserCompletelyFromAdmin(userId, email) {
+  try {
+    const confirmed = confirm(
+      `Permanently delete ${email}?\n\nThis cannot be undone.\nThe Auth account will also be removed.`
+    );
+    if (!confirmed) return;
+
+    await hardDeleteUserCallable({ userId });
+
+    await logActivity("admin_hard_delete_user", {
+      page: "admin",
+      target: email
+    });
+
+    setAdminMessage("adminUserMessage", `User permanently deleted: ${email}`);
+    await clearUserForm();
+    await loadUsersForAdmin();
+    await loadRecentAdminAuditLogs();
+  } catch (error) {
+    console.error(error);
+    setAdminMessage("adminUserMessage", `Permanent delete failed: ${error.message}`, true);
+  }
+}
+
+async function loadUsersForAdmin() {
+  const tbody = document.getElementById("usersTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="7">Loading users...</td></tr>`;
+
+  try {
+    const snapshot = await db.collection("users").orderBy("fullName").get();
+    await loadAdminUserMetricsFromSnapshot(snapshot);
+
+    const filter = getAdminUserFilterValue();
+    const rows = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      const isDeleted = data.isDeleted === true;
+      const isActive = data.isActive === true;
+
+      const show =
+        filter === "all" ||
+        (filter === "active" && !isDeleted && isActive) ||
+        (filter === "inactive" && !isDeleted && !isActive) ||
+        (filter === "deleted" && isDeleted);
+
+      if (!show) return;
+
+      rows.push({ id: doc.id, ...data });
+    });
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7">No users found for the selected filter.</td></tr>`;
+      await loadRecentAdminAuditLogs();
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    rows.forEach((data) => {
+      const isDeleted = data.isDeleted === true;
+      const isActive = data.isActive === true;
+      const statusLabel = getUserStatusLabel(data);
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${data.fullName || ""}</td>
+        <td>${data.email || ""}</td>
+        <td>${data.role || ""}</td>
+        <td>${data.supervisorName || data.supervisorEmail || "-"}</td>
+        <td>${statusLabel}</td>
+        <td>${safeArray(data.assignedProjects).join(", ")}</td>
+        <td>
+          <div class="button-row">
+            <button class="btn btn-secondary btn-edit-user" data-id="${data.id}">Edit</button>
+            <button class="btn btn-secondary btn-reset-user" data-id="${data.id}">Reset</button>
+
+            ${
+              isDeleted
+                ? `<button class="btn btn-success btn-restore-user" data-id="${data.id}" data-email="${data.email || ""}">Restore</button>`
+                : `<button
+                    class="btn ${isActive ? "btn-warning" : "btn-success"} btn-toggle-user"
+                    data-id="${data.id}"
+                    data-email="${data.email || ""}"
+                    data-active="${isActive ? "true" : "false"}"
+                  >
+                    ${isActive ? "Deactivate" : "Activate"}
+                  </button>`
+            }
+
+            ${
+              isDeleted
+                ? `<button class="btn btn-danger btn-hard-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Permanent Delete</button>`
+                : `<button class="btn btn-danger btn-soft-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Soft Delete</button>`
+            }
+          </div>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    document.querySelectorAll(".btn-edit-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await loadUserIntoForm(btn.dataset.id);
+      });
+    });
+
+    document.querySelectorAll(".btn-reset-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await sendPasswordResetForUser(btn.dataset.id);
+      });
+    });
+
+    document.querySelectorAll(".btn-toggle-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await toggleUserActiveStatus(
+          btn.dataset.id,
+          btn.dataset.email || "",
+          btn.dataset.active !== "true"
+        );
+      });
+    });
+
+    document.querySelectorAll(".btn-soft-delete-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await softDeleteUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
+      });
+    });
+
+    document.querySelectorAll(".btn-restore-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await restoreDeletedUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
+      });
+    });
+
+    document.querySelectorAll(".btn-hard-delete-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await deleteUserCompletelyFromAdmin(btn.dataset.id, btn.dataset.email || "");
+      });
+    });
+
+    await loadRecentAdminAuditLogs();
+  } catch (error) {
+    console.error(error);
+    tbody.innerHTML = `<tr><td colspan="7">Failed to load users.</td></tr>`;
+  }
+}
+
+function setupAdminLifecycleExtras() {
+  const filter = document.getElementById("adminUserStatusFilter");
+  const auditRefresh = document.getElementById("refreshAdminAuditBtn");
+
+  if (filter) {
+    filter.addEventListener("change", loadUsersForAdmin);
+  }
+
+  if (auditRefresh) {
+    auditRefresh.addEventListener("click", loadRecentAdminAuditLogs);
+  }
+}
+
+const originalSetupAdminUI = setupAdminUI;
+
+setupAdminUI = function () {
+  originalSetupAdminUI();
+  setupAdminLifecycleExtras();
+};

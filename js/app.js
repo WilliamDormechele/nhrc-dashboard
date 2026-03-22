@@ -3,6 +3,40 @@
 window.currentUserProfile = null;
 window.currentProjectCode = null;
 
+window.currentUserDocUnsubscribe = null;
+
+function stopWatchingCurrentUserProfile() {
+  if (typeof window.currentUserDocUnsubscribe === "function") {
+    window.currentUserDocUnsubscribe();
+    window.currentUserDocUnsubscribe = null;
+  }
+}
+
+function watchCurrentUserProfile(uid) {
+  stopWatchingCurrentUserProfile();
+
+  window.currentUserDocUnsubscribe = db.collection("users").doc(uid).onSnapshot(async (snapshot) => {
+    if (!snapshot.exists) {
+      alert("Your account record was removed. You will now be signed out.");
+      stopWatchingCurrentUserProfile();
+      await auth.signOut();
+      return;
+    }
+
+    const data = snapshot.data() || {};
+    const inactive = data.isActive === false;
+    const deleted = data.isDeleted === true;
+
+    if (inactive || deleted) {
+      alert("Your access has been disabled. Please contact the administrator.");
+      stopWatchingCurrentUserProfile();
+      await auth.signOut();
+    }
+  }, (error) => {
+    console.error("User profile watch error:", error);
+  });
+}
+
 const authContainer = document.getElementById("auth-container");
 const appContainer = document.getElementById("app-container");
 const userEmailDisplay = document.getElementById("userEmailDisplay");
@@ -173,6 +207,7 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     window.currentUserProfile = profile;
+    watchCurrentUserProfile(user.uid);
     console.log("Logged in profile:", profile);
 
     // Load projects from Firestore first, fallback to local config if Firestore is empty

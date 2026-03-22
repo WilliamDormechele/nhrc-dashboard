@@ -423,38 +423,91 @@
         <div id="adminUserMessage" class="admin-message"></div>
       </div>
 
-      <div class="panel inner-panel">
-      <div class="section-row">
-        <h3>User List</h3>
-        <div>
-          <div class="button-row">
-            <button id="backfillMissingMonitoringBtn" class="btn btn-secondary">Backfill Missing</button>
-            <button id="forceRebuildMonitoringBtn" class="btn btn-secondary">Force Rebuild Directory</button>
-            <button id="refreshUsersBtn" class="btn btn-secondary">Refresh Users</button>
-          </div>
-          <div id="monitoringDirectorySyncBadge" class="sync-status-badge sync-status-idle">
-            Last sync: Not run yet
-          </div>
-        </div>
+<div class="panel inner-panel">
+  <div class="section-row">
+    <h3>User List</h3>
+    <div>
+      <div class="button-row">
+        <button id="backfillMissingMonitoringBtn" class="btn btn-secondary">Backfill Missing</button>
+        <button id="forceRebuildMonitoringBtn" class="btn btn-secondary">Force Rebuild Directory</button>
+        <button id="refreshUsersBtn" class="btn btn-secondary">Refresh Users</button>
       </div>
+      <div id="monitoringDirectorySyncBadge" class="sync-status-badge sync-status-idle">
+        Last sync: Not run yet
+      </div>
+    </div>
+  </div>
 
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Supervisor</th>
-                <th>Active</th>
-                <th>Assigned Projects</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody"></tbody>
-          </table>
-        </div>
-      </div>
+  <div class="stats-grid" style="margin:16px 0 20px;">
+    <div class="stat-card">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value" id="adminUserTotalCount">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Users</div>
+      <div class="stat-value" id="adminUserActiveCount">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Inactive Users</div>
+      <div class="stat-value" id="adminUserInactiveCount">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Deleted Users</div>
+      <div class="stat-value" id="adminUserDeletedCount">0</div>
+    </div>
+  </div>
+
+  <div class="toolbar-row" style="margin-bottom:14px;">
+    <div>
+      <label for="adminUserStatusFilter">Show</label>
+      <select id="adminUserStatusFilter">
+        <option value="active">Active only</option>
+        <option value="inactive">Inactive only</option>
+        <option value="deleted">Deleted only</option>
+        <option value="all" selected>All users</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Supervisor</th>
+          <th>Status</th>
+          <th>Assigned Projects</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="usersTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel inner-panel">
+  <div class="section-row">
+    <h3>Recent Admin Audit Trail</h3>
+    <button id="refreshAdminAuditBtn" class="btn btn-secondary">Refresh Audit</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date/Time</th>
+          <th>Action</th>
+          <th>Target User</th>
+          <th>Admin</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody id="adminAuditTableBody"></tbody>
+    </table>
+  </div>
+</div>
 
       <!-- Project management -->
       <div class="panel inner-panel">
@@ -554,6 +607,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
 
   <!-- Chart.js for monitoring charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

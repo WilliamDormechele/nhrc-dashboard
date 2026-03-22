@@ -869,3 +869,18 @@ textarea:focus {
   color: #b91c1c;
   border-color: #fca5a5;
 }
+
+.btn-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-success {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+}
