@@ -6,12 +6,13 @@
   <title>NHRC Multi-Project Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
   <header class="topbar">
     <div>
-      <h1 id="siteTitle">NHRC Multi-Project Dashboard</h1>
+      <h1 id="siteTitle">NHRC Projects Dashboard</h1>
       <div class="topbar-subtitle">
         Secure dashboard access by project, role, and privilege
       </div>
@@ -88,16 +89,37 @@
       </div>
     </section>
 
-    <!-- Tabs -->
-    <section class="panel">
-      <div class="tab-bar">
-        <button class="tab-button active" data-tab="tab-dashboard">Dashboard</button>
-        <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">QA Reports</button>
-        <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">Queries</button>
-        <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">Senior Monitoring</button>
-        <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">Admin</button>
-      </div>
-    </section>
+<!-- Tabs -->
+<section class="panel">
+  <div class="tab-bar">
+
+    <button class="tab-button active" data-tab="tab-dashboard">
+      <i class="fas fa-home"></i>
+      <span>Dashboard</span>
+    </button>
+
+    <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">
+      <i class="fas fa-file-alt"></i>
+      <span>Reports</span>
+    </button>
+
+    <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">
+      <i class="fas fa-question-circle"></i>
+      <span>Data Queries</span>
+    </button>
+
+    <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">
+      <i class="fas fa-chart-line"></i>
+      <span>Strategic Oversight</span>
+    </button>
+
+    <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">
+      <i class="fas fa-user-shield"></i>
+      <span>Admin</span>
+    </button>
+
+  </div>
+</section>
 
     <!-- Dashboard -->
     <section id="tab-dashboard" class="tab-content active panel">
@@ -402,8 +424,8 @@
   </main>
 
   <footer class="footer">
-    <div class="footer-main">NHRC Dashboard Platform</div>
-    <div class="footer-sub">Multi-project secure access • HeMAB • HDSS • BRAVE • Future projects</div>
+    <div class="footer-main">NHRC Projects Dashboard Platform</div>
+    <div class="footer-sub">Multi-project secure access • #HDSS • #BRAVE • #HeMAB</div>
   </footer>
 
   <!-- Firebase -->
