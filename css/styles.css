@@ -557,7 +557,7 @@ textarea:focus {
   border: 1px solid #dde2ec;
   border-radius: 14px;
   padding: 16px;
-  min-height: 420px;
+  min-height: 460px;
 }
 
 .chart-card.chart-card-compact {
@@ -576,7 +576,7 @@ textarea:focus {
 }
 
 .chart-canvas-standard {
-  height: 360px !important;
+  height: 400px !important;
 }
 
 .chart-canvas-compact {
