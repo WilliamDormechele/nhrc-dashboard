@@ -748,3 +748,37 @@ textarea:focus {
     justify-content: center;
   }
 }
+
+.sync-status-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.sync-status-idle {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.sync-status-running {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.sync-status-success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #86efac;
+}
+
+.sync-status-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}

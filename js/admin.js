@@ -172,9 +172,12 @@ function getSupervisorPayloadFromForm(role) {
   };
 }
 
-
-async function saveMonitoringDirectoryRecord(userId, userPayload) {
-  await db.collection("monitoring_directory").doc(userId).set({
+/**
+ * Keep monitoring_directory in sync with user profile changes.
+ * This collection is for Strategic Oversight lookups only.
+ */
+async function saveMonitoringDirectoryRecord(userId, userPayload, options = {}) {
+  const payload = {
     fullName: userPayload.fullName || "",
     email: userPayload.email || "",
     role: userPayload.role || "",
@@ -185,7 +188,156 @@ async function saveMonitoringDirectoryRecord(userId, userPayload) {
     supervisorName: userPayload.supervisorName || null,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedBy: window.currentUserProfile.email
-  }, { merge: true });
+  };
+
+  if (options.includeCreatedFields) {
+    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.createdBy = window.currentUserProfile.email;
+  }
+
+  await db.collection("monitoring_directory").doc(userId).set(payload, { merge: true });
+}
+
+function setMonitoringDirectorySyncBadge(message, status = "idle") {
+  const badge = document.getElementById("monitoringDirectorySyncBadge");
+  if (!badge) return;
+
+  badge.textContent = `Last sync: ${message}`;
+  badge.className = "sync-status-badge";
+
+  if (status === "running") {
+    badge.classList.add("sync-status-running");
+  } else if (status === "success") {
+    badge.classList.add("sync-status-success");
+  } else if (status === "error") {
+    badge.classList.add("sync-status-error");
+  } else {
+    badge.classList.add("sync-status-idle");
+  }
+}
+
+/**
+ * One-time backfill of monitoring_directory from existing users.
+ * This saves you from opening and resaving users one by one.
+ */
+async function backfillMonitoringDirectoryFromUsers(options = {}) {
+  const {
+    overwriteExisting = false,
+    progressElementId = "adminUserMessage",
+    activeButtonId = null
+  } = options;
+
+  const progressEl = document.getElementById(progressElementId);
+  const backfillMissingBtn = document.getElementById("backfillMissingMonitoringBtn");
+  const forceRebuildBtn = document.getElementById("forceRebuildMonitoringBtn");
+  const buttons = [backfillMissingBtn, forceRebuildBtn].filter(Boolean);
+
+  const originalLabels = new Map();
+  buttons.forEach((btn) => {
+    originalLabels.set(btn.id, btn.textContent);
+    btn.disabled = true;
+  });
+
+  if (activeButtonId) {
+    const activeBtn = document.getElementById(activeButtonId);
+    if (activeBtn) {
+      activeBtn.textContent = overwriteExisting ? "Rebuilding..." : "Backfilling...";
+    }
+  }
+
+  setMonitoringDirectorySyncBadge(
+    overwriteExisting ? "Rebuild in progress..." : "Backfill in progress...",
+    "running"
+  );
+
+  try {
+    setAdminMessage(
+      progressElementId,
+      overwriteExisting
+        ? "Loading users for full monitoring directory rebuild..."
+        : "Loading users for missing-record backfill..."
+    );
+
+    const usersSnapshot = await db.collection("users").orderBy("fullName").get();
+
+    if (usersSnapshot.empty) {
+      setAdminMessage(progressElementId, "No users found to process.", true);
+      setMonitoringDirectorySyncBadge("No users found to process", "error");
+      return;
+    }
+
+    const directorySnapshot = await db.collection("monitoring_directory").get();
+    const existingDirectoryIds = new Set(directorySnapshot.docs.map((doc) => doc.id));
+
+    const totalUsers = usersSnapshot.docs.length;
+    let processedCount = 0;
+    let writtenCount = 0;
+    let skippedCount = 0;
+
+    for (const doc of usersSnapshot.docs) {
+      processedCount += 1;
+
+      if (progressEl) {
+        progressEl.textContent = `Processing ${processedCount} / ${totalUsers} users...`;
+        progressEl.style.color = "#475569";
+      }
+
+      setMonitoringDirectorySyncBadge(
+        `Processing ${processedCount} / ${totalUsers} users...`,
+        "running"
+      );
+
+      const alreadyExists = existingDirectoryIds.has(doc.id);
+
+      if (alreadyExists && !overwriteExisting) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const data = doc.data();
+
+      const userPayload = {
+        fullName: data.fullName || "",
+        email: data.email || "",
+        role: data.role || "",
+        isActive: data.isActive === true,
+        assignedProjects: Array.isArray(data.assignedProjects) ? data.assignedProjects : [],
+        supervisorId: data.supervisorId || null,
+        supervisorEmail: data.supervisorEmail || null,
+        supervisorName: data.supervisorName || null
+      };
+
+      await saveMonitoringDirectoryRecord(doc.id, userPayload, {
+        includeCreatedFields: !alreadyExists
+      });
+
+      writtenCount += 1;
+    }
+
+    await logActivity(
+      overwriteExisting ? "admin_force_rebuild_monitoring_directory" : "admin_backfill_missing_monitoring_directory",
+      {
+        page: "admin",
+        target: `processed_${processedCount}_written_${writtenCount}_skipped_${skippedCount}`
+      }
+    );
+
+    const successMessage = overwriteExisting
+      ? `Force rebuild complete. Processed ${processedCount} users and rebuilt ${writtenCount} records.`
+      : `Backfill complete. Processed ${processedCount} users, created ${writtenCount} missing records, skipped ${skippedCount}.`;
+
+    setAdminMessage(progressElementId, successMessage);
+    setMonitoringDirectorySyncBadge(successMessage, "success");
+  } catch (error) {
+    console.error(error);
+    setAdminMessage(progressElementId, `Directory sync failed: ${error.message}`, true);
+    setMonitoringDirectorySyncBadge(`Failed: ${error.message}`, "error");
+  } finally {
+    buttons.forEach((btn) => {
+      btn.disabled = false;
+      btn.textContent = originalLabels.get(btn.id) || btn.textContent;
+    });
+  }
 }
 
 /**
@@ -258,7 +410,7 @@ async function saveUserFromAdminForm() {
       createdBy: window.currentUserProfile.email
     });
 
-    await saveMonitoringDirectoryRecord(newUid, userPayload);
+    await saveMonitoringDirectoryRecord(newUid, userPayload, { includeCreatedFields: true });
 
     await logActivity("admin_create_user", {
       page: "admin",
@@ -566,6 +718,98 @@ function setupAdminUI() {
   document.getElementById("clearUserFormBtn").addEventListener("click", clearUserForm);
   document.getElementById("refreshUsersBtn").addEventListener("click", loadUsersForAdmin);
 
+const backfillMissingBtn = document.getElementById("backfillMissingMonitoringBtn");
+if (backfillMissingBtn) {
+  backfillMissingBtn.addEventListener("click", async () => {
+    const useSweetAlert = typeof Swal !== "undefined";
+
+    if (useSweetAlert) {
+      const result = await Swal.fire({
+        title: "Backfill Missing Records?",
+        text: "This will scan all users and create only missing monitoring directory records. Existing records will be skipped.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, backfill missing",
+        cancelButtonText: "Cancel"
+      });
+
+      if (!result.isConfirmed) return;
+
+      await backfillMonitoringDirectoryFromUsers({
+        overwriteExisting: false,
+        activeButtonId: "backfillMissingMonitoringBtn"
+      });
+
+      await Swal.fire({
+        icon: "success",
+        title: "Backfill Complete",
+        text: "Missing monitoring directory records have been created."
+      });
+
+      return;
+    }
+
+    const confirmRun = confirm(
+      "This will scan all users and create only missing monitoring directory records.\n\n" +
+      "Existing records will be skipped.\n\n" +
+      "Do you want to continue?"
+    );
+
+    if (!confirmRun) return;
+
+    await backfillMonitoringDirectoryFromUsers({
+      overwriteExisting: false,
+      activeButtonId: "backfillMissingMonitoringBtn"
+    });
+    alert("Backfill complete.");
+  });
+}
+
+  const forceRebuildBtn = document.getElementById("forceRebuildMonitoringBtn");
+  if (forceRebuildBtn) {
+    forceRebuildBtn.addEventListener("click", async () => {
+      const useSweetAlert = typeof Swal !== "undefined";
+
+      if (useSweetAlert) {
+        const result = await Swal.fire({
+          title: "Force Rebuild Monitoring Directory?",
+          text: "This will overwrite and rebuild monitoring directory records for ALL users.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Yes, rebuild all",
+          cancelButtonText: "Cancel"
+        });
+
+        if (!result.isConfirmed) return;
+
+        await backfillMonitoringDirectoryFromUsers({
+          overwriteExisting: true,
+          activeButtonId: "forceRebuildMonitoringBtn"
+        });
+
+        await Swal.fire({
+          icon: "success",
+          title: "Rebuild Complete",
+          text: "Monitoring directory records have been fully rebuilt."
+        });
+
+        return;
+      }
+
+      const confirmRun = confirm(
+        "This will overwrite and rebuild monitoring directory records for ALL users.\n\n" +
+        "Do you want to continue?"
+      );
+
+      if (!confirmRun) return;
+
+      await backfillMonitoringDirectoryFromUsers({
+        overwriteExisting: true,
+        activeButtonId: "forceRebuildMonitoringBtn"
+      });
+      alert("Rebuild complete.");
+    });
+  }
   document.getElementById("adminUserRole").addEventListener("change", updateSupervisorFieldVisibility);
 
   document.getElementById("saveProjectBtn").addEventListener("click", saveProjectFromAdminForm);
@@ -578,4 +822,5 @@ function setupAdminUI() {
 
   loadSupervisorOptions("");
   updateSupervisorFieldVisibility();
+  setMonitoringDirectorySyncBadge("Not run yet", "idle");
 }
