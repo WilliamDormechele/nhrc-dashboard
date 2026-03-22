@@ -284,47 +284,56 @@
         <!-- Hidden field stores the UID when editing an existing user -->
         <input type="hidden" id="editingUserId" />
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label for="adminUserFullName">Full name</label>
-            <input type="text" id="adminUserFullName" />
-          </div>
+<div class="form-grid-2">
+  <div class="form-group">
+    <label for="adminUserFullName">Full name</label>
+    <input type="text" id="adminUserFullName" />
+  </div>
 
-          <div class="form-group">
-            <label for="adminUserEmail">Email</label>
-            <input type="email" id="adminUserEmail" />
-          </div>
+  <div class="form-group">
+    <label for="adminUserEmail">Email</label>
+    <input type="email" id="adminUserEmail" />
+  </div>
 
-          <div class="form-group">
-            <label for="adminUserPassword">Temporary PIN / Password</label>
-            <input type="text" id="adminUserPassword" placeholder="For new users only" />
-          </div>
+  <div class="form-group">
+    <label for="adminUserPassword">Temporary PIN / Password</label>
+    <input type="text" id="adminUserPassword" placeholder="For new users only" />
+  </div>
 
-          <div class="form-group">
-            <label for="adminUserRole">Role</label>
-            <select id="adminUserRole">
-              <option value="field_worker">Field Worker</option>
-              <option value="field_supervisor">Field Supervisor</option>
-              <option value="field_headquarters">Field Headquarters</option>
-              <option value="administrator">Administrator</option>
-              <option value="developer">Developer</option>
-            </select>
-          </div>
+  <div class="form-group">
+    <label for="adminUserRole">Role</label>
+    <select id="adminUserRole">
+      <option value="field_worker">Field Worker</option>
+      <option value="field_supervisor">Field Supervisor</option>
+      <option value="field_headquarters">Field Headquarters</option>
+      <option value="administrator">Administrator</option>
+      <option value="developer">Developer</option>
+    </select>
+  </div>
 
-          <div class="form-group">
-            <label for="adminUserIsActive">Is Active?</label>
-            <select id="adminUserIsActive">
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-        </div>
+  <div class="form-group">
+    <label for="adminUserIsActive">Is Active?</label>
+    <select id="adminUserIsActive">
+      <option value="true">Yes</option>
+      <option value="false">No</option>
+    </select>
+  </div>
 
-        <div class="form-group">
-          <label>Assigned Projects</label>
-          <div id="adminUserProjectsBox" class="checkbox-grid"></div>
-        </div>
+  <div class="form-group" id="adminSupervisorGroup">
+    <label for="adminUserSupervisor">Supervisor</label>
+    <select id="adminUserSupervisor">
+      <option value="">Select supervisor</option>
+    </select>
+    <small id="adminSupervisorHelp" style="display:block; margin-top:6px; color:#64748b;">
+      Required for Field Worker only.
+    </small>
+  </div>
+</div>
 
+<div class="form-group">
+  <label>Assigned Projects</label>
+  <div id="adminUserProjectsBox" class="checkbox-grid"></div>
+</div>
         <div class="button-row">
           <button id="saveUserBtn" class="btn btn-primary">Save User</button>
           <button id="clearUserFormBtn" class="btn btn-secondary">Clear Form</button>
@@ -346,6 +355,7 @@
                 <th>Full Name</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Supervisor</th>
                 <th>Active</th>
                 <th>Assigned Projects</th>
                 <th>Action</th>

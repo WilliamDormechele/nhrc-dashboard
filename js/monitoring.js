@@ -4,12 +4,19 @@ let actionsChartInstance = null;
 let projectsChartInstance = null;
 let usersChartInstance = null;
 let dailyChartInstance = null;
+let rolesChartInstance = null;
+let pagesChartInstance = null;
 
 let monitoringAllLogs = [];
 let monitoringUsersByEmail = {};
 let monitoringSupervisors = [];
 let monitoringFieldworkers = [];
 let monitoringFilterOptionsLoaded = false;
+
+const monitoringTableState = {
+  currentPage: 1,
+  pageSize: 25
+};
 
 /**
  * Destroy old chart instance before drawing a new one.
@@ -25,6 +32,42 @@ function destroyChart(chartInstance) {
  */
 function safeText(value) {
   return value === null || value === undefined || value === "" ? "" : String(value);
+}
+
+/**
+ * True only for administrator and developer.
+ */
+function canMonitorAllProjects() {
+  const role = window.currentUserProfile?.role || "";
+  return role === "administrator" || role === "developer";
+}
+
+/**
+ * Return project codes this monitoring user is allowed to see.
+ */
+function getAllowedMonitoringProjectCodes() {
+  const allProjectCodes = Object.keys(window.projectRegistry || {});
+
+  if (canMonitorAllProjects()) {
+    return allProjectCodes;
+  }
+
+  const assignedProjects = Array.isArray(window.currentUserProfile?.assignedProjects)
+    ? window.currentUserProfile.assignedProjects
+    : [];
+
+  return assignedProjects.filter((code) => allProjectCodes.includes(code));
+}
+
+/**
+ * Split an array into chunks for Firestore "in" queries.
+ */
+function chunkArray(values, size) {
+  const chunks = [];
+  for (let i = 0; i < values.length; i += size) {
+    chunks.push(values.slice(i, i + size));
+  }
+  return chunks;
 }
 
 /**
@@ -80,7 +123,7 @@ async function loadMonitoringUsersAndFilters() {
 }
 
 /**
- * Return current monitoring filter values.
+ * Return current main monitoring filters.
  */
 function getMonitoringFilters() {
   return {
@@ -91,7 +134,20 @@ function getMonitoringFilters() {
 }
 
 /**
- * Rebuild project/supervisor/fieldworker dropdowns with hierarchy.
+ * Return table-only advanced filters.
+ */
+function getMonitoringTableFilters() {
+  return {
+    action: document.getElementById("monitoringActionFilter")?.value || "",
+    page: document.getElementById("monitoringPageFilter")?.value || "",
+    startDate: document.getElementById("monitoringStartDate")?.value || "",
+    endDate: document.getElementById("monitoringEndDate")?.value || "",
+    searchText: (document.getElementById("monitoringSearchText")?.value || "").trim().toLowerCase()
+  };
+}
+
+/**
+ * Rebuild main monitoring dropdowns with hierarchy and project restriction.
  */
 function rebuildMonitoringFilterDropdowns() {
   const projectFilter = document.getElementById("monitoringProjectFilter");
@@ -104,15 +160,18 @@ function rebuildMonitoringFilterDropdowns() {
   const currentSupervisor = supervisorFilter.value || "";
   const currentFieldworker = fieldworkerFilter.value || "";
 
-  // Project options
+  const allowedProjectCodes = getAllowedMonitoringProjectCodes();
+
   const projectItems = Object.values(window.projectRegistry || {})
+    .filter((project) => allowedProjectCodes.includes(project.code))
     .map((project) => ({
       value: project.code,
       label: `${project.name} (${project.code})`
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  populateSelectOptions("monitoringProjectFilter", projectItems, "All projects");
+  const projectPlaceholder = canMonitorAllProjects() ? "All projects" : "All assigned projects";
+  populateSelectOptions("monitoringProjectFilter", projectItems, projectPlaceholder);
 
   if ([...projectFilter.options].some((opt) => opt.value === currentProject)) {
     projectFilter.value = currentProject;
@@ -120,10 +179,14 @@ function rebuildMonitoringFilterDropdowns() {
 
   const selectedProject = projectFilter.value || "";
 
-  // Supervisors limited by selected project if one is chosen
   const supervisorsForProject = monitoringSupervisors.filter((supervisor) => {
+    const supervisorProjects = Array.isArray(supervisor.assignedProjects) ? supervisor.assignedProjects : [];
+    const matchesAllowed = supervisorProjects.some((code) => allowedProjectCodes.includes(code));
+
+    if (!matchesAllowed) return false;
     if (!selectedProject) return true;
-    return Array.isArray(supervisor.assignedProjects) && supervisor.assignedProjects.includes(selectedProject);
+
+    return supervisorProjects.includes(selectedProject);
   });
 
   const supervisorItems = supervisorsForProject
@@ -144,12 +207,17 @@ function rebuildMonitoringFilterDropdowns() {
 
   const selectedSupervisor = supervisorFilter.value || "";
 
-  // Fieldworkers limited by selected project and selected supervisor
   const fieldworkersForFilters = monitoringFieldworkers.filter((worker) => {
-    const matchesProject = !selectedProject ||
-      (Array.isArray(worker.assignedProjects) && worker.assignedProjects.includes(selectedProject));
+    const workerProjects = Array.isArray(worker.assignedProjects) ? worker.assignedProjects : [];
+    const matchesAllowed = workerProjects.some((code) => allowedProjectCodes.includes(code));
 
-    const matchesSupervisor = !selectedSupervisor ||
+    if (!matchesAllowed) return false;
+
+    const matchesProject =
+      !selectedProject || workerProjects.includes(selectedProject);
+
+    const matchesSupervisor =
+      !selectedSupervisor ||
       ((worker.supervisorEmail || "").toLowerCase() === selectedSupervisor.toLowerCase());
 
     return matchesProject && matchesSupervisor;
@@ -173,22 +241,38 @@ function rebuildMonitoringFilterDropdowns() {
 }
 
 /**
- * Apply hierarchical monitoring filters to logs.
- *
- * Supervisor filter includes:
- * - the supervisor's own activity
- * - all fieldworkers assigned to that supervisor
- *
- * Fieldworker filter narrows to one worker only.
+ * Rebuild table-only filter options from currently visible monitoring logs.
+ */
+function rebuildMonitoringTableFilterDropdowns(logs) {
+  const actionItems = [...new Set(logs.map((log) => log.action).filter(Boolean))]
+    .sort()
+    .map((action) => ({ value: action, label: action }));
+
+  const pageItems = [...new Set(logs.map((log) => log.page).filter(Boolean))]
+    .sort()
+    .map((page) => ({ value: page, label: page }));
+
+  populateSelectOptions("monitoringActionFilter", actionItems, "All actions");
+  populateSelectOptions("monitoringPageFilter", pageItems, "All pages");
+}
+
+/**
+ * Apply project restriction + project/supervisor/fieldworker hierarchy.
  */
 function applyMonitoringFilters(logs) {
   const filters = getMonitoringFilters();
+  const allowedProjectCodes = getAllowedMonitoringProjectCodes();
 
   return logs.filter((log) => {
     const logEmail = (log.email || "").toLowerCase();
     const logProject = log.currentProject || "";
     const userProfile = monitoringUsersByEmail[logEmail] || {};
     const workerSupervisorEmail = (userProfile.supervisorEmail || "").toLowerCase();
+
+    const withinAllowedProjects =
+      !!logProject && allowedProjectCodes.includes(logProject);
+
+    if (!withinAllowedProjects) return false;
 
     const matchesProject =
       !filters.project || logProject === filters.project;
@@ -207,27 +291,55 @@ function applyMonitoringFilters(logs) {
 }
 
 /**
- * Load activity logs from Firestore for the selected time window.
+ * Apply table-only advanced filters.
  */
-async function loadMonitoringData() {
-  const days = parseInt(document.getElementById("monitoringDays").value, 10);
-  const tbody = document.getElementById("monitoringTableBody");
-  tbody.innerHTML = `<tr><td colspan="8">Loading activity logs...</td></tr>`;
+function applyMonitoringTableFilters(logs) {
+  const filters = getMonitoringTableFilters();
 
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+  return logs.filter((log) => {
+    const logDate = log.createdAt && log.createdAt.toDate ? log.createdAt.toDate() : null;
+    const logDateOnly = logDate ? logDate.toISOString().slice(0, 10) : "";
 
-  const startTimestamp = firebase.firestore.Timestamp.fromDate(startDate);
+    const matchesAction =
+      !filters.action || log.action === filters.action;
 
-  try {
-    await loadProjectsRegistry();
+    const matchesPage =
+      !filters.page || log.page === filters.page;
 
-    if (!monitoringFilterOptionsLoaded) {
-      await loadMonitoringUsersAndFilters();
-    }
+    const matchesStartDate =
+      !filters.startDate || (logDateOnly && logDateOnly >= filters.startDate);
 
-    rebuildMonitoringFilterDropdowns();
+    const matchesEndDate =
+      !filters.endDate || (logDateOnly && logDateOnly <= filters.endDate);
 
+    const searchBlob = [
+      log.fullName,
+      log.email,
+      log.role,
+      log.currentProject,
+      log.action,
+      log.page,
+      log.target,
+      String(log.durationSeconds || "")
+    ].join(" ").toLowerCase();
+
+    const matchesSearch =
+      !filters.searchText || searchBlob.includes(filters.searchText);
+
+    return matchesAction && matchesPage && matchesStartDate && matchesEndDate && matchesSearch;
+  });
+}
+
+/**
+ * Query activity logs in a way that respects Firestore rules.
+ *
+ * - admin/developer: broad date query
+ * - field_headquarters: project-scoped queries only
+ */
+async function fetchMonitoringLogs(startTimestamp) {
+  const allowedProjectCodes = getAllowedMonitoringProjectCodes();
+
+  if (canMonitorAllProjects()) {
     const snapshot = await db
       .collection("activity_logs")
       .where("createdAt", ">=", startTimestamp)
@@ -239,8 +351,66 @@ async function loadMonitoringData() {
     snapshot.forEach((doc) => {
       logs.push({ id: doc.id, ...doc.data() });
     });
+    return logs;
+  }
+
+  if (allowedProjectCodes.length === 0) {
+    return [];
+  }
+
+  const chunks = chunkArray(allowedProjectCodes, 10);
+  const snapshots = await Promise.all(
+    chunks.map((projectChunk) =>
+      db.collection("activity_logs")
+        .where("currentProject", "in", projectChunk)
+        .where("createdAt", ">=", startTimestamp)
+        .orderBy("currentProject")
+        .orderBy("createdAt", "desc")
+        .limit(500)
+        .get()
+    )
+  );
+
+  const logsMap = new Map();
+
+  snapshots.forEach((snapshot) => {
+    snapshot.forEach((doc) => {
+      logsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+  });
+
+  return [...logsMap.values()].sort((a, b) => {
+    const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+    const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+/**
+ * Load activity logs from Firestore for the selected time window.
+ */
+async function loadMonitoringData() {
+  const days = parseInt(document.getElementById("monitoringDays").value, 10);
+  const tbody = document.getElementById("monitoringTableBody");
+  tbody.innerHTML = `<tr><td colspan="8">Loading activity logs...</td></tr>`;
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const startTimestamp = firebase.firestore.Timestamp.fromDate(startDate);
+
+  try {
+    await loadProjectsRegistry();
+
+    if (!monitoringFilterOptionsLoaded) {
+      await loadMonitoringUsersAndFilters();
+    }
+
+    rebuildMonitoringFilterDropdowns();
+
+    const logs = await fetchMonitoringLogs(startTimestamp);
 
     monitoringAllLogs = logs;
+    monitoringTableState.currentPage = 1;
     renderFilteredMonitoringView();
   } catch (error) {
     console.error(error);
@@ -249,16 +419,28 @@ async function loadMonitoringData() {
 }
 
 /**
- * Re-render monitoring view from selected filters.
+ * Re-render monitoring view.
+ *
+ * Main monitoring filters affect:
+ * - stats
+ * - charts
+ * - table
+ *
+ * Table-only advanced filters affect:
+ * - Recent Activity Logs only
  */
 function renderFilteredMonitoringView() {
   rebuildMonitoringFilterDropdowns();
 
-  const filteredLogs = applyMonitoringFilters(monitoringAllLogs);
+  const primaryFilteredLogs = applyMonitoringFilters(monitoringAllLogs);
 
-  renderMonitoringSummary(filteredLogs);
-  renderMonitoringTable(filteredLogs);
-  renderMonitoringCharts(filteredLogs);
+  renderMonitoringSummary(primaryFilteredLogs);
+  renderMonitoringCharts(primaryFilteredLogs);
+
+  rebuildMonitoringTableFilterDropdowns(primaryFilteredLogs);
+
+  const tableFilteredLogs = applyMonitoringTableFilters(primaryFilteredLogs);
+  renderMonitoringTable(tableFilteredLogs);
 }
 
 /**
@@ -286,18 +468,46 @@ function renderMonitoringSummary(logs) {
 }
 
 /**
- * Render monitoring logs table.
+ * Render paginated monitoring logs table.
  */
 function renderMonitoringTable(logs) {
   const tbody = document.getElementById("monitoringTableBody");
+  const countEl = document.getElementById("monitoringLogsCount");
+  const pageInfoEl = document.getElementById("monitoringPageInfo");
+  const prevBtn = document.getElementById("monitoringPrevPageBtn");
+  const nextBtn = document.getElementById("monitoringNextPageBtn");
+
   tbody.innerHTML = "";
 
-  if (logs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8">No activity logs found for the selected period and filters.</td></tr>`;
+  const pageSize = parseInt(document.getElementById("monitoringPageSize")?.value || "25", 10);
+  monitoringTableState.pageSize = pageSize;
+
+  const totalRows = logs.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+
+  if (monitoringTableState.currentPage > totalPages) {
+    monitoringTableState.currentPage = totalPages;
+  }
+  if (monitoringTableState.currentPage < 1) {
+    monitoringTableState.currentPage = 1;
+  }
+
+  const startIndex = (monitoringTableState.currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pageLogs = logs.slice(startIndex, endIndex);
+
+  countEl.textContent = `${totalRows} record${totalRows === 1 ? "" : "s"}`;
+  pageInfoEl.textContent = `Page ${monitoringTableState.currentPage} of ${totalPages}`;
+
+  prevBtn.disabled = monitoringTableState.currentPage <= 1;
+  nextBtn.disabled = monitoringTableState.currentPage >= totalPages;
+
+  if (pageLogs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8">No activity logs found for the selected filters.</td></tr>`;
     return;
   }
 
-  logs.forEach((log) => {
+  pageLogs.forEach((log) => {
     const tr = document.createElement("tr");
 
     const dateText = log.createdAt && log.createdAt.toDate
@@ -332,6 +542,15 @@ function countBy(logs, accessor) {
 }
 
 /**
+ * Return top N entries from counts.
+ */
+function topEntriesFromCounts(counts, limit = 10) {
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+}
+
+/**
  * Render all monitoring charts.
  */
 function renderMonitoringCharts(logs) {
@@ -339,16 +558,19 @@ function renderMonitoringCharts(logs) {
   renderProjectsChart(logs);
   renderUsersChart(logs);
   renderDailyChart(logs);
+  renderRolesChart(logs);
+  renderPagesChart(logs);
 }
 
 /**
- * Chart 1: activity by action.
+ * Activity by action.
  */
 function renderActionsChart(logs) {
   const counts = countBy(logs, (x) => x.action);
+  const entries = topEntriesFromCounts(counts, 8);
 
-  const labels = Object.keys(counts);
-  const values = Object.values(counts);
+  const labels = entries.map((x) => x[0]);
+  const values = entries.map((x) => x[1]);
 
   destroyChart(actionsChartInstance);
   actionsChartInstance = new Chart(document.getElementById("actionsChart"), {
@@ -359,19 +581,23 @@ function renderActionsChart(logs) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
     }
   });
 }
 
 /**
- * Chart 2: activity by project.
+ * Activity by project.
  */
 function renderProjectsChart(logs) {
   const counts = countBy(logs, (x) => x.currentProject || "No Project");
+  const entries = topEntriesFromCounts(counts, 8);
 
-  const labels = Object.keys(counts);
-  const values = Object.values(counts);
+  const labels = entries.map((x) => x[0]);
+  const values = entries.map((x) => x[1]);
 
   destroyChart(projectsChartInstance);
   projectsChartInstance = new Chart(document.getElementById("projectsChart"), {
@@ -382,20 +608,17 @@ function renderProjectsChart(logs) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true
+      maintainAspectRatio: false
     }
   });
 }
 
 /**
- * Chart 3: top active users.
+ * Top active users.
  */
 function renderUsersChart(logs) {
   const counts = countBy(logs, (x) => x.fullName || x.email || "Unknown");
-
-  const entries = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  const entries = topEntriesFromCounts(counts, 10);
 
   const labels = entries.map((x) => x[0]);
   const values = entries.map((x) => x[1]);
@@ -410,13 +633,13 @@ function renderUsersChart(logs) {
     options: {
       indexAxis: "y",
       responsive: true,
-      maintainAspectRatio: true
+      maintainAspectRatio: false
     }
   });
 }
 
 /**
- * Chart 4: daily activity trend.
+ * Daily activity trend.
  */
 function renderDailyChart(logs) {
   const counts = {};
@@ -435,27 +658,103 @@ function renderDailyChart(logs) {
     type: "line",
     data: {
       labels,
-      datasets: [{ label: "Daily Activity", data: values }]
+      datasets: [{ label: "Daily Activity", data: values, tension: 0.25 }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true
+      maintainAspectRatio: false
     }
   });
 }
 
 /**
- * Clear filters.
+ * Activity by role.
+ */
+function renderRolesChart(logs) {
+  const counts = countBy(logs, (x) => x.role || "Unknown");
+
+  const labels = Object.keys(counts);
+  const values = Object.values(counts);
+
+  destroyChart(rolesChartInstance);
+  rolesChartInstance = new Chart(document.getElementById("rolesChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Actions", data: values }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+/**
+ * Most visited pages.
+ */
+function renderPagesChart(logs) {
+  const counts = countBy(logs, (x) => x.page || "Unknown");
+  const entries = topEntriesFromCounts(counts, 10);
+
+  const labels = entries.map((x) => x[0]);
+  const values = entries.map((x) => x[1]);
+
+  destroyChart(pagesChartInstance);
+  pagesChartInstance = new Chart(document.getElementById("pagesChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Visits", data: values }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+/**
+ * Reset top-level filters.
  */
 function clearMonitoringFilters() {
   document.getElementById("monitoringProjectFilter").value = "";
   document.getElementById("monitoringSupervisorFilter").value = "";
   document.getElementById("monitoringFieldworkerFilter").value = "";
+
+  document.getElementById("monitoringActionFilter").value = "";
+  document.getElementById("monitoringPageFilter").value = "";
+  document.getElementById("monitoringStartDate").value = "";
+  document.getElementById("monitoringEndDate").value = "";
+  document.getElementById("monitoringSearchText").value = "";
+  document.getElementById("monitoringPageSize").value = "25";
+
+  monitoringTableState.currentPage = 1;
   renderFilteredMonitoringView();
 }
 
 /**
- * Set up monitoring actions.
+ * Go to previous table page.
+ */
+function goToPreviousMonitoringPage() {
+  monitoringTableState.currentPage -= 1;
+  renderFilteredMonitoringView();
+}
+
+/**
+ * Go to next table page.
+ */
+function goToNextMonitoringPage() {
+  monitoringTableState.currentPage += 1;
+  renderFilteredMonitoringView();
+}
+
+/**
+ * Wire up event listeners.
  */
 function setupMonitoringUI() {
   document.getElementById("refreshMonitoringBtn").addEventListener("click", loadMonitoringData);
@@ -464,15 +763,53 @@ function setupMonitoringUI() {
   document.getElementById("monitoringProjectFilter").addEventListener("change", () => {
     document.getElementById("monitoringSupervisorFilter").value = "";
     document.getElementById("monitoringFieldworkerFilter").value = "";
+    monitoringTableState.currentPage = 1;
     renderFilteredMonitoringView();
   });
 
   document.getElementById("monitoringSupervisorFilter").addEventListener("change", () => {
     document.getElementById("monitoringFieldworkerFilter").value = "";
+    monitoringTableState.currentPage = 1;
     renderFilteredMonitoringView();
   });
 
-  document.getElementById("monitoringFieldworkerFilter").addEventListener("change", renderFilteredMonitoringView);
+  document.getElementById("monitoringFieldworkerFilter").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringActionFilter").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringPageFilter").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringStartDate").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringEndDate").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringSearchText").addEventListener("input", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringPageSize").addEventListener("change", () => {
+    monitoringTableState.currentPage = 1;
+    renderFilteredMonitoringView();
+  });
+
+  document.getElementById("monitoringPrevPageBtn").addEventListener("click", goToPreviousMonitoringPage);
+  document.getElementById("monitoringNextPageBtn").addEventListener("click", goToNextMonitoringPage);
 
   const clearBtn = document.getElementById("clearMonitoringFiltersBtn");
   if (clearBtn) {
