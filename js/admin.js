@@ -515,7 +515,16 @@ async function saveUserFromAdminForm() {
       target: email
     });
 
-    setAdminMessage("adminUserMessage", "New user created successfully.");
+    try {
+      await auth.sendPasswordResetEmail(email);
+    } catch (emailError) {
+      console.error("Failed to send account setup email:", emailError);
+    }
+
+    setAdminMessage(
+      "adminUserMessage",
+      "New user created successfully. A password setup/reset email has been sent to the user."
+    );
     await clearUserForm();
     await loadUsersForAdmin();
   } catch (error) {
@@ -523,6 +532,8 @@ async function saveUserFromAdminForm() {
     setAdminMessage("adminUserMessage", error.message, true);
   }
 }
+
+
 
 /**
  * Load all user profiles for the admin table.
