@@ -199,19 +199,22 @@ auth.onAuthStateChanged(async (user) => {
 
     startTabTimer("tab-dashboard");
 
-    // Prepare admin/monitoring widgets only if allowed
-    const permissions = getPermissions(profile.role);
+  // Prepare admin/monitoring widgets only if allowed
+  const permissions = getPermissions(profile.role);
 
-    if (permissions.canManageUsers || permissions.canManageProjects) {
-      renderProjectCheckboxesForAdmin([]);
-      await loadSupervisorOptions("");
-      updateSupervisorFieldVisibility();
-      await loadMonitoringDirectorySyncStatus();
-    }
+  if (permissions.canManageUsers || permissions.canManageProjects) {
+    renderProjectCheckboxesForAdmin([]);
+    await loadSupervisorOptions("");
+    updateSupervisorFieldVisibility();
+    await loadMonitoringDirectorySyncStatus();
+    await loadUsersForAdmin();
+    await loadProjectsForAdmin();
+  }
 
-    if (permissions.canMonitorUsers) {
-      await loadMonitoringData();
-    }
+  if (permissions.canMonitorUsers) {
+    await loadMonitoringData();
+  }
+
   } catch (error) {
     console.error(error);
     alert(error.message);
