@@ -110,7 +110,6 @@ function renderReports(project) {
 
       link.innerHTML = `
         <span class="report-title">${item.title}</span>
-        <span class="report-path">${item.file}</span>
         <span class="download-badge">${permissions.canDownloadReports ? "Download" : "View"}</span>
       `;
 
@@ -172,7 +171,6 @@ function renderQueries(project) {
 
     link.innerHTML = `
       <span class="report-title">${item.title}</span>
-      <span class="report-path">${item.file}</span>
       <span class="download-badge">Open / Download</span>
     `;
 
