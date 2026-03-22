@@ -173,6 +173,7 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     window.currentUserProfile = profile;
+    console.log("Logged in profile:", profile);
 
     // Load projects from Firestore first, fallback to local config if Firestore is empty
     await loadProjectsRegistry();
