@@ -1,7 +1,5 @@
 // js/projects.js
 
-// This object becomes the active source of truth used by the app.
-// It loads from Firestore first, then falls back to the local PROJECTS constant.
 window.projectRegistry = {};
 
 /**
@@ -15,7 +13,6 @@ async function loadProjectsRegistry() {
   snapshot.forEach((doc) => {
     const data = doc.data();
 
-    // Keep only enabled projects in the active registry
     if (data.enabled !== false) {
       firestoreProjects[doc.id] = {
         code: doc.id,
@@ -47,6 +44,60 @@ function populateProjectSelect(assignedProjects) {
     option.textContent = project.name;
     projectSelect.appendChild(option);
   });
+}
+
+/**
+ * Return a file type label from a file path.
+ */
+function getFileTypeLabel(filePath = "") {
+  const path = filePath.toLowerCase();
+
+  if (path.endsWith(".pdf")) return "PDF";
+  if (path.endsWith(".ppt") || path.endsWith(".pptx")) return "PPT";
+  if (path.endsWith(".xls") || path.endsWith(".xlsx") || path.endsWith(".csv")) return "Excel";
+  if (path.endsWith(".doc") || path.endsWith(".docx")) return "Word";
+  return "File";
+}
+
+/**
+ * Build a clean resource card.
+ */
+function buildResourceCard(item, badgeText, actionName, pageName, canDownload = true) {
+  const link = document.createElement("a");
+  link.className = "resource-card";
+  link.href = item.file;
+  link.target = "_blank";
+  link.rel = "noopener";
+
+  const fileType = getFileTypeLabel(item.file);
+
+  link.innerHTML = `
+    <div class="resource-card-top">
+      <span class="resource-filetype">${fileType}</span>
+      <span class="resource-badge">${badgeText}</span>
+    </div>
+
+    <div class="resource-title">${item.title}</div>
+
+    <div class="resource-subtext">
+      Click to ${canDownload ? "open or download" : "open"} this file
+    </div>
+  `;
+
+  link.addEventListener("click", async (event) => {
+    if (!canDownload) {
+      event.preventDefault();
+      alert("You do not have permission to download reports.");
+      return;
+    }
+
+    await logActivity(actionName, {
+      page: pageName,
+      target: item.file
+    });
+  });
+
+  return link;
 }
 
 /**
@@ -99,34 +150,18 @@ function renderReports(project) {
     block.appendChild(title);
 
     const grid = document.createElement("div");
-    grid.className = "report-grid";
+    grid.className = "resource-grid";
 
     (section.items || []).forEach((item) => {
-      const link = document.createElement("a");
-      link.className = "report-link";
-      link.href = item.file;
-      link.target = "_blank";
-      link.rel = "noopener";
+      const card = buildResourceCard(
+        item,
+        permissions.canDownloadReports ? "Download" : "View",
+        "download_report",
+        "reports",
+        permissions.canDownloadReports
+      );
 
-      link.innerHTML = `
-        <span class="report-title">${item.title}</span>
-        <span class="download-badge">${permissions.canDownloadReports ? "Download" : "View"}</span>
-      `;
-
-      link.addEventListener("click", async (event) => {
-        if (!permissions.canDownloadReports) {
-          event.preventDefault();
-          alert("You do not have permission to download reports.");
-          return;
-        }
-
-        await logActivity("download_report", {
-          page: "reports",
-          target: item.file
-        });
-      });
-
-      grid.appendChild(link);
+      grid.appendChild(card);
     });
 
     block.appendChild(grid);
@@ -160,28 +195,18 @@ function renderQueries(project) {
   block.appendChild(title);
 
   const grid = document.createElement("div");
-  grid.className = "report-grid";
+  grid.className = "resource-grid";
 
   (project.queries || []).forEach((item) => {
-    const link = document.createElement("a");
-    link.className = "report-link";
-    link.href = item.file;
-    link.target = "_blank";
-    link.rel = "noopener";
+    const card = buildResourceCard(
+      item,
+      "Open / Download",
+      "download_query",
+      "queries",
+      true
+    );
 
-    link.innerHTML = `
-      <span class="report-title">${item.title}</span>
-      <span class="download-badge">Open / Download</span>
-    `;
-
-    link.addEventListener("click", async () => {
-      await logActivity("download_query", {
-        page: "queries",
-        target: item.file
-      });
-    });
-
-    grid.appendChild(link);
+    grid.appendChild(card);
   });
 
   block.appendChild(grid);

@@ -336,44 +336,71 @@ textarea:focus {
   color: #1f3044;
 }
 
-.report-grid {
+.resource-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
-.report-link {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.resource-card {
+  display: block;
   text-decoration: none;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid #d8dfeb;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   color: #1f2937;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  min-height: 120px;
 }
 
-.report-link:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+.resource-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 28, 63, 0.08);
+  border-color: #b9c8e6;
 }
 
-.report-title {
-  font-weight: 700;
-  color: #1f3044;
+.resource-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.report-path {
-  font-size: 0.82rem;
-  color: #6b7280;
+.resource-filetype {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #1d4ed8;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-.download-badge {
-  font-size: 0.82rem;
+.resource-badge {
+  font-size: 0.8rem;
   font-weight: 700;
   color: #1d4ed8;
+}
+
+.resource-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #1f3044;
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.resource-subtext {
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
 .placeholder-box {
