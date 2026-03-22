@@ -60,6 +60,10 @@ function safeArray(value) {
 /**
  * Load all field supervisors and populate the supervisor dropdown.
  */
+/**
+ * Load all field supervisors and populate the supervisor dropdown.
+ * This version avoids needing a Firestore composite index by sorting in JavaScript.
+ */
 async function loadSupervisorOptions(selectedValue = "") {
   const select = document.getElementById("adminUserSupervisor");
   if (!select) return;
@@ -70,19 +74,35 @@ async function loadSupervisorOptions(selectedValue = "") {
     const snapshot = await db
       .collection("users")
       .where("role", "==", "field_supervisor")
-      .orderBy("fullName")
       .get();
 
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const option = document.createElement("option");
-      option.value = doc.id;
-      option.textContent = data.fullName
-        ? `${data.fullName} (${data.email || doc.id})`
-        : (data.email || doc.id);
+    const supervisors = [];
 
-      option.dataset.email = data.email || "";
-      option.dataset.name = data.fullName || "";
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+
+      supervisors.push({
+        id: doc.id,
+        fullName: data.fullName || "",
+        email: data.email || ""
+      });
+    });
+
+    supervisors.sort((a, b) => {
+      const nameA = (a.fullName || a.email || a.id).toLowerCase();
+      const nameB = (b.fullName || b.email || b.id).toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    supervisors.forEach((supervisor) => {
+      const option = document.createElement("option");
+      option.value = supervisor.id;
+      option.textContent = supervisor.fullName
+        ? `${supervisor.fullName} (${supervisor.email || supervisor.id})`
+        : (supervisor.email || supervisor.id);
+
+      option.dataset.email = supervisor.email || "";
+      option.dataset.name = supervisor.fullName || "";
       select.appendChild(option);
     });
 
