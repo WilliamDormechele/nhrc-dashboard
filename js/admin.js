@@ -16,6 +16,8 @@ function getCheckedProjects(containerId) {
  */
 function renderProjectCheckboxesForAdmin(selectedProjects = []) {
   const container = document.getElementById("adminUserProjectsBox");
+  if (!container) return;
+
   container.innerHTML = "";
 
   const registry = window.projectRegistry || {};
@@ -39,9 +41,85 @@ function renderProjectCheckboxesForAdmin(selectedProjects = []) {
 }
 
 /**
+ * Show a message in the admin UI.
+ */
+function setAdminMessage(elementId, text, isError = false) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isError ? "#b91c1c" : "#047857";
+}
+
+/**
+ * Safe helper.
+ */
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+/**
+ * Load all field supervisors and populate the supervisor dropdown.
+ */
+async function loadSupervisorOptions(selectedValue = "") {
+  const select = document.getElementById("adminUserSupervisor");
+  if (!select) return;
+
+  select.innerHTML = `<option value="">Select supervisor</option>`;
+
+  try {
+    const snapshot = await db
+      .collection("users")
+      .where("role", "==", "field_supervisor")
+      .orderBy("fullName")
+      .get();
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const option = document.createElement("option");
+      option.value = doc.id;
+      option.textContent = data.fullName
+        ? `${data.fullName} (${data.email || doc.id})`
+        : (data.email || doc.id);
+
+      option.dataset.email = data.email || "";
+      option.dataset.name = data.fullName || "";
+      select.appendChild(option);
+    });
+
+    if (selectedValue && [...select.options].some((opt) => opt.value === selectedValue)) {
+      select.value = selectedValue;
+    } else {
+      select.value = "";
+    }
+  } catch (error) {
+    console.error("Failed to load supervisor options:", error);
+  }
+}
+
+/**
+ * Show/hide the supervisor field depending on role.
+ */
+function updateSupervisorFieldVisibility() {
+  const role = document.getElementById("adminUserRole")?.value || "";
+  const group = document.getElementById("adminSupervisorGroup");
+  const help = document.getElementById("adminSupervisorHelp");
+
+  if (!group) return;
+
+  if (role === "field_worker") {
+    group.style.display = "block";
+    if (help) help.textContent = "Required for Field Worker only.";
+  } else {
+    group.style.display = "none";
+    const select = document.getElementById("adminUserSupervisor");
+    if (select) select.value = "";
+  }
+}
+
+/**
  * Clear the user form.
  */
-function clearUserForm() {
+async function clearUserForm() {
   document.getElementById("editingUserId").value = "";
   document.getElementById("adminUserFullName").value = "";
   document.getElementById("adminUserEmail").value = "";
@@ -49,16 +127,9 @@ function clearUserForm() {
   document.getElementById("adminUserRole").value = "field_worker";
   document.getElementById("adminUserIsActive").value = "true";
   renderProjectCheckboxesForAdmin([]);
+  await loadSupervisorOptions("");
+  updateSupervisorFieldVisibility();
   setAdminMessage("adminUserMessage", "");
-}
-
-/**
- * Show a message in the admin UI.
- */
-function setAdminMessage(elementId, text, isError = false) {
-  const el = document.getElementById(elementId);
-  el.textContent = text;
-  el.style.color = isError ? "#b91c1c" : "#047857";
 }
 
 /**
@@ -69,10 +140,36 @@ async function createAuthUserWithoutReplacingAdmin(email, password) {
   const credential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
   const newUid = credential.user.uid;
 
-  // Important: sign out from the secondary app after creation
   await secondaryAuth.signOut();
-
   return newUid;
+}
+
+/**
+ * Build supervisor fields to save on the user profile.
+ */
+function getSupervisorPayloadFromForm(role) {
+  const supervisorSelect = document.getElementById("adminUserSupervisor");
+
+  if (role !== "field_worker") {
+    return {
+      supervisorId: null,
+      supervisorEmail: null,
+      supervisorName: null
+    };
+  }
+
+  const supervisorId = supervisorSelect?.value || "";
+  if (!supervisorId) {
+    throw new Error("Please select a supervisor for this field worker.");
+  }
+
+  const selectedOption = supervisorSelect.options[supervisorSelect.selectedIndex];
+
+  return {
+    supervisorId,
+    supervisorEmail: selectedOption?.dataset?.email || null,
+    supervisorName: selectedOption?.dataset?.name || null
+  };
 }
 
 /**
@@ -100,17 +197,24 @@ async function saveUserFromAdminForm() {
       return;
     }
 
+    const supervisorPayload = getSupervisorPayloadFromForm(role);
+
+    const userPayload = {
+      fullName,
+      email,
+      role,
+      isActive,
+      assignedProjects,
+      supervisorId: supervisorPayload.supervisorId,
+      supervisorEmail: supervisorPayload.supervisorEmail,
+      supervisorName: supervisorPayload.supervisorName,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: window.currentUserProfile.email
+    };
+
     // Update existing user
     if (editingUserId) {
-      await db.collection("users").doc(editingUserId).update({
-        fullName,
-        email,
-        role,
-        isActive,
-        assignedProjects,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: window.currentUserProfile.email
-      });
+      await db.collection("users").doc(editingUserId).update(userPayload);
 
       await logActivity("admin_update_user", {
         page: "admin",
@@ -118,7 +222,7 @@ async function saveUserFromAdminForm() {
       });
 
       setAdminMessage("adminUserMessage", "User updated successfully.");
-      clearUserForm();
+      await clearUserForm();
       await loadUsersForAdmin();
       return;
     }
@@ -132,15 +236,9 @@ async function saveUserFromAdminForm() {
     const newUid = await createAuthUserWithoutReplacingAdmin(email, password);
 
     await db.collection("users").doc(newUid).set({
-      fullName,
-      email,
-      role,
-      isActive,
-      assignedProjects,
+      ...userPayload,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdBy: window.currentUserProfile.email,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedBy: window.currentUserProfile.email
+      createdBy: window.currentUserProfile.email
     });
 
     await logActivity("admin_create_user", {
@@ -149,7 +247,7 @@ async function saveUserFromAdminForm() {
     });
 
     setAdminMessage("adminUserMessage", "New user created successfully.");
-    clearUserForm();
+    await clearUserForm();
     await loadUsersForAdmin();
   } catch (error) {
     console.error(error);
@@ -162,13 +260,13 @@ async function saveUserFromAdminForm() {
  */
 async function loadUsersForAdmin() {
   const tbody = document.getElementById("usersTableBody");
-  tbody.innerHTML = `<tr><td colspan="6">Loading users...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7">Loading users...</td></tr>`;
 
   try {
     const snapshot = await db.collection("users").orderBy("fullName").get();
 
     if (snapshot.empty) {
-      tbody.innerHTML = `<tr><td colspan="6">No users found.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">No users found.</td></tr>`;
       return;
     }
 
@@ -182,8 +280,9 @@ async function loadUsersForAdmin() {
         <td>${data.fullName || ""}</td>
         <td>${data.email || ""}</td>
         <td>${data.role || ""}</td>
+        <td>${data.supervisorName || data.supervisorEmail || "-"}</td>
         <td>${data.isActive === true ? "Yes" : "No"}</td>
-        <td>${Array.isArray(data.assignedProjects) ? data.assignedProjects.join(", ") : ""}</td>
+        <td>${safeArray(data.assignedProjects).join(", ")}</td>
         <td><button class="btn btn-secondary btn-edit-user" data-id="${doc.id}">Edit</button></td>
       `;
 
@@ -197,7 +296,7 @@ async function loadUsersForAdmin() {
     });
   } catch (error) {
     console.error(error);
-    tbody.innerHTML = `<tr><td colspan="6">Failed to load users.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">Failed to load users.</td></tr>`;
   }
 }
 
@@ -220,7 +319,10 @@ async function loadUserIntoForm(userId) {
   document.getElementById("adminUserRole").value = data.role || "field_worker";
   document.getElementById("adminUserIsActive").value = data.isActive === false ? "false" : "true";
 
-  renderProjectCheckboxesForAdmin(Array.isArray(data.assignedProjects) ? data.assignedProjects : []);
+  renderProjectCheckboxesForAdmin(safeArray(data.assignedProjects));
+  await loadSupervisorOptions(data.supervisorId || "");
+  updateSupervisorFieldVisibility();
+
   setAdminMessage("adminUserMessage", "Loaded user for editing.");
 }
 
@@ -282,7 +384,6 @@ async function saveProjectFromAdminForm() {
       updatedBy: window.currentUserProfile.email
     }, { merge: true });
 
-    // If this is a new project, also store created metadata
     if (!editingProjectCode || editingProjectCode !== code) {
       await db.collection("projects").doc(code).set({
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -310,7 +411,6 @@ async function saveProjectFromAdminForm() {
 
 /**
  * Seed the fallback project config into Firestore.
- * This is useful the first time, so you can manage projects from Firestore after that.
  */
 async function seedFallbackProjectsToFirestore() {
   try {
@@ -447,6 +547,8 @@ function setupAdminUI() {
   document.getElementById("clearUserFormBtn").addEventListener("click", clearUserForm);
   document.getElementById("refreshUsersBtn").addEventListener("click", loadUsersForAdmin);
 
+  document.getElementById("adminUserRole").addEventListener("change", updateSupervisorFieldVisibility);
+
   document.getElementById("saveProjectBtn").addEventListener("click", saveProjectFromAdminForm);
   document.getElementById("clearProjectFormBtn").addEventListener("click", clearProjectForm);
   document.getElementById("seedProjectsBtn").addEventListener("click", seedFallbackProjectsToFirestore);
@@ -454,4 +556,7 @@ function setupAdminUI() {
     await loadProjectsRegistry();
     await loadProjectsForAdmin();
   });
+
+  loadSupervisorOptions("");
+  updateSupervisorFieldVisibility();
 }
