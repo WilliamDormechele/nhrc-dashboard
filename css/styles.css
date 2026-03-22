@@ -561,7 +561,7 @@ textarea:focus {
 }
 
 .chart-card.chart-card-compact {
-  min-height: 285px;
+  min-height: 500px;
 }
 
 .chart-card h3 {
@@ -580,7 +580,7 @@ textarea:focus {
 }
 
 .chart-canvas-compact {
-  height: 185px !important;
+  height: 400px !important;
 }
 
 .monitoring-log-header {
