@@ -599,21 +599,45 @@ async function saveUserFromAdminForm() {
  */
 window.loadUsersForAdmin = async function () {
   const tbody = document.getElementById("usersTableBody");
+  if (!tbody) return;
+
   tbody.innerHTML = `<tr><td colspan="7">Loading users...</td></tr>`;
 
   try {
     const snapshot = await db.collection("users").orderBy("fullName").get();
+    await loadAdminUserMetricsFromSnapshot(snapshot);
 
-    if (snapshot.empty) {
-      tbody.innerHTML = `<tr><td colspan="7">No users found.</td></tr>`;
+    const filter = getAdminUserFilterValue();
+    const rows = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      const isDeleted = data.isDeleted === true;
+      const isActive = data.isActive === true;
+
+      const show =
+        filter === "all" ||
+        (filter === "active" && !isDeleted && isActive) ||
+        (filter === "inactive" && !isDeleted && !isActive) ||
+        (filter === "deleted" && isDeleted);
+
+      if (!show) return;
+
+      rows.push({ id: doc.id, ...data });
+    });
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7">No users found for the selected filter.</td></tr>`;
+      await loadRecentAdminAuditLogs();
       return;
     }
 
     tbody.innerHTML = "";
 
-    snapshot.forEach((doc) => {
-      const data = doc.data() || {};
+    rows.forEach((data) => {
+      const isDeleted = data.isDeleted === true;
       const isActive = data.isActive === true;
+      const statusLabel = getUserStatusLabel(data);
 
       const tr = document.createElement("tr");
 
@@ -622,27 +646,31 @@ window.loadUsersForAdmin = async function () {
         <td>${data.email || ""}</td>
         <td>${data.role || ""}</td>
         <td>${data.supervisorName || data.supervisorEmail || "-"}</td>
-        <td>${isActive ? "Yes" : "No"}</td>
+        <td>${statusLabel}</td>
         <td>${safeArray(data.assignedProjects).join(", ")}</td>
         <td>
           <div class="button-row">
-            <button class="btn btn-secondary btn-edit-user" data-id="${doc.id}">Edit</button>
-            <button class="btn btn-secondary btn-reset-user" data-id="${doc.id}">Reset</button>
-            <button
-              class="btn ${isActive ? "btn-warning" : "btn-success"} btn-toggle-user"
-              data-id="${doc.id}"
-              data-email="${data.email || ""}"
-              data-active="${isActive ? "true" : "false"}"
-            >
-              ${isActive ? "Deactivate" : "Activate"}
-            </button>
-            <button
-              class="btn btn-danger btn-delete-user"
-              data-id="${doc.id}"
-              data-email="${data.email || ""}"
-            >
-              Delete
-            </button>
+            <button class="btn btn-secondary btn-edit-user" data-id="${data.id}">Edit</button>
+            <button class="btn btn-secondary btn-reset-user" data-id="${data.id}">Reset</button>
+
+            ${
+              isDeleted
+                ? `<button class="btn btn-success btn-restore-user" data-id="${data.id}" data-email="${data.email || ""}">Restore</button>`
+                : `<button
+                    class="btn ${isActive ? "btn-warning" : "btn-success"} btn-toggle-user"
+                    data-id="${data.id}"
+                    data-email="${data.email || ""}"
+                    data-active="${isActive ? "true" : "false"}"
+                  >
+                    ${isActive ? "Deactivate" : "Activate"}
+                  </button>`
+            }
+
+            ${
+              isDeleted
+                ? `<button class="btn btn-danger btn-hard-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Permanent Delete</button>`
+                : `<button class="btn btn-danger btn-soft-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Soft Delete</button>`
+            }
           </div>
         </td>
       `;
@@ -650,41 +678,47 @@ window.loadUsersForAdmin = async function () {
       tbody.appendChild(tr);
     });
 
-    // EDIT
     document.querySelectorAll(".btn-edit-user").forEach((btn) => {
       btn.addEventListener("click", async () => {
         await loadUserIntoForm(btn.dataset.id);
       });
     });
 
-    // RESET
     document.querySelectorAll(".btn-reset-user").forEach((btn) => {
       btn.addEventListener("click", async () => {
         await sendPasswordResetForUser(btn.dataset.id);
       });
     });
 
-    // ACTIVATE / DEACTIVATE
     document.querySelectorAll(".btn-toggle-user").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const uid = btn.dataset.id;
-        const email = btn.dataset.email || "";
-        const current = btn.dataset.active === "true";
-
-        await toggleUserActiveStatus(uid, email, !current);
+        await toggleUserActiveStatus(
+          btn.dataset.id,
+          btn.dataset.email || "",
+          btn.dataset.active !== "true"
+        );
       });
     });
 
-    // DELETE
-    document.querySelectorAll(".btn-delete-user").forEach((btn) => {
+    document.querySelectorAll(".btn-soft-delete-user").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const uid = btn.dataset.id;
-        const email = btn.dataset.email || "";
-
-        await deleteUserCompletelyFromAdmin(uid, email);
+        await softDeleteUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
       });
     });
 
+    document.querySelectorAll(".btn-restore-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await restoreDeletedUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
+      });
+    });
+
+    document.querySelectorAll(".btn-hard-delete-user").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await deleteUserCompletelyFromAdmin(btn.dataset.id, btn.dataset.email || "");
+      });
+    });
+
+    await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
     tbody.innerHTML = `<tr><td colspan="7">Failed to load users.</td></tr>`;
@@ -904,7 +938,7 @@ async function seedFallbackProjectsToFirestore() {
 
     setAdminMessage("adminProjectMessage", "Fallback projects seeded to Firestore successfully.");
     await loadProjectsRegistry();
-    await loadProjectsForAdmin();
+    await window.loadProjectsForAdmin();
     window.renderProjectCheckboxesForAdmin([]);
     repopulateProjectsForCurrentUser();
   } catch (error) {
@@ -1009,7 +1043,7 @@ function repopulateProjectsForCurrentUser() {
 function setupAdminUI() {
   document.getElementById("saveUserBtn").addEventListener("click", saveUserFromAdminForm);
   document.getElementById("clearUserFormBtn").addEventListener("click", clearUserForm);
-  document.getElementById("refreshUsersBtn").addEventListener("click", loadUsersForAdmin);
+  document.getElementById("refreshUsersBtn").addEventListener("click", window.loadUsersForAdmin);
 
   const backfillMissingBtn = document.getElementById("backfillMissingMonitoringBtn");
   if (backfillMissingBtn) {
@@ -1104,7 +1138,7 @@ function setupAdminUI() {
     });
   }
 
-  document.getElementById("adminUserRole").addEventListener("change", updateSupervisorFieldVisibility);
+  document.getElementById("adminUserRole").addEventListener("change", window.updateSupervisorFieldVisibility);
 
   document.getElementById("saveProjectBtn").addEventListener("click", saveProjectFromAdminForm);
   document.getElementById("clearProjectFormBtn").addEventListener("click", clearProjectForm);
@@ -1116,7 +1150,7 @@ function setupAdminUI() {
 
   // Do not load admin-only Firestore data here.
   // These are loaded only after sign-in, and only for admin/developer users.
-  updateSupervisorFieldVisibility();
+  window.updateSupervisorFieldVisibility();
 }
 
 const setUserActiveStateCallable = functions.httpsCallable("setUserActiveState");
