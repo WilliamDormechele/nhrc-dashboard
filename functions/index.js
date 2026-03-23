@@ -124,65 +124,98 @@ exports.setUserActiveState = onCall({ region: "us-central1" }, async (request) =
 });
 
 exports.softDeleteUser = onCall({ region: "us-central1" }, async (request) => {
-  const actor = await requireAdmin(request);
-  const { userId, reason = "" } = request.data || {};
+  try {
+    const actor = await requireAdmin(request);
+    const { userId, reason = "" } = request.data || {};
 
-  if (!userId) {
-    throw new HttpsError("invalid-argument", "userId is required.");
+    if (!userId) {
+      throw new HttpsError("invalid-argument", "userId is required.");
+    }
+
+    if (actor.uid === userId) {
+      throw new HttpsError("failed-precondition", "You cannot soft delete your own account.");
+    }
+
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "User profile not found.");
+    }
+
+    const before = userSnap.data() || {};
+
+    // Update Firestore
+    await userRef.set({
+      isActive: false,
+      isDeleted: true,
+      deleteReason: reason || "",
+      deletedAt: FieldValue.serverTimestamp(),
+      deletedBy: actor.email || actor.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actor.email || actor.uid
+    }, { merge: true });
+
+    // Update monitoring directory
+    await db.collection("monitoring_directory").doc(userId).set({
+      isActive: false,
+      isDeleted: true,
+      deletedAt: FieldValue.serverTimestamp(),
+      deletedBy: actor.email || actor.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actor.email || actor.uid
+    }, { merge: true });
+
+    // 🔥 FIX: Wrap Auth update
+    try {
+      await admin.auth().updateUser(userId, {
+        disabled: true
+      });
+    } catch (authError) {
+      logger.error("Auth disable failed", authError);
+
+      if (authError.code === "auth/user-not-found") {
+        throw new HttpsError(
+          "not-found",
+          "Auth user not found. Firestore user exists but Authentication account is missing."
+        );
+      }
+
+      throw new HttpsError(
+        "internal",
+        authError.message || "Failed to disable user in Firebase Auth."
+      );
+    }
+
+    const afterSnap = await userRef.get();
+    const after = afterSnap.data() || {};
+
+    await writeAdminAudit({
+      actor,
+      action: "soft_delete_user",
+      targetUserId: userId,
+      before,
+      after,
+      note: reason || "Soft deleted"
+    });
+
+    return {
+      ok: true,
+      message: "User soft deleted successfully."
+    };
+
+  } catch (error) {
+    logger.error("softDeleteUser failed", error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError(
+      "internal",
+      error.message || "Soft delete failed unexpectedly."
+    );
   }
-
-  if (actor.uid === userId) {
-    throw new HttpsError("failed-precondition", "You cannot soft delete your own account.");
-  }
-
-  const userRef = db.collection("users").doc(userId);
-  const userSnap = await userRef.get();
-
-  if (!userSnap.exists) {
-    throw new HttpsError("not-found", "User profile not found.");
-  }
-
-  const before = userSnap.data() || {};
-
-  await userRef.set({
-    isActive: false,
-    isDeleted: true,
-    deleteReason: reason || "",
-    deletedAt: FieldValue.serverTimestamp(),
-    deletedBy: actor.email || actor.uid,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.email || actor.uid
-  }, { merge: true });
-
-  await db.collection("monitoring_directory").doc(userId).set({
-    isActive: false,
-    isDeleted: true,
-    deletedAt: FieldValue.serverTimestamp(),
-    deletedBy: actor.email || actor.uid,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.email || actor.uid
-  }, { merge: true });
-
-  await admin.auth().updateUser(userId, {
-    disabled: true
-  });
-
-  const afterSnap = await userRef.get();
-  const after = afterSnap.data() || {};
-
-  await writeAdminAudit({
-    actor,
-    action: "soft_delete_user",
-    targetUserId: userId,
-    before,
-    after,
-    note: reason || "Soft deleted"
-  });
-
-  return {
-    ok: true,
-    message: "User soft deleted successfully."
-  };
 });
 
 exports.restoreDeletedUser = onCall({ region: "us-central1" }, async (request) => {
