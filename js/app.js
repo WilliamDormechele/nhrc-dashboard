@@ -239,7 +239,7 @@ auth.onAuthStateChanged(async (user) => {
   const permissions = getPermissions(profile.role);
 
   if (permissions.canManageUsers || permissions.canManageProjects) {
-    renderProjectCheckboxesForAdmin([]);
+    window.renderProjectCheckboxesForAdmin([]);
     await loadSupervisorOptions("");
     updateSupervisorFieldVisibility();
     await loadMonitoringDirectorySyncStatus();
