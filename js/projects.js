@@ -635,160 +635,165 @@ function renderAdvancedQueries(project) {
     return;
   }
 
-  const groupedMode = rawQueries.some(
-    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
-  );
+  const projectCode = normalizeText(project?.code);
+  const projectName = normalizeText(project?.name);
+  const isBrave = projectCode === "brave" || projectName === "brave";
 
-  const sections = groupedMode
-    ? rawQueries
-    : [
-        {
-          category: `${project.name} Queries`,
-          items: rawQueries
-        }
-      ];
+  // IMPORTANT:
+  // If queries were saved in grouped format, flatten them into one list.
+  // This is especially for BRAVE, where the page should show one toolbar
+  // and one combined results area, not separate tool sections.
+  const flattenedQueries = rawQueries.flatMap((entry) => {
+    if (entry && typeof entry === "object" && Array.isArray(entry.items)) {
+      return entry.items;
+    }
+    return [entry];
+  });
 
-  const locationLabel = getLocationLabelForProject(project);
-  const locationPlaceholder = getLocationPlaceholderForProject(project);
+  const normalizedItems = normalizeQueryItems(flattenedQueries);
 
-  sections.forEach((section, index) => {
-    const normalizedItems = normalizeQueryItems(section.items || []);
+  if (!normalizedItems.length) {
+    queriesContainer.innerHTML = `<div class="placeholder-box">No queries configured for this project yet.</div>`;
+    return;
+  }
 
-    const shell = document.createElement("div");
-    shell.className = "advanced-library-shell report-category";
+  const locationLabel = isBrave ? "Hospital / Facility" : "District";
+  const locationPlaceholder = isBrave ? "All hospitals / facilities" : "All districts";
 
-    const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
-    const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
+  const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
+  const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
 
-    const header = document.createElement("div");
-    header.className = "advanced-library-header";
-    header.innerHTML = `
-      <div>
-        <h3>${escapeHtml(section.category || `${project.name} Queries`)}</h3>
-        <p>Search and filter query files by field worker, ${locationLabel.toLowerCase()}, supervisor, and date.</p>
+  const shell = document.createElement("div");
+  shell.className = "advanced-library-shell";
+
+  const header = document.createElement("div");
+  header.className = "advanced-library-header";
+  header.innerHTML = `
+    <div>
+      <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
+      <p>Search and filter query files by field worker, ${escapeHtml(locationLabel.toLowerCase())}, supervisor, and date.</p>
+    </div>
+    <div class="advanced-library-summary" id="queriesSummaryText">0 files</div>
+  `;
+  shell.appendChild(header);
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "advanced-library-toolbar";
+  toolbar.innerHTML = `
+    <div class="advanced-filter-group advanced-filter-search">
+      <label for="queriesFieldworkerSearch">Field Worker Search</label>
+      <div class="advanced-search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input
+          type="text"
+          id="queriesFieldworkerSearch"
+          placeholder="Search by field worker name..."
+        />
       </div>
-      <div class="advanced-library-summary" id="queriesSummaryText_${index}">0 files</div>
-    `;
-    shell.appendChild(header);
+    </div>
 
-    const toolbar = document.createElement("div");
-    toolbar.className = "advanced-library-toolbar";
-    toolbar.innerHTML = `
-      <div class="advanced-filter-group advanced-filter-search">
-        <label for="queriesFieldworkerSearch_${index}">Field Worker Search</label>
-        <div class="advanced-search-input-wrap">
-          <i class="fas fa-search"></i>
-          <input
-            type="text"
-            id="queriesFieldworkerSearch_${index}"
-            placeholder="Search by field worker name..."
-          />
-        </div>
-      </div>
+    <div class="advanced-filter-group">
+      <label for="queriesDistrictFilter">${escapeHtml(locationLabel)}</label>
+      <select id="queriesDistrictFilter">
+        <option value="">${escapeHtml(locationPlaceholder)}</option>
+        ${allLocations.map((location) => `<option value="${escapeHtml(location)}">${escapeHtml(location)}</option>`).join("")}
+      </select>
+    </div>
 
-      <div class="advanced-filter-group">
-        <label for="queriesDistrictFilter_${index}">${escapeHtml(locationLabel)}</label>
-        <select id="queriesDistrictFilter_${index}">
-          <option value="">${escapeHtml(locationPlaceholder)}</option>
-          ${allLocations.map((location) => `<option value="${escapeHtml(location)}">${escapeHtml(location)}</option>`).join("")}
-        </select>
-      </div>
+    <div class="advanced-filter-group">
+      <label for="queriesSupervisorFilter">Supervisor</label>
+      <select id="queriesSupervisorFilter">
+        <option value="">All supervisors</option>
+        ${allSupervisors.map((supervisor) => `<option value="${escapeHtml(supervisor)}">${escapeHtml(supervisor)}</option>`).join("")}
+      </select>
+    </div>
 
-      <div class="advanced-filter-group">
-        <label for="queriesSupervisorFilter_${index}">Supervisor</label>
-        <select id="queriesSupervisorFilter_${index}">
-          <option value="">All supervisors</option>
-          ${allSupervisors.map((supervisor) => `<option value="${escapeHtml(supervisor)}">${escapeHtml(supervisor)}</option>`).join("")}
-        </select>
-      </div>
+    <div class="advanced-filter-group">
+      <label for="queriesDateFilter">Query date</label>
+      <input type="date" id="queriesDateFilter" />
+    </div>
 
-      <div class="advanced-filter-group">
-        <label for="queriesDateFilter_${index}">Query date</label>
-        <input type="date" id="queriesDateFilter_${index}" />
-      </div>
+    <div class="advanced-filter-group advanced-filter-actions">
+      <label>&nbsp;</label>
+      <button type="button" class="btn btn-secondary" id="queriesClearBtn">
+        Clear Filters
+      </button>
+    </div>
+  `;
+  shell.appendChild(toolbar);
 
-      <div class="advanced-filter-group advanced-filter-actions">
-        <label>&nbsp;</label>
-        <button type="button" class="btn btn-secondary" id="queriesClearBtn_${index}">
-          Clear Filters
-        </button>
-      </div>
-    `;
-    shell.appendChild(toolbar);
+  const resultsWrap = document.createElement("div");
+  resultsWrap.className = "advanced-library-results";
+  shell.appendChild(resultsWrap);
 
-    const resultsWrap = document.createElement("div");
-    resultsWrap.className = "advanced-library-results";
-    shell.appendChild(resultsWrap);
+  queriesContainer.appendChild(shell);
 
-    queriesContainer.appendChild(shell);
+  function repaint() {
+    const district = document.getElementById("queriesDistrictFilter")?.value || "";
+    const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
+    const date = document.getElementById("queriesDateFilter")?.value || "";
+    const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
 
-    function repaint() {
-      const district = document.getElementById(`queriesDistrictFilter_${index}`)?.value || "";
-      const supervisor = document.getElementById(`queriesSupervisorFilter_${index}`)?.value || "";
-      const date = document.getElementById(`queriesDateFilter_${index}`)?.value || "";
-      const search = document.getElementById(`queriesFieldworkerSearch_${index}`)?.value || "";
+    const filteredItems = filterAdvancedItems(normalizedItems, {
+      district,
+      supervisor,
+      date,
+      search
+    });
 
-      const filteredItems = filterAdvancedItems(normalizedItems, {
-        district,
-        supervisor,
-        date,
-        search
-      });
-
-      const summary = document.getElementById(`queriesSummaryText_${index}`);
-      if (summary) {
-        summary.textContent = `${filteredItems.length} quer${filteredItems.length === 1 ? "y file" : "y files"}`;
-      }
-
-      resultsWrap.innerHTML = "";
-
-      if (!filteredItems.length) {
-        resultsWrap.innerHTML = `
-          <div class="placeholder-box">
-            No data queries match the selected filters.
-          </div>
-        `;
-        return;
-      }
-
-      const grid = document.createElement("div");
-      grid.className = "resource-grid advanced-resource-grid";
-
-      filteredItems.forEach((item) => {
-        grid.appendChild(
-          buildAdvancedFileCard(item, {
-            canDownload: true,
-            actionName: "download_query",
-            pageName: "queries",
-            unavailableMessage: "No query file is currently available for this field worker."
-          })
-        );
-      });
-
-      resultsWrap.appendChild(grid);
+    const summary = document.getElementById("queriesSummaryText");
+    if (summary) {
+      summary.textContent = `${filteredItems.length} quer${filteredItems.length === 1 ? "y file" : "y files"}`;
     }
 
-    document.getElementById(`queriesFieldworkerSearch_${index}`)?.addEventListener("input", repaint);
-    document.getElementById(`queriesDistrictFilter_${index}`)?.addEventListener("change", repaint);
-    document.getElementById(`queriesSupervisorFilter_${index}`)?.addEventListener("change", repaint);
-    document.getElementById(`queriesDateFilter_${index}`)?.addEventListener("change", repaint);
+    resultsWrap.innerHTML = "";
 
-    document.getElementById(`queriesClearBtn_${index}`)?.addEventListener("click", () => {
-      const searchEl = document.getElementById(`queriesFieldworkerSearch_${index}`);
-      const districtEl = document.getElementById(`queriesDistrictFilter_${index}`);
-      const supervisorEl = document.getElementById(`queriesSupervisorFilter_${index}`);
-      const dateEl = document.getElementById(`queriesDateFilter_${index}`);
+    if (!filteredItems.length) {
+      resultsWrap.innerHTML = `
+        <div class="placeholder-box">
+          No data queries match the selected filters.
+        </div>
+      `;
+      return;
+    }
 
-      if (searchEl) searchEl.value = "";
-      if (districtEl) districtEl.value = "";
-      if (supervisorEl) supervisorEl.value = "";
-      if (dateEl) dateEl.value = "";
+    const grid = document.createElement("div");
+    grid.className = "resource-grid advanced-resource-grid";
 
-      repaint();
+    filteredItems.forEach((item) => {
+      grid.appendChild(
+        buildAdvancedFileCard(item, {
+          canDownload: true,
+          actionName: "download_query",
+          pageName: "queries",
+          unavailableMessage: "No query file is currently available for this field worker."
+        })
+      );
     });
+
+    resultsWrap.appendChild(grid);
+  }
+
+  document.getElementById("queriesFieldworkerSearch")?.addEventListener("input", repaint);
+  document.getElementById("queriesDistrictFilter")?.addEventListener("change", repaint);
+  document.getElementById("queriesSupervisorFilter")?.addEventListener("change", repaint);
+  document.getElementById("queriesDateFilter")?.addEventListener("change", repaint);
+
+  document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
+    const searchEl = document.getElementById("queriesFieldworkerSearch");
+    const districtEl = document.getElementById("queriesDistrictFilter");
+    const supervisorEl = document.getElementById("queriesSupervisorFilter");
+    const dateEl = document.getElementById("queriesDateFilter");
+
+    if (searchEl) searchEl.value = "";
+    if (districtEl) districtEl.value = "";
+    if (supervisorEl) supervisorEl.value = "";
+    if (dateEl) dateEl.value = "";
 
     repaint();
   });
+
+  repaint();
 }
 
 /**
