@@ -897,34 +897,76 @@ function renderStandardQueries(project) {
     return;
   }
 
-  const block = document.createElement("div");
-  block.className = "report-category";
+  const rawQueries = Array.isArray(project.queries) ? project.queries : [];
 
-  const title = document.createElement("h3");
-  title.textContent = `${project.name} Queries`;
-  block.appendChild(title);
-
-  const grid = document.createElement("div");
-  grid.className = "resource-grid";
-
-  (project.queries || []).forEach((item) => {
-    const card = buildResourceCard(
-      item,
-      "Open / Download",
-      "download_query",
-      "queries",
-      true
-    );
-
-    grid.appendChild(card);
-  });
-
-  block.appendChild(grid);
-  queriesContainer.appendChild(block);
-
-  if (!project.queries || project.queries.length === 0) {
+  if (!rawQueries.length) {
     queriesContainer.innerHTML = `<div class="placeholder-box">No queries configured for this project yet.</div>`;
+    return;
   }
+
+  // NEW:
+  // Support both old flat format:
+  // [
+  //   { title: "...", file: "..." }
+  // ]
+  //
+  // and new grouped format:
+  // [
+  //   {
+  //     category: "Household Members",
+  //     items: [{ title: "...", file: "..." }]
+  //   }
+  // ]
+
+  const groupedMode = rawQueries.some(
+    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
+  );
+
+  const sections = groupedMode
+    ? rawQueries
+    : [
+        {
+          category: `${project.name} Queries`,
+          items: rawQueries
+        }
+      ];
+
+  sections.forEach((section) => {
+    const block = document.createElement("div");
+    block.className = "report-category";
+
+    const title = document.createElement("h3");
+    title.textContent = section.category || `${project.name} Queries`;
+    block.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "resource-grid";
+
+    const items = Array.isArray(section.items) ? section.items : [];
+
+    if (!items.length) {
+      const emptyBox = document.createElement("div");
+      emptyBox.className = "placeholder-box";
+      emptyBox.textContent = "No query files available in this section yet.";
+      block.appendChild(emptyBox);
+    } else {
+      items.forEach((item) => {
+        const card = buildResourceCard(
+          item,
+          "Open / Download",
+          "download_query",
+          "queries",
+          true
+        );
+
+        grid.appendChild(card);
+      });
+
+      block.appendChild(grid);
+    }
+
+    queriesContainer.appendChild(block);
+  });
 }
 
 /**
