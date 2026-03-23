@@ -14,8 +14,23 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
+
 const auth = firebase.auth();
+
 const db = firebase.firestore();
+
+// Important fix for browsers/networks/extensions that break Firestore WebChannel
+db.settings({
+  experimentalAutoDetectLongPolling: true,
+  useFetchStreams: false
+});
+
+// Optional harder fallback:
+// db.settings({
+//   experimentalForceLongPolling: true,
+//   useFetchStreams: false
+// });
+
 const functions = firebase.app().functions("us-central1");
 
 // Secondary app/auth instance for creating new users from the admin panel
