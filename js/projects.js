@@ -499,6 +499,28 @@ function uniqueSorted(values) {
     .sort((a, b) => a.localeCompare(b));
 }
 
+function getLocationLabelForProject(project) {
+  const projectCode = normalizeText(project?.code);
+  const projectName = normalizeText(project?.name);
+
+  if (projectCode === "brave" || projectName === "brave") {
+    return "Hospital / Facility";
+  }
+
+  return "District";
+}
+
+function getLocationPlaceholderForProject(project) {
+  const projectCode = normalizeText(project?.code);
+  const projectName = normalizeText(project?.name);
+
+  if (projectCode === "brave" || projectName === "brave") {
+    return "All hospitals / facilities";
+  }
+
+  return "All districts";
+}
+
 /**
  * Normalize raw query items.
  */
@@ -607,108 +629,167 @@ function renderAdvancedQueries(project) {
     return;
   }
 
-  const normalizedItems = normalizeQueryItems(project.queries || []);
+  const rawQueries = Array.isArray(project.queries) ? project.queries : [];
 
-  if (!normalizedItems.length) {
+  if (!rawQueries.length) {
     queriesContainer.innerHTML = `<div class="placeholder-box">No queries configured for this project yet.</div>`;
     return;
   }
 
-  const allDistricts = uniqueSorted(normalizedItems.map((item) => item.district));
-  const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
+  const groupedMode = rawQueries.some(
+    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
+  );
 
-  const shell = document.createElement("div");
-  shell.className = "advanced-library-shell";
+  const sections = groupedMode
+    ? rawQueries
+    : [
+        {
+          category: `${project.name} Queries`,
+          items: rawQueries
+        }
+      ];
 
-  const header = document.createElement("div");
-  header.className = "advanced-library-header";
-  header.innerHTML = `
-    <div>
-      <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
-      <p>Search and filter query files by field worker, district, supervisor, and date.</p>
-    </div>
-    <div class="advanced-library-summary" id="queriesSummaryText">0 files</div>
-  `;
-  shell.appendChild(header);
+  const locationLabel = getLocationLabelForProject(project);
+  const locationPlaceholder = getLocationPlaceholderForProject(project);
 
-  const toolbar = buildAdvancedFiltersToolbar({
-    searchId: "queriesFieldworkerSearch",
-    districtId: "queriesDistrictFilter",
-    supervisorId: "queriesSupervisorFilter",
-    dateId: "queriesDateFilter",
-    searchPlaceholder: "Search by field worker name...",
-    districts: allDistricts,
-    supervisors: allSupervisors,
-    dateLabel: "Query date"
-  });
-  shell.appendChild(toolbar);
+  sections.forEach((section, index) => {
+    const normalizedItems = normalizeQueryItems(section.items || []);
 
-  const resultsWrap = document.createElement("div");
-  resultsWrap.className = "advanced-library-results";
-  shell.appendChild(resultsWrap);
+    const shell = document.createElement("div");
+    shell.className = "advanced-library-shell report-category";
 
-  queriesContainer.appendChild(shell);
+    const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
+    const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
 
-  function repaint() {
-    const district = document.getElementById("queriesDistrictFilter")?.value || "";
-    const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
-    const date = document.getElementById("queriesDateFilter")?.value || "";
-    const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
+    const header = document.createElement("div");
+    header.className = "advanced-library-header";
+    header.innerHTML = `
+      <div>
+        <h3>${escapeHtml(section.category || `${project.name} Queries`)}</h3>
+        <p>Search and filter query files by field worker, ${locationLabel.toLowerCase()}, supervisor, and date.</p>
+      </div>
+      <div class="advanced-library-summary" id="queriesSummaryText_${index}">0 files</div>
+    `;
+    shell.appendChild(header);
 
-    const filteredItems = filterAdvancedItems(normalizedItems, {
-      district,
-      supervisor,
-      date,
-      search
-    });
-
-    const summary = document.getElementById("queriesSummaryText");
-    if (summary) {
-      summary.textContent = `${filteredItems.length} quer${filteredItems.length === 1 ? "y file" : "y files"}`;
-    }
-
-    resultsWrap.innerHTML = "";
-
-    if (!filteredItems.length) {
-      resultsWrap.innerHTML = `
-        <div class="placeholder-box">
-          No data queries match the selected filters.
+    const toolbar = document.createElement("div");
+    toolbar.className = "advanced-library-toolbar";
+    toolbar.innerHTML = `
+      <div class="advanced-filter-group advanced-filter-search">
+        <label for="queriesFieldworkerSearch_${index}">Field Worker Search</label>
+        <div class="advanced-search-input-wrap">
+          <i class="fas fa-search"></i>
+          <input
+            type="text"
+            id="queriesFieldworkerSearch_${index}"
+            placeholder="Search by field worker name..."
+          />
         </div>
-      `;
-      return;
+      </div>
+
+      <div class="advanced-filter-group">
+        <label for="queriesDistrictFilter_${index}">${escapeHtml(locationLabel)}</label>
+        <select id="queriesDistrictFilter_${index}">
+          <option value="">${escapeHtml(locationPlaceholder)}</option>
+          ${allLocations.map((location) => `<option value="${escapeHtml(location)}">${escapeHtml(location)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="advanced-filter-group">
+        <label for="queriesSupervisorFilter_${index}">Supervisor</label>
+        <select id="queriesSupervisorFilter_${index}">
+          <option value="">All supervisors</option>
+          ${allSupervisors.map((supervisor) => `<option value="${escapeHtml(supervisor)}">${escapeHtml(supervisor)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="advanced-filter-group">
+        <label for="queriesDateFilter_${index}">Query date</label>
+        <input type="date" id="queriesDateFilter_${index}" />
+      </div>
+
+      <div class="advanced-filter-group advanced-filter-actions">
+        <label>&nbsp;</label>
+        <button type="button" class="btn btn-secondary" id="queriesClearBtn_${index}">
+          Clear Filters
+        </button>
+      </div>
+    `;
+    shell.appendChild(toolbar);
+
+    const resultsWrap = document.createElement("div");
+    resultsWrap.className = "advanced-library-results";
+    shell.appendChild(resultsWrap);
+
+    queriesContainer.appendChild(shell);
+
+    function repaint() {
+      const district = document.getElementById(`queriesDistrictFilter_${index}`)?.value || "";
+      const supervisor = document.getElementById(`queriesSupervisorFilter_${index}`)?.value || "";
+      const date = document.getElementById(`queriesDateFilter_${index}`)?.value || "";
+      const search = document.getElementById(`queriesFieldworkerSearch_${index}`)?.value || "";
+
+      const filteredItems = filterAdvancedItems(normalizedItems, {
+        district,
+        supervisor,
+        date,
+        search
+      });
+
+      const summary = document.getElementById(`queriesSummaryText_${index}`);
+      if (summary) {
+        summary.textContent = `${filteredItems.length} quer${filteredItems.length === 1 ? "y file" : "y files"}`;
+      }
+
+      resultsWrap.innerHTML = "";
+
+      if (!filteredItems.length) {
+        resultsWrap.innerHTML = `
+          <div class="placeholder-box">
+            No data queries match the selected filters.
+          </div>
+        `;
+        return;
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "resource-grid advanced-resource-grid";
+
+      filteredItems.forEach((item) => {
+        grid.appendChild(
+          buildAdvancedFileCard(item, {
+            canDownload: true,
+            actionName: "download_query",
+            pageName: "queries",
+            unavailableMessage: "No query file is currently available for this field worker."
+          })
+        );
+      });
+
+      resultsWrap.appendChild(grid);
     }
 
-    const grid = document.createElement("div");
-    grid.className = "resource-grid advanced-resource-grid";
+    document.getElementById(`queriesFieldworkerSearch_${index}`)?.addEventListener("input", repaint);
+    document.getElementById(`queriesDistrictFilter_${index}`)?.addEventListener("change", repaint);
+    document.getElementById(`queriesSupervisorFilter_${index}`)?.addEventListener("change", repaint);
+    document.getElementById(`queriesDateFilter_${index}`)?.addEventListener("change", repaint);
 
-    filteredItems.forEach((item) => {
-      grid.appendChild(
-        buildAdvancedFileCard(item, {
-          canDownload: true,
-          actionName: "download_query",
-          pageName: "queries",
-          unavailableMessage: "No query file is currently available for this field worker."
-        })
-      );
+    document.getElementById(`queriesClearBtn_${index}`)?.addEventListener("click", () => {
+      const searchEl = document.getElementById(`queriesFieldworkerSearch_${index}`);
+      const districtEl = document.getElementById(`queriesDistrictFilter_${index}`);
+      const supervisorEl = document.getElementById(`queriesSupervisorFilter_${index}`);
+      const dateEl = document.getElementById(`queriesDateFilter_${index}`);
+
+      if (searchEl) searchEl.value = "";
+      if (districtEl) districtEl.value = "";
+      if (supervisorEl) supervisorEl.value = "";
+      if (dateEl) dateEl.value = "";
+
+      repaint();
     });
 
-    resultsWrap.appendChild(grid);
-  }
-
-  [
-    "queriesFieldworkerSearch",
-    "queriesDistrictFilter",
-    "queriesSupervisorFilter",
-    "queriesDateFilter"
-  ].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener(el.tagName === "INPUT" && el.type === "text" ? "input" : "change", repaint);
+    repaint();
   });
-
-  toolbar.addEventListener("advancedfiltersclear", repaint);
-
-  repaint();
 }
 
 /**
@@ -732,9 +813,12 @@ function renderAdvancedReports(project) {
     return;
   }
 
+  const locationLabel = getLocationLabelForProject(project);
+  const locationPlaceholder = getLocationPlaceholderForProject(project);
+
   reportSections.forEach((section, index) => {
     const sectionItems = normalizeReportItems(section.items || []);
-    const sectionDistricts = uniqueSorted(sectionItems.map((item) => item.district));
+    const sectionLocations = uniqueSorted(sectionItems.map((item) => item.district));
 
     const shell = document.createElement("div");
     shell.className = "report-category advanced-library-shell";
@@ -744,7 +828,7 @@ function renderAdvancedReports(project) {
     header.innerHTML = `
       <div>
         <h3>${escapeHtml(section.category || "Reports")}</h3>
-        <p>Filter report files by district and reporting date.</p>
+        <p>Filter report files by ${locationLabel.toLowerCase()} and reporting date.</p>
       </div>
       <div class="advanced-library-summary" id="reportsSummaryText_${index}">0 files</div>
     `;
@@ -754,10 +838,10 @@ function renderAdvancedReports(project) {
     toolbar.className = "advanced-library-toolbar";
     toolbar.innerHTML = `
       <div class="advanced-filter-group">
-        <label for="reportsDistrictFilter_${index}">District</label>
+        <label for="reportsDistrictFilter_${index}">${escapeHtml(locationLabel)}</label>
         <select id="reportsDistrictFilter_${index}">
-          <option value="">All districts</option>
-          ${sectionDistricts.map((district) => `<option value="${escapeHtml(district)}">${escapeHtml(district)}</option>`).join("")}
+          <option value="">${escapeHtml(locationPlaceholder)}</option>
+          ${sectionLocations.map((location) => `<option value="${escapeHtml(location)}">${escapeHtml(location)}</option>`).join("")}
         </select>
       </div>
 
