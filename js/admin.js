@@ -932,7 +932,7 @@ function clearProjectForm() {
   document.getElementById("projectPptInput").value = "";
   document.getElementById("projectReportsJsonInput").value = "[]";
   document.getElementById("projectQueriesJsonInput").value = "[]";
-  setAdminLoading("adminProjectMessage", "Saving project...");
+  setAdminMessage("adminProjectMessage", "");
 }
 
 /**
@@ -1342,7 +1342,29 @@ async function loadRecentAdminAuditLogs() {
 async function toggleUserActiveStatus(userId, email, nextIsActive) {
   try {
     const actionText = nextIsActive ? "activate" : "deactivate";
-    const confirmed = confirm(`Are you sure you want to ${actionText} ${email}?`);
+    let confirmed = false;
+
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: nextIsActive ? "Activate User?" : "Deactivate User?",
+        html: `
+          <b>${email}</b><br><br>
+          ${nextIsActive
+            ? "This will restore the user's active access."
+            : "This will immediately disable the user's login access."}
+        `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: nextIsActive ? "Yes, activate" : "Yes, deactivate",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: nextIsActive ? "#059669" : "#d97706"
+      });
+
+      confirmed = result.isConfirmed;
+    } else {
+      confirmed = confirm(`Are you sure you want to ${actionText} ${email}?`);
+    }
+
     if (!confirmed) return;
 
     setAdminLoading("adminUserMessage", nextIsActive ? "Activating user..." : "Deactivating user...");
@@ -1364,7 +1386,7 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
         : `User deactivated successfully: ${email}`
     );
 
-    await window.loadProjectsForAdmin();
+    await window.loadUsersForAdmin();
     await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
@@ -1429,8 +1451,30 @@ let confirmed = false;
 
 async function restoreDeletedUserFromAdmin(userId, email) {
   try {
-    const confirmed = confirm(`Restore deleted user ${email}?`);
+    let confirmed = false;
+
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: "Restore User?",
+        html: `
+          <b>${email}</b><br><br>
+          This will restore the deleted user record and allow the account to be managed again.
+        `,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, restore user",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#059669"
+      });
+
+      confirmed = result.isConfirmed;
+    } else {
+      confirmed = confirm(`Restore deleted user ${email}?`);
+    }
+
     if (!confirmed) return;
+
+    setAdminLoading("adminUserMessage", "Restoring user...");
 
     await restoreDeletedUserCallable({ userId });
 
@@ -1445,14 +1489,37 @@ async function restoreDeletedUserFromAdmin(userId, email) {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Restore failed: ${error.message}`, true);
+  } finally {
+    hideAdminLoader();
   }
 }
 
 async function deleteUserCompletelyFromAdmin(userId, email) {
   try {
-    const confirmed = confirm(
-      `Permanently delete ${email}?\n\nThis cannot be undone.\nThe Auth account will also be removed.`
-    );
+    let confirmed = false;
+
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: "Permanent Delete?",
+        html: `
+          <b>${email}</b><br><br>
+          This action cannot be undone.<br>
+          The Auth account and user record will be permanently removed.
+        `,
+        icon: "error",
+        showCancelButton: true,
+        confirmButtonText: "Yes, permanently delete",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#b91c1c"
+      });
+
+      confirmed = result.isConfirmed;
+    } else {
+      confirmed = confirm(
+        `Permanently delete ${email}?\n\nThis cannot be undone.\nThe Auth account will also be removed.`
+      );
+    }
+
     if (!confirmed) return;
 
     setAdminLoading("adminUserMessage", "Permanently deleting user...");
@@ -1472,7 +1539,7 @@ async function deleteUserCompletelyFromAdmin(userId, email) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Permanent delete failed: ${error.message}`, true);
   } finally {
-  hideAdminLoader(); 
+    hideAdminLoader();
   }
 }
 
