@@ -1,4 +1,5 @@
 // js/auth.js
+const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
 
 function getPasswordResetActionCodeSettings(email = "") {
   const baseUrl = "https://williamdormechele.github.io/nhrc-dashboard/";
@@ -188,15 +189,37 @@ async function sendResetEmail() {
   }
 
   try {
-    const actionCodeSettings = getPasswordResetActionCodeSettings(email);
-    await auth.sendPasswordResetEmail(email, actionCodeSettings);
+    const userQuery = await db
+      .collection("users")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (userQuery.empty) {
+      throw new Error("No dashboard user account was found for this email. Please contact the administrator.");
+    }
+
+    const userDoc = userQuery.docs[0];
+    const userId = userDoc.id;
+
+    await sendUserLifecycleEmailCallable({
+      eventType: "password_reset",
+      userId
+    });
 
     authMessage.style.color = "#047857";
     authMessage.textContent =
-      "Password reset email sent. After resetting your password, return to the NHRC dashboard login page and sign in.";
+      "A branded password reset email has been sent. After resetting your password, return to the NHRC dashboard login page and sign in.";
   } catch (error) {
+    console.error("Forgot password email failed:", error);
+
+    const message =
+      error?.message ||
+      error?.details ||
+      "Failed to send the password reset email. Please try again or contact the administrator.";
+
     authMessage.style.color = "#b91c1c";
-    authMessage.textContent = error.message;
+    authMessage.textContent = message;
   }
 }
 

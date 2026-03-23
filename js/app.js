@@ -185,6 +185,7 @@ function showLogin() {
  */
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
+    stopWatchingCurrentUserProfile();
     window.currentUserProfile = null;
     window.currentProjectCode = null;
     showLogin();

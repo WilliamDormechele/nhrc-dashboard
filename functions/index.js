@@ -13,7 +13,8 @@ const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 const APP_BASE_URL = "https://williamdormechele.github.io/nhrc-dashboard/";
 const LOGIN_URL = APP_BASE_URL;
 const SENDER_NAME = "NHRC Projects Dashboard";
-const SENDER_EMAIL = "william.dormechele@navrongo-hrc.org";
+// const SENDER_EMAIL = "william.dormechele@navrongo-hrc.org";
+const SENDER_EMAIL = "onboarding@resend.dev";
 
 const SIGNATURE_HTML = `
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;color:#334155;font-size:14px;line-height:1.6;">
