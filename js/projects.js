@@ -267,7 +267,6 @@ function buildResourceCard(
     card.innerHTML = `
       <div class="resource-card-top">
         <span class="resource-filetype">N/A</span>
-        <span class="resource-badge">Unavailable</span>
       </div>
 
       <div class="resource-title">${escapeHtml(titleText)}</div>
