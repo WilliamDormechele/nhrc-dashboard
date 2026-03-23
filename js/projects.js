@@ -934,7 +934,12 @@ function renderReports(project) {
   const projectCode = normalizeText(project?.code);
   const projectName = normalizeText(project?.name);
 
-  if (projectCode === "hdss" || projectName === "hdss") {
+  if (
+    projectCode === "hdss" ||
+    projectName === "hdss" ||
+    projectCode === "brave" ||
+    projectName === "brave"
+  ) {
     renderAdvancedReports(project);
     return;
   }
@@ -949,7 +954,12 @@ function renderQueries(project) {
   const projectCode = normalizeText(project?.code);
   const projectName = normalizeText(project?.name);
 
-  if (projectCode === "hdss" || projectName === "hdss") {
+  if (
+    projectCode === "hdss" ||
+    projectName === "hdss" ||
+    projectCode === "brave" ||
+    projectName === "brave"
+  ) {
     renderAdvancedQueries(project);
     return;
   }
