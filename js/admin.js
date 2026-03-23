@@ -14,13 +14,14 @@ function getCheckedProjects(containerId) {
 /**
  * Render project checkboxes for the user form.
  */
-function renderProjectCheckboxesForAdmin(selectedProjects = []) {
+window.renderProjectCheckboxesForAdmin = function (selectedProjects = []) {
   const container = document.getElementById("adminUserProjectsBox");
   if (!container) return;
 
   container.innerHTML = "";
 
   const registry = window.projectRegistry || {};
+  const selected = Array.isArray(selectedProjects) ? selectedProjects : [];
 
   Object.values(registry).forEach((project) => {
     const wrapper = document.createElement("label");
@@ -29,7 +30,7 @@ function renderProjectCheckboxesForAdmin(selectedProjects = []) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.value = project.code;
-    checkbox.checked = selectedProjects.includes(project.code);
+    checkbox.checked = selected.includes(project.code);
 
     const text = document.createElement("span");
     text.textContent = `${project.name} (${project.code})`;
@@ -38,7 +39,7 @@ function renderProjectCheckboxesForAdmin(selectedProjects = []) {
     wrapper.appendChild(text);
     container.appendChild(wrapper);
   });
-}
+};
 
 /**
  * Show a message in the admin UI.
@@ -157,7 +158,7 @@ async function clearUserForm() {
   document.getElementById("adminUserPassword").value = "";
   document.getElementById("adminUserRole").value = "field_worker";
   document.getElementById("adminUserIsActive").value = "true";
-  renderProjectCheckboxesForAdmin([]);
+  window.renderProjectCheckboxesForAdmin([]);
   await loadSupervisorOptions("");
   updateSupervisorFieldVisibility();
   setAdminMessage("adminUserMessage", "");
@@ -782,7 +783,7 @@ async function loadUserIntoForm(userId) {
   document.getElementById("adminUserRole").value = data.role || "field_worker";
   document.getElementById("adminUserIsActive").value = data.isActive === false ? "false" : "true";
 
-  renderProjectCheckboxesForAdmin(safeArray(data.assignedProjects));
+  window.renderProjectCheckboxesForAdmin(safeArray(data.assignedProjects));
   await loadSupervisorOptions(data.supervisorId || "");
   updateSupervisorFieldVisibility();
 
@@ -864,7 +865,7 @@ async function saveProjectFromAdminForm() {
 
     await loadProjectsRegistry();
     await loadProjectsForAdmin();
-    renderProjectCheckboxesForAdmin([]);
+    window.renderProjectCheckboxesForAdmin([]);
     repopulateProjectsForCurrentUser();
   } catch (error) {
     console.error(error);
@@ -904,7 +905,7 @@ async function seedFallbackProjectsToFirestore() {
     setAdminMessage("adminProjectMessage", "Fallback projects seeded to Firestore successfully.");
     await loadProjectsRegistry();
     await loadProjectsForAdmin();
-    renderProjectCheckboxesForAdmin([]);
+    window.renderProjectCheckboxesForAdmin([]);
     repopulateProjectsForCurrentUser();
   } catch (error) {
     console.error(error);
