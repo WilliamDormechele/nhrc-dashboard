@@ -103,6 +103,11 @@ function setupTabs() {
       }
 
       if (targetTab === "tab-admin" && (getPermissions(window.currentUserProfile.role).canManageUsers || getPermissions(window.currentUserProfile.role).canManageProjects)) {
+        if (typeof window.renderProjectCheckboxesForAdmin === "function") {
+          window.renderProjectCheckboxesForAdmin([]);
+        }
+        await loadSupervisorOptions("");
+        updateSupervisorFieldVisibility();
         await loadUsersForAdmin();
         await loadProjectsForAdmin();
       }
@@ -238,14 +243,9 @@ auth.onAuthStateChanged(async (user) => {
   // Prepare admin/monitoring widgets only if allowed
   const permissions = getPermissions(profile.role);
 
-  if (permissions.canManageUsers || permissions.canManageProjects) {
-    window.renderProjectCheckboxesForAdmin([]);
-    await loadSupervisorOptions("");
-    updateSupervisorFieldVisibility();
-    await loadMonitoringDirectorySyncStatus();
-    await loadUsersForAdmin();
-    await loadProjectsForAdmin();
-  }
+if (permissions.canManageUsers || permissions.canManageProjects) {
+  await loadMonitoringDirectorySyncStatus();
+}
 
   if (permissions.canMonitorUsers) {
     await loadMonitoringData();
