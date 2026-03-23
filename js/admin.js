@@ -1376,9 +1376,32 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
 
 async function softDeleteUserFromAdmin(userId, email) {
   try {
-    const confirmed = confirm(
-      `Soft delete ${email}?\n\nThis will:\n- mark the user as deleted\n- disable login immediately\n- keep the record for restore later`
-    );
+let confirmed = false;
+
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: "Soft Delete User?",
+        html: `
+          <b>${email}</b><br><br>
+          This will:
+          <ul style="text-align:left; margin-top:10px;">
+            <li>Mark the user as deleted</li>
+            <li>Disable login immediately</li>
+            <li>Keep the record for restore later</li>
+          </ul>
+        `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, soft delete",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#dc2626"
+      });
+
+      confirmed = result.isConfirmed;
+    } else {
+      confirmed = confirm(`Soft delete ${email}?`);
+    }
+
     if (!confirmed) return;
 
     setAdminLoading("adminUserMessage", "Soft deleting user...");
