@@ -888,3 +888,109 @@ textarea:focus {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.admin-loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.admin-loader-overlay.hidden {
+  display: none !important;
+}
+
+.admin-loader-modal {
+  width: min(460px, 100%);
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #dbe3ef;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.admin-loader-header {
+  background: linear-gradient(135deg, #1f3044, #28496b);
+  color: #ffffff;
+  padding: 18px 22px;
+}
+
+.admin-loader-header-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.admin-loader-header-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  opacity: 0.92;
+}
+
+.admin-loader-body {
+  padding: 24px 22px 22px;
+}
+
+.admin-loader-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-loader-spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #dbe3ef;
+  border-top: 3px solid #1d4ed8;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.admin-loader-message {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f3044;
+}
+
+.admin-loader-progress {
+  width: 100%;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.admin-loader-progress-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1d4ed8, #38bdf8, #1d4ed8);
+  background-size: 200% 100%;
+  animation: adminLoaderShimmer 1.3s linear infinite;
+}
+
+.admin-loader-footnote {
+  margin-top: 14px;
+  font-size: 0.86rem;
+  color: #64748b;
+}
+
+body.admin-loading {
+  overflow: hidden;
+}
+
+@keyframes adminLoaderShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

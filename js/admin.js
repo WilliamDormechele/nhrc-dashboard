@@ -609,27 +609,81 @@ async function saveUserFromAdminForm() {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", error.message, true);
+  } finally {
+    hideAdminLoader();
   }
+}
+
+function ensureAdminLoaderOverlay() {
+  let overlay = document.getElementById("adminLoaderOverlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "adminLoaderOverlay";
+  overlay.className = "admin-loader-overlay hidden";
+  overlay.innerHTML = `
+    <div class="admin-loader-modal" role="dialog" aria-modal="true" aria-labelledby="adminLoaderTitle">
+      <div class="admin-loader-header">
+        <h3 class="admin-loader-header-title" id="adminLoaderTitle">Processing Admin Action</h3>
+        <p class="admin-loader-header-subtitle">Please wait while the system completes this request.</p>
+      </div>
+      <div class="admin-loader-body">
+        <div class="admin-loader-row">
+          <div class="admin-loader-spinner" aria-hidden="true"></div>
+          <div class="admin-loader-message" id="adminLoaderMessage">Processing...</div>
+        </div>
+        <div class="admin-loader-progress">
+          <div class="admin-loader-progress-bar"></div>
+        </div>
+        <div class="admin-loader-footnote">Please do not refresh or close this page.</div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function showAdminLoader(message = "Processing...") {
+  const overlay = ensureAdminLoaderOverlay();
+  const messageEl = document.getElementById("adminLoaderMessage");
+
+  if (messageEl) {
+    messageEl.textContent = message;
+  }
+
+  overlay.classList.remove("hidden");
+  document.body.classList.add("admin-loading");
+}
+
+function hideAdminLoader() {
+  const overlay = document.getElementById("adminLoaderOverlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+  }
+  document.body.classList.remove("admin-loading");
 }
 
 function setAdminLoading(elementId, message = "Processing...") {
   const el = document.getElementById(elementId);
-  if (!el) return;
+  if (el) {
+    el.innerHTML = `
+      <span class="spinner" style="
+        display:inline-block;
+        width:14px;
+        height:14px;
+        border:2px solid #ccc;
+        border-top:2px solid #1d4ed8;
+        border-radius:50%;
+        animation:spin 0.6s linear infinite;
+        margin-right:6px;
+      "></span>
+      ${message}
+    `;
+    el.style.color = "#1d4ed8";
+  }
 
-  el.innerHTML = `
-    <span class="spinner" style="
-      display:inline-block;
-      width:14px;
-      height:14px;
-      border:2px solid #ccc;
-      border-top:2px solid #1d4ed8;
-      border-radius:50%;
-      animation:spin 0.6s linear infinite;
-      margin-right:6px;
-    "></span>
-    ${message}
-  `;
-  el.style.color = "#1d4ed8";
+  showAdminLoader(message);
 }
 
 /**
@@ -833,6 +887,8 @@ async function sendPasswordResetForUser(userId) {
         text: error.message
       });
     }
+  } finally {
+    hideAdminLoader();
   }
 }
 
@@ -876,7 +932,7 @@ function clearProjectForm() {
   document.getElementById("projectPptInput").value = "";
   document.getElementById("projectReportsJsonInput").value = "[]";
   document.getElementById("projectQueriesJsonInput").value = "[]";
-  setAdminMessage("adminProjectMessage", "");
+  setAdminLoading("adminProjectMessage", "Saving project...");
 }
 
 /**
@@ -942,6 +998,8 @@ async function saveProjectFromAdminForm() {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminProjectMessage", `Project save failed: ${error.message}`, true);
+  } finally {
+    hideAdminLoader();
   }
 }
 
@@ -1287,6 +1345,8 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
     const confirmed = confirm(`Are you sure you want to ${actionText} ${email}?`);
     if (!confirmed) return;
 
+    setAdminLoading("adminUserMessage", nextIsActive ? "Activating user..." : "Deactivating user...");
+
     await setUserActiveStateCallable({
       userId,
       isActive: nextIsActive
@@ -1309,6 +1369,8 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Status update failed: ${error.message}`, true);
+  } finally {
+    hideAdminLoader();
   }
 }
 
@@ -1318,6 +1380,8 @@ async function softDeleteUserFromAdmin(userId, email) {
       `Soft delete ${email}?\n\nThis will:\n- mark the user as deleted\n- disable login immediately\n- keep the record for restore later`
     );
     if (!confirmed) return;
+
+    setAdminLoading("adminUserMessage", "Soft deleting user...");
 
     await softDeleteUserCallable({
       userId,
@@ -1334,7 +1398,9 @@ async function softDeleteUserFromAdmin(userId, email) {
     await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
-    setAdminMessage("adminUserMessage", `Soft delete failed: ${error.message}`, true);
+    setAdminMessage("adminUserMessage", `Soft delete failed: ${error.message}`, true);  
+  } finally {
+  hideAdminLoader();
   }
 }
 
@@ -1366,6 +1432,8 @@ async function deleteUserCompletelyFromAdmin(userId, email) {
     );
     if (!confirmed) return;
 
+    setAdminLoading("adminUserMessage", "Permanently deleting user...");
+
     await hardDeleteUserCallable({ userId });
 
     await logActivity("admin_hard_delete_user", {
@@ -1380,6 +1448,8 @@ async function deleteUserCompletelyFromAdmin(userId, email) {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Permanent delete failed: ${error.message}`, true);
+  } finally {
+  hideAdminLoader(); 
   }
 }
 
