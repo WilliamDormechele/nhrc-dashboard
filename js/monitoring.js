@@ -897,6 +897,18 @@ function clearMonitoringFilters() {
 
   monitoringTableState.currentPage = 1;
   renderFilteredMonitoringView();
+
+  if (typeof Swal !== "undefined") {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: "success",
+      title: "Filters cleared",
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true
+    });
+  }
 }
 
 /**
@@ -924,9 +936,45 @@ function setupMonitoringUI() {
   const clearBtn = document.getElementById("clearMonitoringFiltersBtn");
 
   if (refreshBtn) {
-    refreshBtn.addEventListener("click", loadMonitoringData);
-  }
+    refreshBtn.addEventListener("click", async () => {
+      if (typeof showAdminLoader === "function") {
+        showAdminLoader("Refreshing monitoring data...");
+      }
 
+      try {
+        await loadMonitoringData();
+
+        if (typeof Swal !== "undefined") {
+          Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "success",
+            title: "Monitoring data updated",
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true
+          });
+        }
+      } catch (error) {
+        console.error(error);
+
+        if (typeof Swal !== "undefined") {
+          Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "error",
+            title: "Failed to refresh monitoring",
+            showConfirmButton: false,
+            timer: 2000
+          });
+        }
+      } finally {
+        if (typeof hideAdminLoader === "function") {
+          hideAdminLoader();
+        }
+      }
+    });
+  }
   if (daysSelect) {
     daysSelect.addEventListener("change", loadMonitoringData);
   }
