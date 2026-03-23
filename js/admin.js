@@ -57,6 +57,17 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeStringArray(values = []) {
+  return safeArray(values)
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function arraysEqualIgnoreOrder(left = [], right = []) {
+  return JSON.stringify(normalizeStringArray(left)) === JSON.stringify(normalizeStringArray(right));
+}
+
 /**
  * Load all field supervisors and populate the supervisor dropdown.
  */
@@ -481,6 +492,14 @@ async function saveUserFromAdminForm() {
     };
 
     if (editingUserId) {
+      const beforeSnap = await db.collection("users").doc(editingUserId).get();
+
+      if (!beforeSnap.exists) {
+        throw new Error("User being edited was not found.");
+      }
+
+      const beforeData = beforeSnap.data() || {};
+
       await db.collection("users").doc(editingUserId).update(userPayload);
       await saveMonitoringDirectoryRecord(editingUserId, userPayload);
 
@@ -489,9 +508,42 @@ async function saveUserFromAdminForm() {
         target: email
       });
 
-      setAdminMessage("adminUserMessage", "User updated successfully.");
+      const roleChanged = (beforeData.role || "") !== role;
+      const projectsChanged = !arraysEqualIgnoreOrder(beforeData.assignedProjects || [], assignedProjects);
+      const activeChanged = (beforeData.isActive === true) !== isActive;
+      const supervisorChanged =
+        (beforeData.supervisorId || "") !== (supervisorPayload.supervisorId || "") ||
+        (beforeData.supervisorEmail || "") !== (supervisorPayload.supervisorEmail || "") ||
+        (beforeData.supervisorName || "") !== (supervisorPayload.supervisorName || "");
+
+      let accessEmailWarning = "";
+
+      if (roleChanged || projectsChanged || activeChanged || supervisorChanged) {
+        try {
+          await sendUserLifecycleEmailCallable({
+            eventType: "role_updated",
+            userId: editingUserId,
+            context: {
+              previousRole: beforeData.role || "",
+              previousProjects: safeArray(beforeData.assignedProjects),
+              previousIsActive: beforeData.isActive === true,
+              previousSupervisorName: beforeData.supervisorName || beforeData.supervisorEmail || ""
+            }
+          });
+        } catch (emailError) {
+          console.error("Failed to send access update email:", emailError);
+          accessEmailWarning = " Access was updated, but the notification email could not be sent.";
+        }
+      }
+
+      setAdminMessage(
+        "adminUserMessage",
+        `User updated successfully.${accessEmailWarning}`
+      );
+
       await clearUserForm();
       await loadUsersForAdmin();
+      await loadRecentAdminAuditLogs();
       return;
     }
 
@@ -515,20 +567,26 @@ async function saveUserFromAdminForm() {
       target: email
     });
 
+    let onboardingEmailWarning = "";
+
     try {
-      const actionCodeSettings = getPasswordResetActionCodeSettings(email);
-      await auth.sendPasswordResetEmail(email, actionCodeSettings);
+      await sendUserLifecycleEmailCallable({
+        eventType: "created",
+        userId: newUid
+      });
     } catch (emailError) {
-      console.error("Failed to send account setup email:", emailError);
+      console.error("Failed to send custom onboarding email:", emailError);
+      onboardingEmailWarning = " The user was created, but the custom account email could not be sent.";
     }
 
     setAdminMessage(
       "adminUserMessage",
-      "New user created successfully. A password setup email has been sent. After resetting the password, the user should return to the NHRC dashboard login page and sign in."
+      `New user created successfully. A custom account email has been sent with set-password and login buttons.${onboardingEmailWarning}`
     );
 
     await clearUserForm();
     await loadUsersForAdmin();
+    await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", error.message, true);
@@ -655,8 +713,8 @@ async function sendPasswordResetForUser(userId) {
 
     if (useSweetAlert) {
       const result = await Swal.fire({
-        title: "Send password reset email?",
-        html: `Send a password reset email to <b>${fullName}</b><br><small>${email}</small>?`,
+        title: "Send custom password reset email?",
+        html: `Send a custom password reset email to <b>${fullName}</b><br><small>${email}</small>?`,
         icon: "question",
         showCancelButton: true,
         confirmButtonText: "Yes, send reset email",
@@ -665,12 +723,14 @@ async function sendPasswordResetForUser(userId) {
 
       if (!result.isConfirmed) return;
     } else {
-      const confirmed = confirm(`Send a password reset email to ${fullName} (${email})?`);
+      const confirmed = confirm(`Send a custom password reset email to ${fullName} (${email})?`);
       if (!confirmed) return;
     }
 
-    const actionCodeSettings = getPasswordResetActionCodeSettings(email);
-    await auth.sendPasswordResetEmail(email, actionCodeSettings);
+    await sendUserLifecycleEmailCallable({
+      eventType: "password_reset",
+      userId
+    });
 
     await logActivity("admin_send_password_reset", {
       page: "admin",
@@ -679,14 +739,14 @@ async function sendPasswordResetForUser(userId) {
 
     setAdminMessage(
       "adminUserMessage",
-      `Password reset email sent successfully to ${fullName} (${email}).`
+      `Custom password reset email sent successfully to ${fullName} (${email}).`
     );
 
     if (useSweetAlert) {
       await Swal.fire({
         icon: "success",
         title: "Reset Email Sent",
-        text: `A password reset email has been sent to ${email}.`
+        text: `A custom password reset email has been sent to ${email}.`
       });
     }
   } catch (error) {
@@ -1062,6 +1122,7 @@ const setUserActiveStateCallable = functions.httpsCallable("setUserActiveState")
 const softDeleteUserCallable = functions.httpsCallable("softDeleteUser");
 const restoreDeletedUserCallable = functions.httpsCallable("restoreDeletedUser");
 const hardDeleteUserCallable = functions.httpsCallable("hardDeleteUser");
+const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
 
 function getAdminUserFilterValue() {
   return document.getElementById("adminUserStatusFilter")?.value || "all";
