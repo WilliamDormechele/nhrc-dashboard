@@ -24,11 +24,19 @@ async function loadProjectsRegistry() {
 
     snapshot.forEach((doc) => {
       const data = doc.data();
+      const fallbackProject = PROJECTS[doc.id] || {};
 
       if (data.enabled !== false) {
         firestoreProjects[doc.id] = {
+          ...fallbackProject,
           code: doc.id,
-          ...data
+          ...data,
+          reports: Array.isArray(data.reports) && data.reports.length
+            ? data.reports
+            : (Array.isArray(fallbackProject.reports) ? fallbackProject.reports : []),
+          queries: Array.isArray(data.queries) && data.queries.length
+            ? data.queries
+            : (Array.isArray(fallbackProject.queries) ? fallbackProject.queries : [])
         };
       }
     });
@@ -43,11 +51,19 @@ async function loadProjectsRegistry() {
       if (!doc.exists) return;
 
       const data = doc.data();
+      const fallbackProject = PROJECTS[doc.id] || {};
 
       if (data.enabled !== false) {
         firestoreProjects[doc.id] = {
+          ...fallbackProject,
           code: doc.id,
-          ...data
+          ...data,
+          reports: Array.isArray(data.reports) && data.reports.length
+            ? data.reports
+            : (Array.isArray(fallbackProject.reports) ? fallbackProject.reports : []),
+          queries: Array.isArray(data.queries) && data.queries.length
+            ? data.queries
+            : (Array.isArray(fallbackProject.queries) ? fallbackProject.queries : [])
         };
       }
     });
