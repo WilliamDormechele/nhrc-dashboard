@@ -102,14 +102,34 @@ function setupTabs() {
         await loadMonitoringData();
       }
 
-      if (targetTab === "tab-admin" && (getPermissions(window.currentUserProfile.role).canManageUsers || getPermissions(window.currentUserProfile.role).canManageProjects)) {
+      if (
+        targetTab === "tab-admin" &&
+        (getPermissions(window.currentUserProfile.role).canManageUsers ||
+          getPermissions(window.currentUserProfile.role).canManageProjects)
+      ) {
         if (typeof window.renderProjectCheckboxesForAdmin === "function") {
           window.renderProjectCheckboxesForAdmin([]);
         }
-        await loadSupervisorOptions("");
-        updateSupervisorFieldVisibility();
-        await loadUsersForAdmin();
-        await loadProjectsForAdmin();
+
+        if (typeof window.loadSupervisorOptions === "function") {
+          await window.loadSupervisorOptions("");
+        }
+
+        if (typeof window.updateSupervisorFieldVisibility === "function") {
+          window.updateSupervisorFieldVisibility();
+        }
+
+        if (typeof window.loadMonitoringDirectorySyncStatus === "function") {
+          await window.loadMonitoringDirectorySyncStatus();
+        }
+
+        if (typeof window.loadUsersForAdmin === "function") {
+          await window.loadUsersForAdmin();
+        }
+
+        if (typeof window.loadProjectsForAdmin === "function") {
+          await window.loadProjectsForAdmin();
+        }
       }
     });
   });
@@ -240,16 +260,13 @@ auth.onAuthStateChanged(async (user) => {
 
     startTabTimer("tab-dashboard");
 
-  // Prepare admin/monitoring widgets only if allowed
-  const permissions = getPermissions(profile.role);
+    // Prepare monitoring widgets only if allowed.
+    // Admin widgets should be loaded only when the Admin tab is opened.
+    const permissions = getPermissions(profile.role);
 
-if (permissions.canManageUsers || permissions.canManageProjects) {
-  await loadMonitoringDirectorySyncStatus();
-}
-
-  if (permissions.canMonitorUsers) {
-    await loadMonitoringData();
-  }
+    if (permissions.canMonitorUsers) {
+      await loadMonitoringData();
+    }
 
   } catch (error) {
     console.error(error);

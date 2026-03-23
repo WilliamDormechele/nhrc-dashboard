@@ -76,7 +76,7 @@ function arraysEqualIgnoreOrder(left = [], right = []) {
  * Load all field supervisors and populate the supervisor dropdown.
  * This version avoids needing a Firestore composite index by sorting in JavaScript.
  */
-async function loadSupervisorOptions(selectedValue = "") {
+window.loadSupervisorOptions = async function (selectedValue = "") {
   const select = document.getElementById("adminUserSupervisor");
   if (!select) return;
 
@@ -131,7 +131,7 @@ async function loadSupervisorOptions(selectedValue = "") {
 /**
  * Show/hide the supervisor field depending on role.
  */
-function updateSupervisorFieldVisibility() {
+window.updateSupervisorFieldVisibility = function () {
   const role = document.getElementById("adminUserRole")?.value || "";
   const group = document.getElementById("adminSupervisorGroup");
   const help = document.getElementById("adminSupervisorHelp");
@@ -159,8 +159,8 @@ async function clearUserForm() {
   document.getElementById("adminUserRole").value = "field_worker";
   document.getElementById("adminUserIsActive").value = "true";
   window.renderProjectCheckboxesForAdmin([]);
-  await loadSupervisorOptions("");
-  updateSupervisorFieldVisibility();
+  await window.loadSupervisorOptions("");
+  window.updateSupervisorFieldVisibility();
   setAdminMessage("adminUserMessage", "");
 }
 
@@ -271,7 +271,7 @@ async function saveMonitoringDirectorySyncStatus({
 /**
  * Load saved sync badge/status from Firestore.
  */
-async function loadMonitoringDirectorySyncStatus() {
+window.loadMonitoringDirectorySyncStatus = async function () {
   try {
     const doc = await db.collection("system_meta").doc("monitoring_directory_sync").get();
 
@@ -597,7 +597,7 @@ async function saveUserFromAdminForm() {
 /**
  * Load all user profiles for the admin table.
  */
-async function loadUsersForAdmin() {
+window.loadUsersForAdmin = async function () {
   const tbody = document.getElementById("usersTableBody");
   tbody.innerHTML = `<tr><td colspan="7">Loading users...</td></tr>`;
 
@@ -784,8 +784,8 @@ async function loadUserIntoForm(userId) {
   document.getElementById("adminUserIsActive").value = data.isActive === false ? "false" : "true";
 
   window.renderProjectCheckboxesForAdmin(safeArray(data.assignedProjects));
-  await loadSupervisorOptions(data.supervisorId || "");
-  updateSupervisorFieldVisibility();
+  await window.loadSupervisorOptions(data.supervisorId || "");
+  window.updateSupervisorFieldVisibility();
 
   setAdminMessage("adminUserMessage", "Loaded user for editing.");
 }
@@ -864,7 +864,7 @@ async function saveProjectFromAdminForm() {
     clearProjectForm();
 
     await loadProjectsRegistry();
-    await loadProjectsForAdmin();
+    await window.loadProjectsForAdmin();
     window.renderProjectCheckboxesForAdmin([]);
     repopulateProjectsForCurrentUser();
   } catch (error) {
@@ -916,7 +916,7 @@ async function seedFallbackProjectsToFirestore() {
 /**
  * Load Firestore projects into the project table.
  */
-async function loadProjectsForAdmin() {
+window.loadProjectsForAdmin = async function () {
   const tbody = document.getElementById("projectsTableBody");
   tbody.innerHTML = `<tr><td colspan="5">Loading projects...</td></tr>`;
 
@@ -1232,7 +1232,7 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
         : `User deactivated successfully: ${email}`
     );
 
-    await loadUsersForAdmin();
+    await window.loadProjectsForAdmin();
     await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
@@ -1258,7 +1258,7 @@ async function softDeleteUserFromAdmin(userId, email) {
     });
 
     setAdminMessage("adminUserMessage", `User soft deleted successfully: ${email}`);
-    await loadUsersForAdmin();
+    await window.loadUsersForAdmin();
     await loadRecentAdminAuditLogs();
   } catch (error) {
     console.error(error);
