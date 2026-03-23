@@ -568,23 +568,36 @@ async function saveUserFromAdminForm() {
       target: email
     });
 
+    let emailSent = false;
     let onboardingEmailWarning = "";
 
-    try {
-      await sendUserLifecycleEmailCallable({
-        eventType: "created",
-        userId: newUid
-      });
-    } catch (emailError) {
-      console.error("Failed to send custom onboarding email:", emailError);
-      onboardingEmailWarning = " The user was created, but the custom account email could not be sent.";
+    // Development-only rule:
+    // Resend can currently send only to your own email until the sender domain is verified.
+    const DEV_TEST_EMAIL = "williamdormechele@gmail.com";
+
+    if ((email || "").trim().toLowerCase() === DEV_TEST_EMAIL.toLowerCase()) {
+      try {
+        await sendUserLifecycleEmailCallable({
+          eventType: "created",
+          userId: newUid
+        });
+        emailSent = true;
+      } catch (emailError) {
+        console.error("Failed to send custom onboarding email:", emailError);
+        onboardingEmailWarning =
+          " User created successfully, but the test onboarding email could not be sent.";
+      }
+    } else {
+      onboardingEmailWarning =
+        " User created successfully. Onboarding email was skipped in development mode because Resend is not yet approved to send to other recipients.";
     }
 
     setAdminMessage(
       "adminUserMessage",
-      `New user created successfully. A custom account email has been sent with set-password and login buttons.${onboardingEmailWarning}`
+      emailSent
+        ? "New user created successfully. Test onboarding email sent with set-password and login buttons."
+        : onboardingEmailWarning
     );
-
     await clearUserForm();
     await loadUsersForAdmin();
     await loadRecentAdminAuditLogs();
