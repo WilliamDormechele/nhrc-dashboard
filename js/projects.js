@@ -1,6 +1,11 @@
 // js/projects.js
 
 window.projectRegistry = {};
+window.projectUsersDirectory = {
+  usersByEmail: {},
+  fieldworkers: [],
+  supervisors: []
+};
 
 /**
  * Load projects from Firestore.
@@ -77,9 +82,10 @@ function populateProjectSelect(assignedProjects) {
  * Return a file type label from a file path.
  */
 function getFileTypeLabel(filePath = "") {
-  const path = filePath.toLowerCase();
+  const path = String(filePath || "").toLowerCase();
 
   if (path.endsWith(".pdf")) return "PDF";
+  if (path.endsWith(".html") || path.endsWith(".htm")) return "HTML";
   if (path.endsWith(".ppt") || path.endsWith(".pptx")) return "PPT";
   if (path.endsWith(".xls") || path.endsWith(".xlsx") || path.endsWith(".csv")) return "Excel";
   if (path.endsWith(".doc") || path.endsWith(".docx")) return "Word";
@@ -87,7 +93,136 @@ function getFileTypeLabel(filePath = "") {
 }
 
 /**
- * Build a clean resource card.
+ * Safe HTML text.
+ */
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Normalize text for filtering.
+ */
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+/**
+ * Format date safely.
+ */
+function formatFriendlyDate(value) {
+  if (!value) return "Not available";
+
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleString();
+    }
+    return value;
+  }
+
+  if (value?.toDate) {
+    return value.toDate().toLocaleString();
+  }
+
+  if (value instanceof Date) {
+    return value.toLocaleString();
+  }
+
+  return String(value);
+}
+
+/**
+ * Load a lightweight user directory for query/report filters.
+ * - Admin/developer: users collection
+ * - Others: monitoring_directory if readable
+ */
+async function loadProjectUsersDirectory() {
+  const role = window.currentUserProfile?.role || "";
+  const assignedProjects = Array.isArray(window.currentUserProfile?.assignedProjects)
+    ? window.currentUserProfile.assignedProjects
+    : [];
+  const canReadAllUsers = role === "administrator" || role === "developer";
+
+  const usersByEmail = {};
+  const fieldworkers = [];
+  const supervisors = [];
+
+  try {
+    if (canReadAllUsers) {
+      const snapshot = await db.collection("users").orderBy("fullName").get();
+
+      snapshot.forEach((doc) => {
+        const user = { id: doc.id, ...doc.data() };
+        const emailKey = normalizeText(user.email);
+
+        if (emailKey) {
+          usersByEmail[emailKey] = user;
+        }
+
+        if (user.role === "field_worker") {
+          fieldworkers.push(user);
+        }
+
+        if (user.role === "field_supervisor") {
+          supervisors.push(user);
+        }
+      });
+    } else if (assignedProjects.length) {
+      const snapshot = await db.collection("monitoring_directory")
+        .where("isActive", "==", true)
+        .get();
+
+      snapshot.forEach((doc) => {
+        const user = { id: doc.id, ...doc.data() };
+        const emailKey = normalizeText(user.email);
+        const userProjects = Array.isArray(user.assignedProjects) ? user.assignedProjects : [];
+        const hasProjectMatch = userProjects.some((code) => assignedProjects.includes(code));
+
+        if (!hasProjectMatch) return;
+
+        if (emailKey) {
+          usersByEmail[emailKey] = user;
+        }
+
+        if (user.role === "field_worker") {
+          fieldworkers.push(user);
+        }
+
+        if (user.role === "field_supervisor") {
+          supervisors.push(user);
+        }
+      });
+    }
+  } catch (error) {
+    console.warn("User directory could not be loaded for project filters:", error);
+  }
+
+  fieldworkers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+  supervisors.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+
+  window.projectUsersDirectory = {
+    usersByEmail,
+    fieldworkers,
+    supervisors
+  };
+}
+
+/**
+ * Resolve user display name.
+ */
+function resolveUserNameByEmail(email, fallback = "") {
+  const key = normalizeText(email);
+  const match = window.projectUsersDirectory?.usersByEmail?.[key];
+  return match?.fullName || fallback || email || "Unknown";
+}
+
+/**
+ * Build a resource card.
  */
 function buildResourceCard(
   item,
@@ -99,15 +234,12 @@ function buildResourceCard(
 ) {
   const safeItem = item || {};
   const filePath = String(safeItem.file || "").trim();
-  const titleText = String(safeItem.title || "Untitled report").trim();
+  const titleText = String(safeItem.title || "Untitled resource").trim();
 
-  const unavailable =
-    options.unavailable === true || !filePath;
-
+  const unavailable = options.unavailable === true || !filePath;
   const unavailableMessage =
-  options.unavailableMessage || "No report is currently available for this selection.";
+    options.unavailableMessage || "No file is currently available for this selection.";
 
-  // Unavailable / empty report card
   if (unavailable) {
     const card = document.createElement("div");
     card.className = "resource-card resource-card-disabled";
@@ -116,26 +248,16 @@ function buildResourceCard(
     card.setAttribute("aria-disabled", "true");
     card.title = unavailableMessage;
 
-    // Inline styling so you do not need to touch CSS
-    // card.style.opacity = "0.58";
-    // card.style.filter = "grayscale(0.25)";
-    // card.style.cursor = "not-allowed";
-    // card.style.border = "1px solid #d1d5db";
-    // card.style.background = "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)";
-    // card.style.boxShadow = "none";
-    // card.style.position = "relative";
-    // card.style.userSelect = "none";
-
     card.innerHTML = `
       <div class="resource-card-top">
         <span class="resource-filetype">N/A</span>
         <span class="resource-badge">Unavailable</span>
       </div>
 
-      <div class="resource-title">${titleText}</div>
+      <div class="resource-title">${escapeHtml(titleText)}</div>
 
       <div class="resource-subtext">
-        No report currently available for this selection.
+        No file is currently available for this selection.
       </div>
     `;
 
@@ -143,7 +265,7 @@ function buildResourceCard(
       if (typeof Swal !== "undefined") {
         Swal.fire({
           icon: "info",
-          title: "Report Not Available",
+          title: "File Not Available",
           text: unavailableMessage,
           confirmButtonText: "OK"
         });
@@ -165,7 +287,6 @@ function buildResourceCard(
     return card;
   }
 
-  // Normal available card
   const link = document.createElement("a");
   link.className = "resource-card";
   link.href = filePath;
@@ -176,11 +297,11 @@ function buildResourceCard(
 
   link.innerHTML = `
     <div class="resource-card-top">
-      <span class="resource-filetype">${fileType}</span>
-      <span class="resource-badge">${badgeText}</span>
+      <span class="resource-filetype">${escapeHtml(fileType)}</span>
+      <span class="resource-badge">${escapeHtml(badgeText)}</span>
     </div>
 
-    <div class="resource-title">${titleText}</div>
+    <div class="resource-title">${escapeHtml(titleText)}</div>
 
     <div class="resource-subtext">
       Click to ${canDownload ? "open or download" : "open"} this file
@@ -195,11 +316,11 @@ function buildResourceCard(
         Swal.fire({
           icon: "warning",
           title: "Access Restricted",
-          text: "You do not have permission to download reports.",
+          text: "You do not have permission to download this file.",
           confirmButtonText: "OK"
         });
       } else {
-        alert("You do not have permission to download reports.");
+        alert("You do not have permission to download this file.");
       }
       return;
     }
@@ -214,36 +335,370 @@ function buildResourceCard(
 }
 
 /**
- * Load the selected project into the dashboard tab.
+ * Build an advanced query/report list card with metadata.
  */
-function loadProject(projectCode) {
-  const project = window.projectRegistry[projectCode];
-  if (!project) {
-    alert(`Project "${projectCode}" is not configured.`);
-    return;
+function buildAdvancedFileCard(item, config = {}) {
+  const filePath = String(item.file || "").trim();
+  const typeLabel = getFileTypeLabel(filePath);
+  const canDownload = config.canDownload !== false;
+  const actionName = config.actionName || "download_file";
+  const pageName = config.pageName || "files";
+  const unavailableMessage = config.unavailableMessage || "No file is currently available for this selection.";
+
+  const card = buildResourceCard(
+    {
+      title: item.title || item.fieldworkerName || "Untitled file",
+      file: filePath
+    },
+    filePath ? (canDownload ? "Open / Download" : "Open") : "Unavailable",
+    actionName,
+    pageName,
+    filePath ? canDownload : false,
+    {
+      unavailable: !filePath,
+      unavailableMessage
+    }
+  );
+
+  const meta = document.createElement("div");
+  meta.className = "resource-meta-stack";
+
+  const topRowBits = [];
+
+  if (item.district) {
+    topRowBits.push(`<span class="resource-meta-pill"><i class="fas fa-location-dot"></i> ${escapeHtml(item.district)}</span>`);
   }
 
-  window.currentProjectCode = projectCode;
+  if (item.supervisorName) {
+    topRowBits.push(`<span class="resource-meta-pill"><i class="fas fa-user-tie"></i> ${escapeHtml(item.supervisorName)}</span>`);
+  }
 
-  document.getElementById("dashboardTitle").textContent = `${project.name} Dashboard`;
-  document.getElementById("dashboardDescription").textContent = project.description || "";
-  document.getElementById("dashboardFrame").src = project.dashboardEmbedUrl || "";
-  document.getElementById("downloadPdfBtn").href = project.dashboardPdf || "#";
-  document.getElementById("downloadPptBtn").href = project.dashboardPpt || "#";
+  if (item.fieldworkerName) {
+    topRowBits.push(`<span class="resource-meta-pill"><i class="fas fa-user"></i> ${escapeHtml(item.fieldworkerName)}</span>`);
+  }
 
-  renderReports(project);
-  renderQueries(project);
+  if (topRowBits.length) {
+    const row = document.createElement("div");
+    row.className = "resource-meta-row";
+    row.innerHTML = topRowBits.join("");
+    meta.appendChild(row);
+  }
 
-  logActivity("project_opened", {
-    page: "project_switch",
-    target: projectCode
+  const bottomRowBits = [];
+
+  if (item.reportDate) {
+    bottomRowBits.push(`<span class="resource-meta-text"><i class="fas fa-calendar-days"></i> ${escapeHtml(item.reportDate)}</span>`);
+  }
+
+  if (item.updatedAtLabel) {
+    bottomRowBits.push(`<span class="resource-meta-text"><i class="fas fa-clock"></i> Updated ${escapeHtml(item.updatedAtLabel)}</span>`);
+  }
+
+  if (bottomRowBits.length) {
+    const row = document.createElement("div");
+    row.className = "resource-meta-row";
+    row.innerHTML = bottomRowBits.join("");
+    meta.appendChild(row);
+  }
+
+  card.appendChild(meta);
+  return card;
+}
+
+/**
+ * Build a professional filter toolbar.
+ */
+function buildAdvancedFiltersToolbar({
+  searchId = "",
+  districtId = "",
+  supervisorId = "",
+  dateId = "",
+  searchPlaceholder = "Search",
+  districts = [],
+  supervisors = [],
+  dateLabel = "Date"
+}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "advanced-library-toolbar";
+
+  wrapper.innerHTML = `
+    <div class="advanced-filter-group advanced-filter-search">
+      <label for="${escapeHtml(searchId)}">Field Worker Search</label>
+      <div class="advanced-search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="${escapeHtml(searchId)}" placeholder="${escapeHtml(searchPlaceholder)}" />
+      </div>
+    </div>
+
+    <div class="advanced-filter-group">
+      <label for="${escapeHtml(districtId)}">District</label>
+      <select id="${escapeHtml(districtId)}">
+        <option value="">All districts</option>
+        ${districts.map((district) => `<option value="${escapeHtml(district)}">${escapeHtml(district)}</option>`).join("")}
+      </select>
+    </div>
+
+    <div class="advanced-filter-group">
+      <label for="${escapeHtml(supervisorId)}">Supervisor</label>
+      <select id="${escapeHtml(supervisorId)}">
+        <option value="">All supervisors</option>
+        ${supervisors.map((supervisor) => `<option value="${escapeHtml(supervisor)}">${escapeHtml(supervisor)}</option>`).join("")}
+      </select>
+    </div>
+
+    <div class="advanced-filter-group">
+      <label for="${escapeHtml(dateId)}">${escapeHtml(dateLabel)}</label>
+      <input type="date" id="${escapeHtml(dateId)}" />
+    </div>
+
+    <div class="advanced-filter-group advanced-filter-actions">
+      <label>&nbsp;</label>
+      <button type="button" class="btn btn-secondary" data-clear-target="${escapeHtml(searchId)}|${escapeHtml(districtId)}|${escapeHtml(supervisorId)}|${escapeHtml(dateId)}">
+        Clear Filters
+      </button>
+    </div>
+  `;
+
+  const clearBtn = wrapper.querySelector("[data-clear-target]");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      const ids = String(clearBtn.getAttribute("data-clear-target") || "").split("|");
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+
+      wrapper.dispatchEvent(new CustomEvent("advancedfiltersclear", { bubbles: true }));
+    });
+  }
+
+  return wrapper;
+}
+
+/**
+ * Return unique sorted list.
+ */
+function uniqueSorted(values) {
+  return [...new Set((values || []).filter(Boolean).map((x) => String(x).trim()))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Normalize raw query items.
+ */
+function normalizeQueryItems(rawItems = []) {
+  return (rawItems || []).map((item) => {
+    const supervisorName =
+      item.supervisorName ||
+      resolveUserNameByEmail(item.supervisorEmail, item.supervisorEmail || "");
+
+    const fieldworkerName =
+      item.fieldworkerName ||
+      resolveUserNameByEmail(item.fieldworkerEmail, item.title || "");
+
+    const reportDate = item.date || item.queryDate || "";
+    const updatedAtLabel = item.updatedAtLabel || formatFriendlyDate(item.updatedAt || item.lastUpdated || "");
+
+    return {
+      title: item.title || fieldworkerName || "Data Query",
+      file: item.file || "",
+      district: item.district || "",
+      supervisorEmail: item.supervisorEmail || "",
+      supervisorName,
+      fieldworkerEmail: item.fieldworkerEmail || "",
+      fieldworkerName,
+      reportDate,
+      updatedAtLabel
+    };
   });
 }
 
 /**
- * Render reports for the selected project.
+ * Normalize raw report items.
  */
-function renderReports(project) {
+function normalizeReportItems(rawItems = []) {
+  return (rawItems || []).map((item) => {
+    const supervisorName =
+      item.supervisorName ||
+      resolveUserNameByEmail(item.supervisorEmail, item.supervisorEmail || "");
+
+    const fieldworkerName =
+      item.fieldworkerName ||
+      resolveUserNameByEmail(item.fieldworkerEmail, item.title || "");
+
+    const reportDate = item.date || item.reportDate || "";
+    const updatedAtLabel = item.updatedAtLabel || formatFriendlyDate(item.updatedAt || item.lastUpdated || "");
+
+    return {
+      title: item.title || "Report",
+      file: item.file || "",
+      district: item.district || "",
+      supervisorEmail: item.supervisorEmail || "",
+      supervisorName,
+      fieldworkerEmail: item.fieldworkerEmail || "",
+      fieldworkerName,
+      reportDate,
+      updatedAtLabel
+    };
+  });
+}
+
+/**
+ * Apply advanced list filters.
+ */
+function filterAdvancedItems(items, {
+  district = "",
+  supervisor = "",
+  date = "",
+  search = ""
+}) {
+  const searchNorm = normalizeText(search);
+  const districtNorm = normalizeText(district);
+  const supervisorNorm = normalizeText(supervisor);
+  const dateNorm = normalizeText(date);
+
+  return (items || []).filter((item) => {
+    const matchesDistrict = !districtNorm || normalizeText(item.district) === districtNorm;
+    const matchesSupervisor = !supervisorNorm || normalizeText(item.supervisorName) === supervisorNorm;
+    const matchesDate = !dateNorm || normalizeText(item.reportDate) === dateNorm;
+
+    const searchBlob = [
+      item.title,
+      item.fieldworkerName,
+      item.fieldworkerEmail,
+      item.supervisorName,
+      item.supervisorEmail,
+      item.district
+    ].join(" ").toLowerCase();
+
+    const matchesSearch = !searchNorm || searchBlob.includes(searchNorm);
+
+    return matchesDistrict && matchesSupervisor && matchesDate && matchesSearch;
+  });
+}
+
+/**
+ * Render advanced query library.
+ */
+function renderAdvancedQueries(project) {
+  const queriesContainer = document.getElementById("queriesContainer");
+  queriesContainer.innerHTML = "";
+
+  const permissions = getPermissions(window.currentUserProfile.role);
+
+  if (!permissions.canViewQueries) {
+    queriesContainer.innerHTML = `<div class="placeholder-box">You do not have permission to access queries.</div>`;
+    return;
+  }
+
+  const normalizedItems = normalizeQueryItems(project.queries || []);
+
+  if (!normalizedItems.length) {
+    queriesContainer.innerHTML = `<div class="placeholder-box">No queries configured for this project yet.</div>`;
+    return;
+  }
+
+  const allDistricts = uniqueSorted(normalizedItems.map((item) => item.district));
+  const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
+
+  const shell = document.createElement("div");
+  shell.className = "advanced-library-shell";
+
+  const header = document.createElement("div");
+  header.className = "advanced-library-header";
+  header.innerHTML = `
+    <div>
+      <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
+      <p>Search and filter query files by field worker, district, supervisor, and date.</p>
+    </div>
+    <div class="advanced-library-summary" id="queriesSummaryText">0 files</div>
+  `;
+  shell.appendChild(header);
+
+  const toolbar = buildAdvancedFiltersToolbar({
+    searchId: "queriesFieldworkerSearch",
+    districtId: "queriesDistrictFilter",
+    supervisorId: "queriesSupervisorFilter",
+    dateId: "queriesDateFilter",
+    searchPlaceholder: "Search by field worker name...",
+    districts: allDistricts,
+    supervisors: allSupervisors,
+    dateLabel: "Query date"
+  });
+  shell.appendChild(toolbar);
+
+  const resultsWrap = document.createElement("div");
+  resultsWrap.className = "advanced-library-results";
+  shell.appendChild(resultsWrap);
+
+  queriesContainer.appendChild(shell);
+
+  function repaint() {
+    const district = document.getElementById("queriesDistrictFilter")?.value || "";
+    const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
+    const date = document.getElementById("queriesDateFilter")?.value || "";
+    const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
+
+    const filteredItems = filterAdvancedItems(normalizedItems, {
+      district,
+      supervisor,
+      date,
+      search
+    });
+
+    const summary = document.getElementById("queriesSummaryText");
+    if (summary) {
+      summary.textContent = `${filteredItems.length} quer${filteredItems.length === 1 ? "y file" : "y files"}`;
+    }
+
+    resultsWrap.innerHTML = "";
+
+    if (!filteredItems.length) {
+      resultsWrap.innerHTML = `
+        <div class="placeholder-box">
+          No data queries match the selected filters.
+        </div>
+      `;
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "resource-grid advanced-resource-grid";
+
+    filteredItems.forEach((item) => {
+      grid.appendChild(
+        buildAdvancedFileCard(item, {
+          canDownload: true,
+          actionName: "download_query",
+          pageName: "queries",
+          unavailableMessage: "No query file is currently available for this field worker."
+        })
+      );
+    });
+
+    resultsWrap.appendChild(grid);
+  }
+
+  [
+    "queriesFieldworkerSearch",
+    "queriesDistrictFilter",
+    "queriesSupervisorFilter",
+    "queriesDateFilter"
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener(el.tagName === "INPUT" && el.type === "text" ? "input" : "change", repaint);
+  });
+
+  toolbar.addEventListener("advancedfiltersclear", repaint);
+
+  repaint();
+}
+
+/**
+ * Render advanced reports library for HDSS.
+ */
+function renderAdvancedReports(project) {
   const reportsContainer = document.getElementById("reportsContainer");
   reportsContainer.innerHTML = "";
 
@@ -256,99 +711,166 @@ function renderReports(project) {
 
   const reportSections = Array.isArray(project.reports) ? project.reports : [];
 
-  if (reportSections.length === 0) {
-    const block = document.createElement("div");
-    block.className = "report-category";
-
-    const title = document.createElement("h3");
-    title.textContent = `${project.name || "Project"} Reports`;
-    block.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "resource-grid";
-
-    grid.appendChild(
-      buildResourceCard(
-        {
-          title: "No report available"
-        },
-        "Unavailable",
-        "download_report",
-        "reports",
-        false,
-        {
-          unavailable: true,
-          unavailableMessage: "No report is currently available for this selection."
-        }
-      )
-    );
-
-    block.appendChild(grid);
-    reportsContainer.appendChild(block);
+  if (!reportSections.length) {
+    reportsContainer.innerHTML = `<div class="placeholder-box">No reports configured for this project yet.</div>`;
     return;
   }
 
-  reportSections.forEach((section) => {
-    const block = document.createElement("div");
-    block.className = "report-category";
+  reportSections.forEach((section, index) => {
+    const sectionItems = normalizeReportItems(section.items || []);
+    const sectionDistricts = uniqueSorted(sectionItems.map((item) => item.district));
 
-    const title = document.createElement("h3");
-    title.textContent = section.category || "Reports";
-    block.appendChild(title);
+    const shell = document.createElement("div");
+    shell.className = "report-category advanced-library-shell";
 
-    const grid = document.createElement("div");
-    grid.className = "resource-grid";
+    const header = document.createElement("div");
+    header.className = "advanced-library-header";
+    header.innerHTML = `
+      <div>
+        <h3>${escapeHtml(section.category || "Reports")}</h3>
+        <p>Filter report files by district and reporting date.</p>
+      </div>
+      <div class="advanced-library-summary" id="reportsSummaryText_${index}">0 files</div>
+    `;
+    shell.appendChild(header);
 
-    const items = Array.isArray(section.items) ? section.items : [];
+    const toolbar = document.createElement("div");
+    toolbar.className = "advanced-library-toolbar";
+    toolbar.innerHTML = `
+      <div class="advanced-filter-group">
+        <label for="reportsDistrictFilter_${index}">District</label>
+        <select id="reportsDistrictFilter_${index}">
+          <option value="">All districts</option>
+          ${sectionDistricts.map((district) => `<option value="${escapeHtml(district)}">${escapeHtml(district)}</option>`).join("")}
+        </select>
+      </div>
 
-    // If a category exists but has no items, show one grey unavailable card
-    if (items.length === 0) {
-      grid.appendChild(
-        buildResourceCard(
-          {
-            title: `${section.category || "Report"} not available`
-          },
-          "Unavailable",
-          "download_report",
-          "reports",
-          false,
-          {
-            unavailable: true,
-            unavailableMessage: "No report is currently available for this selection."
-          }
-        )
-      );
-    } else {
-      items.forEach((item) => {
-        const hasFile = !!String(item?.file || "").trim();
+      <div class="advanced-filter-group">
+        <label for="reportsDateFilter_${index}">Report date</label>
+        <input type="date" id="reportsDateFilter_${index}" />
+      </div>
 
-        const card = buildResourceCard(
-          item,
-          hasFile
-            ? (permissions.canDownloadReports ? "Download" : "View")
-            : "Unavailable",
-          "download_report",
-          "reports",
-          hasFile ? permissions.canDownloadReports : false,
-          {
-            unavailable: !hasFile,
-            unavailableMessage: "No report is currently available for this selection."
-          }
-        );
+      <div class="advanced-filter-group advanced-filter-actions">
+        <label>&nbsp;</label>
+        <button type="button" class="btn btn-secondary" id="reportsClearBtn_${index}">Clear Filters</button>
+      </div>
+    `;
+    shell.appendChild(toolbar);
 
-        grid.appendChild(card);
+    const resultsWrap = document.createElement("div");
+    resultsWrap.className = "advanced-library-results";
+    shell.appendChild(resultsWrap);
+
+    reportsContainer.appendChild(shell);
+
+    function repaint() {
+      const district = document.getElementById(`reportsDistrictFilter_${index}`)?.value || "";
+      const date = document.getElementById(`reportsDateFilter_${index}`)?.value || "";
+
+      const filteredItems = filterAdvancedItems(sectionItems, {
+        district,
+        supervisor: "",
+        date,
+        search: ""
       });
+
+      const summary = document.getElementById(`reportsSummaryText_${index}`);
+      if (summary) {
+        summary.textContent = `${filteredItems.length} report file${filteredItems.length === 1 ? "" : "s"}`;
+      }
+
+      resultsWrap.innerHTML = "";
+
+      if (!filteredItems.length) {
+        resultsWrap.innerHTML = `
+          <div class="placeholder-box">
+            No reports match the selected filters.
+          </div>
+        `;
+        return;
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "resource-grid advanced-resource-grid";
+
+      filteredItems.forEach((item) => {
+        grid.appendChild(
+          buildAdvancedFileCard(item, {
+            canDownload: permissions.canDownloadReports,
+            actionName: "download_report",
+            pageName: "reports",
+            unavailableMessage: "No report file is currently available for this selection."
+          })
+        );
+      });
+
+      resultsWrap.appendChild(grid);
     }
 
-    block.appendChild(grid);
-    reportsContainer.appendChild(block);
+    document.getElementById(`reportsDistrictFilter_${index}`)?.addEventListener("change", repaint);
+    document.getElementById(`reportsDateFilter_${index}`)?.addEventListener("change", repaint);
+    document.getElementById(`reportsClearBtn_${index}`)?.addEventListener("click", () => {
+      const districtEl = document.getElementById(`reportsDistrictFilter_${index}`);
+      const dateEl = document.getElementById(`reportsDateFilter_${index}`);
+      if (districtEl) districtEl.value = "";
+      if (dateEl) dateEl.value = "";
+      repaint();
+    });
+
+    repaint();
   });
 }
 
 /**
- * Render queries for the selected project.
+ * Legacy reports renderer for non-HDSS projects.
  */
-function renderQueries(project) {
+function renderStandardReports(project) {
+  const reportsContainer = document.getElementById("reportsContainer");
+  reportsContainer.innerHTML = "";
+
+  const permissions = getPermissions(window.currentUserProfile.role);
+
+  if (!permissions.canViewReports) {
+    reportsContainer.innerHTML = `<div class="placeholder-box">You do not have permission to view project reports.</div>`;
+    return;
+  }
+
+  (project.reports || []).forEach((section) => {
+    const block = document.createElement("div");
+    block.className = "report-category";
+
+    const title = document.createElement("h3");
+    title.textContent = section.category;
+    block.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "resource-grid";
+
+    (section.items || []).forEach((item) => {
+      const card = buildResourceCard(
+        item,
+        permissions.canDownloadReports ? "Download" : "View",
+        "download_report",
+        "reports",
+        permissions.canDownloadReports
+      );
+
+      grid.appendChild(card);
+    });
+
+    block.appendChild(grid);
+    reportsContainer.appendChild(block);
+  });
+
+  if (!project.reports || project.reports.length === 0) {
+    reportsContainer.innerHTML = `<div class="placeholder-box">No reports configured for this project yet.</div>`;
+  }
+}
+
+/**
+ * Legacy queries renderer for non-HDSS projects.
+ */
+function renderStandardQueries(project) {
   const queriesContainer = document.getElementById("queriesContainer");
   queriesContainer.innerHTML = "";
 
@@ -387,4 +909,63 @@ function renderQueries(project) {
   if (!project.queries || project.queries.length === 0) {
     queriesContainer.innerHTML = `<div class="placeholder-box">No queries configured for this project yet.</div>`;
   }
+}
+
+/**
+ * Render reports for the selected project.
+ */
+function renderReports(project) {
+  const projectCode = normalizeText(project?.code);
+  const projectName = normalizeText(project?.name);
+
+  if (projectCode === "hdss" || projectName === "hdss") {
+    renderAdvancedReports(project);
+    return;
+  }
+
+  renderStandardReports(project);
+}
+
+/**
+ * Render queries for the selected project.
+ */
+function renderQueries(project) {
+  const projectCode = normalizeText(project?.code);
+  const projectName = normalizeText(project?.name);
+
+  if (projectCode === "hdss" || projectName === "hdss") {
+    renderAdvancedQueries(project);
+    return;
+  }
+
+  renderStandardQueries(project);
+}
+
+/**
+ * Load the selected project into the dashboard tab.
+ */
+async function loadProject(projectCode) {
+  const project = window.projectRegistry[projectCode];
+  if (!project) {
+    alert(`Project "${projectCode}" is not configured.`);
+    return;
+  }
+
+  window.currentProjectCode = projectCode;
+
+  document.getElementById("dashboardTitle").textContent = `${project.name} Dashboard`;
+  document.getElementById("dashboardDescription").textContent = project.description || "";
+  document.getElementById("dashboardFrame").src = project.dashboardEmbedUrl || "";
+  document.getElementById("downloadPdfBtn").href = project.dashboardPdf || "#";
+  document.getElementById("downloadPptBtn").href = project.dashboardPpt || "#";
+
+  await loadProjectUsersDirectory();
+
+  renderReports(project);
+  renderQueries(project);
+
+  logActivity("project_opened", {
+    page: "project_switch",
+    target: projectCode
+  });
 }
