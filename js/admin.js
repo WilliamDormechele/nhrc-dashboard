@@ -161,7 +161,6 @@ async function clearUserForm() {
   window.renderProjectCheckboxesForAdmin([]);
   await window.loadSupervisorOptions("");
   window.updateSupervisorFieldVisibility();
-  setAdminMessage("adminUserMessage", "");
 }
 
 /**
@@ -457,7 +456,7 @@ async function backfillMonitoringDirectoryFromUsers(options = {}) {
  */
 async function saveUserFromAdminForm() {
   try {
-    setAdminMessage("adminUserMessage", "");
+    setAdminLoading("adminUserMessage", "Saving user...");
 
     const editingUserId = document.getElementById("editingUserId").value.trim();
     const fullName = document.getElementById("adminUserFullName").value.trim();
@@ -518,8 +517,10 @@ async function saveUserFromAdminForm() {
         (beforeData.supervisorName || "") !== (supervisorPayload.supervisorName || "");
 
       let accessEmailWarning = "";
+      setAdminLoading("adminUserMessage", "Saving user changes...");
 
       if (roleChanged || projectsChanged || activeChanged || supervisorChanged) {
+        setAdminLoading("adminUserMessage", "Updating access and notifying user...");
         try {
           await sendUserLifecycleEmailCallable({
             eventType: "role_updated",
@@ -554,12 +555,15 @@ async function saveUserFromAdminForm() {
     }
 
     const newUid = await createAuthUserWithoutReplacingAdmin(email, password);
+    setAdminLoading("adminUserMessage", "Creating user profile...");
 
     await db.collection("users").doc(newUid).set({
       ...userPayload,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdBy: window.currentUserProfile.email
     });
+
+    setAdminLoading("adminUserMessage", "Finalizing setup...");
 
     await saveMonitoringDirectoryRecord(newUid, userPayload, { includeCreatedFields: true });
 
@@ -576,6 +580,7 @@ async function saveUserFromAdminForm() {
     const DEV_TEST_EMAIL = "williamdormechele@gmail.com";
 
     if ((email || "").trim().toLowerCase() === DEV_TEST_EMAIL.toLowerCase()) {
+      setAdminLoading("adminUserMessage", "Sending onboarding email...");
       try {
         await sendUserLifecycleEmailCallable({
           eventType: "created",
@@ -605,6 +610,26 @@ async function saveUserFromAdminForm() {
     console.error(error);
     setAdminMessage("adminUserMessage", error.message, true);
   }
+}
+
+function setAdminLoading(elementId, message = "Processing...") {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  el.innerHTML = `
+    <span class="spinner" style="
+      display:inline-block;
+      width:14px;
+      height:14px;
+      border:2px solid #ccc;
+      border-top:2px solid #1d4ed8;
+      border-radius:50%;
+      animation:spin 0.6s linear infinite;
+      margin-right:6px;
+    "></span>
+    ${message}
+  `;
+  el.style.color = "#1d4ed8";
 }
 
 /**
@@ -774,7 +799,7 @@ async function sendPasswordResetForUser(userId) {
       const confirmed = confirm(`Send a custom password reset email to ${fullName} (${email})?`);
       if (!confirmed) return;
     }
-
+    setAdminLoading("adminUserMessage", "Sending password reset email...");
     await sendUserLifecycleEmailCallable({
       eventType: "password_reset",
       userId
@@ -1355,134 +1380,6 @@ async function deleteUserCompletelyFromAdmin(userId, email) {
   } catch (error) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Permanent delete failed: ${error.message}`, true);
-  }
-}
-
-async function loadUsersForAdmin() {
-  const tbody = document.getElementById("usersTableBody");
-  if (!tbody) return;
-
-  tbody.innerHTML = `<tr><td colspan="7">Loading users...</td></tr>`;
-
-  try {
-    const snapshot = await db.collection("users").orderBy("fullName").get();
-    await loadAdminUserMetricsFromSnapshot(snapshot);
-
-    const filter = getAdminUserFilterValue();
-    const rows = [];
-
-    snapshot.forEach((doc) => {
-      const data = doc.data() || {};
-      const isDeleted = data.isDeleted === true;
-      const isActive = data.isActive === true;
-
-      const show =
-        filter === "all" ||
-        (filter === "active" && !isDeleted && isActive) ||
-        (filter === "inactive" && !isDeleted && !isActive) ||
-        (filter === "deleted" && isDeleted);
-
-      if (!show) return;
-
-      rows.push({ id: doc.id, ...data });
-    });
-
-    if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">No users found for the selected filter.</td></tr>`;
-      await loadRecentAdminAuditLogs();
-      return;
-    }
-
-    tbody.innerHTML = "";
-
-    rows.forEach((data) => {
-      const isDeleted = data.isDeleted === true;
-      const isActive = data.isActive === true;
-      const statusLabel = getUserStatusLabel(data);
-
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>${data.fullName || ""}</td>
-        <td>${data.email || ""}</td>
-        <td>${data.role || ""}</td>
-        <td>${data.supervisorName || data.supervisorEmail || "-"}</td>
-        <td>${statusLabel}</td>
-        <td>${safeArray(data.assignedProjects).join(", ")}</td>
-        <td>
-          <div class="button-row">
-            <button class="btn btn-secondary btn-edit-user" data-id="${data.id}">Edit</button>
-            <button class="btn btn-secondary btn-reset-user" data-id="${data.id}">Reset</button>
-
-            ${
-              isDeleted
-                ? `<button class="btn btn-success btn-restore-user" data-id="${data.id}" data-email="${data.email || ""}">Restore</button>`
-                : `<button
-                    class="btn ${isActive ? "btn-warning" : "btn-success"} btn-toggle-user"
-                    data-id="${data.id}"
-                    data-email="${data.email || ""}"
-                    data-active="${isActive ? "true" : "false"}"
-                  >
-                    ${isActive ? "Deactivate" : "Activate"}
-                  </button>`
-            }
-
-            ${
-              isDeleted
-                ? `<button class="btn btn-danger btn-hard-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Permanent Delete</button>`
-                : `<button class="btn btn-danger btn-soft-delete-user" data-id="${data.id}" data-email="${data.email || ""}">Soft Delete</button>`
-            }
-          </div>
-        </td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-    document.querySelectorAll(".btn-edit-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await loadUserIntoForm(btn.dataset.id);
-      });
-    });
-
-    document.querySelectorAll(".btn-reset-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await sendPasswordResetForUser(btn.dataset.id);
-      });
-    });
-
-    document.querySelectorAll(".btn-toggle-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await toggleUserActiveStatus(
-          btn.dataset.id,
-          btn.dataset.email || "",
-          btn.dataset.active !== "true"
-        );
-      });
-    });
-
-    document.querySelectorAll(".btn-soft-delete-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await softDeleteUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
-      });
-    });
-
-    document.querySelectorAll(".btn-restore-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await restoreDeletedUserFromAdmin(btn.dataset.id, btn.dataset.email || "");
-      });
-    });
-
-    document.querySelectorAll(".btn-hard-delete-user").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        await deleteUserCompletelyFromAdmin(btn.dataset.id, btn.dataset.email || "");
-      });
-    });
-
-    await loadRecentAdminAuditLogs();
-  } catch (error) {
-    console.error(error);
-    tbody.innerHTML = `<tr><td colspan="7">Failed to load users.</td></tr>`;
   }
 }
 

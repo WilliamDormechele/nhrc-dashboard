@@ -884,3 +884,7 @@ textarea:focus {
   background: #dc2626;
   color: #fff;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
