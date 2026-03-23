@@ -51,6 +51,37 @@ function setAdminMessage(elementId, text, isError = false) {
   el.style.color = isError ? "#b91c1c" : "#047857";
 }
 
+function showAdminToast(message, icon = "success", timer = 2200) {
+  if (typeof Swal !== "undefined") {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon,
+      title: message,
+      showConfirmButton: false,
+      timer,
+      timerProgressBar: true
+    });
+  }
+}
+
+function highlightAndScrollToCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  card.classList.remove("form-focus-highlight");
+
+  // restart animation cleanly
+  void card.offsetWidth;
+
+  card.classList.add("form-focus-highlight");
+
+  setTimeout(() => {
+    card.classList.remove("form-focus-highlight");
+  }, 2300);
+}
+
 /**
  * Safe helper.
  */
@@ -151,7 +182,7 @@ window.updateSupervisorFieldVisibility = function () {
 /**
  * Clear the user form.
  */
-async function clearUserForm() {
+async function clearUserForm(showToast = true) {
   document.getElementById("editingUserId").value = "";
   document.getElementById("adminUserFullName").value = "";
   document.getElementById("adminUserEmail").value = "";
@@ -161,6 +192,10 @@ async function clearUserForm() {
   window.renderProjectCheckboxesForAdmin([]);
   await window.loadSupervisorOptions("");
   window.updateSupervisorFieldVisibility();
+
+  if (showToast) {
+    showAdminToast("User form cleared", "success", 1500);
+  }
 }
 
 /**
@@ -543,7 +578,9 @@ async function saveUserFromAdminForm() {
         `User updated successfully.${accessEmailWarning}`
       );
 
-      await clearUserForm();
+      showAdminToast("User updated successfully", "success");
+
+      await clearUserForm(false);
       await loadUsersForAdmin();
       await loadRecentAdminAuditLogs();
       return;
@@ -603,6 +640,8 @@ async function saveUserFromAdminForm() {
         ? "New user created successfully. Test onboarding email sent with set-password and login buttons."
         : onboardingEmailWarning
     );
+    showAdminToast("User saved successfully", "success");
+    
     await clearUserForm();
     await loadUsersForAdmin();
     await loadRecentAdminAuditLogs();
@@ -916,12 +955,33 @@ async function loadUserIntoForm(userId) {
   window.updateSupervisorFieldVisibility();
 
   setAdminMessage("adminUserMessage", "Loaded user for editing.");
+
+  if (typeof Swal !== "undefined") {
+    await Swal.fire({
+      icon: "info",
+      title: "User Loaded for Editing",
+      html: `
+        <div style="text-align:left">
+          <div><b>Name:</b> ${data.fullName || "-"}</div>
+          <div><b>Email:</b> ${data.email || "-"}</div>
+          <div><b>Role:</b> ${data.role || "-"}</div>
+          <div><b>Status:</b> ${data.isActive === false ? "Inactive" : "Active"}</div>
+          <div><b>Supervisor:</b> ${data.supervisorName || data.supervisorEmail || "-"}</div>
+          <div><b>Projects:</b> ${safeArray(data.assignedProjects).join(", ") || "-"}</div>
+        </div>
+      `,
+      confirmButtonText: "Continue to Edit"
+    });
+  }
+
+  highlightAndScrollToCard("adminUserFormCard");
+  showAdminToast("User loaded into form", "info", 1800);
 }
 
 /**
  * Clear the project form.
  */
-function clearProjectForm() {
+function clearProjectForm(showToast = true) {
   document.getElementById("editingProjectCode").value = "";
   document.getElementById("projectCodeInput").value = "";
   document.getElementById("projectNameInput").value = "";
@@ -933,6 +993,10 @@ function clearProjectForm() {
   document.getElementById("projectReportsJsonInput").value = "[]";
   document.getElementById("projectQueriesJsonInput").value = "[]";
   setAdminMessage("adminProjectMessage", "");
+
+  if (showToast) {
+    showAdminToast("Project form cleared", "success", 1500);
+  }
 }
 
 /**
@@ -989,7 +1053,8 @@ async function saveProjectFromAdminForm() {
     });
 
     setAdminMessage("adminProjectMessage", "Project saved successfully.");
-    clearProjectForm();
+    showAdminToast("Project saved successfully", "success");
+    clearProjectForm(false);
 
     await loadProjectsRegistry();
     await window.loadProjectsForAdmin();
@@ -1110,6 +1175,29 @@ async function loadProjectIntoForm(projectCode) {
   document.getElementById("projectQueriesJsonInput").value = JSON.stringify(data.queries || [], null, 2);
 
   setAdminMessage("adminProjectMessage", "Loaded project for editing.");
+
+  if (typeof Swal !== "undefined") {
+    await Swal.fire({
+      icon: "info",
+      title: "Project Loaded for Editing",
+      html: `
+        <div style="text-align:left">
+          <div><b>Code:</b> ${data.code || projectCode}</div>
+          <div><b>Name:</b> ${data.name || "-"}</div>
+          <div><b>Status:</b> ${data.enabled === false ? "Disabled" : "Enabled"}</div>
+          <div><b>Dashboard URL:</b> ${data.dashboardEmbedUrl ? "Configured" : "Not set"}</div>
+          <div><b>Reports:</b> ${(data.reports || []).length}</div>
+          <div><b>Queries:</b> ${(data.queries || []).length}</div>
+        </div>
+      `,
+      confirmButtonText: "Continue to Edit"
+    });
+  }
+
+  const formCard = document.getElementById("adminProjectFormCard");
+  if (formCard && formCard.scrollIntoView) {
+    formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 /**
@@ -1139,7 +1227,10 @@ function repopulateProjectsForCurrentUser() {
 function setupAdminUI() {
   document.getElementById("saveUserBtn").addEventListener("click", saveUserFromAdminForm);
   document.getElementById("clearUserFormBtn").addEventListener("click", clearUserForm);
-  document.getElementById("refreshUsersBtn").addEventListener("click", window.loadUsersForAdmin);
+  document.getElementById("refreshUsersBtn").addEventListener("click", async () => {
+  await window.loadUsersForAdmin();
+    showAdminToast("Users refreshed", "success", 1500);
+  });
 
   const backfillMissingBtn = document.getElementById("backfillMissingMonitoringBtn");
   if (backfillMissingBtn) {
@@ -1242,6 +1333,7 @@ function setupAdminUI() {
   document.getElementById("refreshProjectsBtn").addEventListener("click", async () => {
     await loadProjectsRegistry();
     await loadProjectsForAdmin();
+    showAdminToast("Projects refreshed", "success", 1500);
   });
 
   // Do not load admin-only Firestore data here.
@@ -1552,7 +1644,10 @@ function setupAdminLifecycleExtras() {
   }
 
   if (auditRefresh) {
-    auditRefresh.addEventListener("click", loadRecentAdminAuditLogs);
+    auditRefresh.addEventListener("click", async () => {
+      await loadRecentAdminAuditLogs();
+      showAdminToast("Audit trail refreshed", "success", 1500);
+    });
   }
 }
 

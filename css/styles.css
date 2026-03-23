@@ -994,3 +994,24 @@ body.admin-loading {
     background-position: -200% 0;
   }
 }
+
+.form-focus-highlight {
+  animation: formFocusGlow 2.2s ease;
+}
+
+@keyframes formFocusGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0),
+                0 12px 30px rgba(15, 28, 63, 0.12);
+    border-color: #dde2ec;
+  }
+  20% {
+    box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.35),
+                0 18px 36px rgba(15, 28, 63, 0.18);
+    border-color: #f59e0b;
+  }
+  100% {
+    box-shadow: 0 12px 30px rgba(15, 28, 63, 0.12);
+    border-color: #dde2ec;
+  }
+}
