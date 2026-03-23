@@ -507,6 +507,96 @@ textarea:focus {
   border-color: #b9c8e6;
 }
 
+/* Disabled / unavailable report cards */
+.resource-card.resource-card-disabled {
+  position: relative;
+  cursor: not-allowed;
+  user-select: none;
+  pointer-events: auto;
+
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #d7dee8;
+  color: #64748b;
+
+  box-shadow: none;
+  opacity: 0.82;
+  filter: grayscale(0.2);
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease;
+}
+
+.resource-card.resource-card-disabled::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.34) 0%,
+      rgba(255, 255, 255, 0.14) 40%,
+      rgba(148, 163, 184, 0.08) 100%
+    );
+  pointer-events: none;
+}
+
+.resource-card.resource-card-disabled::after {
+  content: "Unavailable";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #64748b;
+
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.resource-card.resource-card-disabled:hover,
+.resource-card.resource-card-disabled:focus,
+.resource-card.resource-card-disabled:focus-visible {
+  transform: translateY(-1px);
+  border-color: #c3cedd;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  opacity: 0.96;
+  filter: grayscale(0.08);
+  outline: none;
+}
+
+.resource-card.resource-card-disabled .resource-filetype {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.resource-card.resource-card-disabled .resource-badge {
+  color: #6b7280;
+}
+
+.resource-card.resource-card-disabled .resource-title {
+  color: #475569;
+}
+
+.resource-card.resource-card-disabled .resource-subtext {
+  color: #7c8aa0;
+}
+
+.resource-card.resource-card-disabled .resource-card-top {
+  padding-right: 88px;
+}
+
 .resource-card-top {
   display: flex;
   justify-content: space-between;

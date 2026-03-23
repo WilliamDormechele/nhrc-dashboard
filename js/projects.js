@@ -89,14 +89,90 @@ function getFileTypeLabel(filePath = "") {
 /**
  * Build a clean resource card.
  */
-function buildResourceCard(item, badgeText, actionName, pageName, canDownload = true) {
+function buildResourceCard(
+  item,
+  badgeText,
+  actionName,
+  pageName,
+  canDownload = true,
+  options = {}
+) {
+  const safeItem = item || {};
+  const filePath = String(safeItem.file || "").trim();
+  const titleText = String(safeItem.title || "Untitled report").trim();
+
+  const unavailable =
+    options.unavailable === true || !filePath;
+
+  const unavailableMessage =
+  options.unavailableMessage || "No report is currently available for this selection.";
+
+  // Unavailable / empty report card
+  if (unavailable) {
+    const card = document.createElement("div");
+    card.className = "resource-card resource-card-disabled";
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-disabled", "true");
+    card.title = unavailableMessage;
+
+    // Inline styling so you do not need to touch CSS
+    // card.style.opacity = "0.58";
+    // card.style.filter = "grayscale(0.25)";
+    // card.style.cursor = "not-allowed";
+    // card.style.border = "1px solid #d1d5db";
+    // card.style.background = "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)";
+    // card.style.boxShadow = "none";
+    // card.style.position = "relative";
+    // card.style.userSelect = "none";
+
+    card.innerHTML = `
+      <div class="resource-card-top">
+        <span class="resource-filetype">N/A</span>
+        <span class="resource-badge">Unavailable</span>
+      </div>
+
+      <div class="resource-title">${titleText}</div>
+
+      <div class="resource-subtext">
+        No report currently available for this selection.
+      </div>
+    `;
+
+    const showUnavailableNotice = () => {
+      if (typeof Swal !== "undefined") {
+        Swal.fire({
+          icon: "info",
+          title: "Report Not Available",
+          text: unavailableMessage,
+          confirmButtonText: "OK"
+        });
+      }
+    };
+
+    card.addEventListener("click", function (event) {
+      event.preventDefault();
+      showUnavailableNotice();
+    });
+
+    card.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showUnavailableNotice();
+      }
+    });
+
+    return card;
+  }
+
+  // Normal available card
   const link = document.createElement("a");
   link.className = "resource-card";
-  link.href = item.file;
+  link.href = filePath;
   link.target = "_blank";
   link.rel = "noopener";
 
-  const fileType = getFileTypeLabel(item.file);
+  const fileType = getFileTypeLabel(filePath);
 
   link.innerHTML = `
     <div class="resource-card-top">
@@ -104,7 +180,7 @@ function buildResourceCard(item, badgeText, actionName, pageName, canDownload = 
       <span class="resource-badge">${badgeText}</span>
     </div>
 
-    <div class="resource-title">${item.title}</div>
+    <div class="resource-title">${titleText}</div>
 
     <div class="resource-subtext">
       Click to ${canDownload ? "open or download" : "open"} this file
@@ -114,13 +190,23 @@ function buildResourceCard(item, badgeText, actionName, pageName, canDownload = 
   link.addEventListener("click", async (event) => {
     if (!canDownload) {
       event.preventDefault();
-      alert("You do not have permission to download reports.");
+
+      if (typeof Swal !== "undefined") {
+        Swal.fire({
+          icon: "warning",
+          title: "Access Restricted",
+          text: "You do not have permission to download reports.",
+          confirmButtonText: "OK"
+        });
+      } else {
+        alert("You do not have permission to download reports.");
+      }
       return;
     }
 
     await logActivity(actionName, {
       page: pageName,
-      target: item.file
+      target: filePath
     });
   });
 
@@ -168,36 +254,95 @@ function renderReports(project) {
     return;
   }
 
-  (project.reports || []).forEach((section) => {
+  const reportSections = Array.isArray(project.reports) ? project.reports : [];
+
+  if (reportSections.length === 0) {
     const block = document.createElement("div");
     block.className = "report-category";
 
     const title = document.createElement("h3");
-    title.textContent = section.category;
+    title.textContent = `${project.name || "Project"} Reports`;
     block.appendChild(title);
 
     const grid = document.createElement("div");
     grid.className = "resource-grid";
 
-    (section.items || []).forEach((item) => {
-      const card = buildResourceCard(
-        item,
-        permissions.canDownloadReports ? "Download" : "View",
+    grid.appendChild(
+      buildResourceCard(
+        {
+          title: "No report available"
+        },
+        "Unavailable",
         "download_report",
         "reports",
-        permissions.canDownloadReports
-      );
+        false,
+        {
+          unavailable: true,
+          unavailableMessage: "No report is currently available for this selection."
+        }
+      )
+    );
 
-      grid.appendChild(card);
-    });
+    block.appendChild(grid);
+    reportsContainer.appendChild(block);
+    return;
+  }
+
+  reportSections.forEach((section) => {
+    const block = document.createElement("div");
+    block.className = "report-category";
+
+    const title = document.createElement("h3");
+    title.textContent = section.category || "Reports";
+    block.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "resource-grid";
+
+    const items = Array.isArray(section.items) ? section.items : [];
+
+    // If a category exists but has no items, show one grey unavailable card
+    if (items.length === 0) {
+      grid.appendChild(
+        buildResourceCard(
+          {
+            title: `${section.category || "Report"} not available`
+          },
+          "Unavailable",
+          "download_report",
+          "reports",
+          false,
+          {
+            unavailable: true,
+            unavailableMessage: "No report is currently available for this selection."
+          }
+        )
+      );
+    } else {
+      items.forEach((item) => {
+        const hasFile = !!String(item?.file || "").trim();
+
+        const card = buildResourceCard(
+          item,
+          hasFile
+            ? (permissions.canDownloadReports ? "Download" : "View")
+            : "Unavailable",
+          "download_report",
+          "reports",
+          hasFile ? permissions.canDownloadReports : false,
+          {
+            unavailable: !hasFile,
+            unavailableMessage: "No report is currently available for this selection."
+          }
+        );
+
+        grid.appendChild(card);
+      });
+    }
 
     block.appendChild(grid);
     reportsContainer.appendChild(block);
   });
-
-  if (!project.reports || project.reports.length === 0) {
-    reportsContainer.innerHTML = `<div class="placeholder-box">No reports configured for this project yet.</div>`;
-  }
 }
 
 /**
