@@ -4,7 +4,9 @@
     "items": [
       {
         "title": "Health Workers Query Tracker",
-        "file": "reports/hemab/health_workers/health_workers_report_tracker_2026-03-24.html"
+        "file": "reports/hemab/health_workers/health_workers_report_tracker_2026-03-24.html",
+        "updatedAt": "2026-03-24T13:30:05",
+        "reportDate": "2026-03-24"
       }
     ]
   }
