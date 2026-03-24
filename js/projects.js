@@ -116,6 +116,7 @@ return [
     emptyMessage: "No files available in this section yet."
   }
 ];
+}
 
 /**
  * Merge multiple grouped JSON files into one project.reports and project.queries array.
