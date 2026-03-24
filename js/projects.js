@@ -14,14 +14,14 @@ window.projectUsersDirectory = {
 const DYNAMIC_PROJECT_JSON = {
   hemab: {
     reports: [
-      "reports/hemab/household_members/hh_members_reports.json",
-      "reports/hemab/women/women_reports.json",
-      "reports/hemab/health_workers/health_workers_reports.json"
+      "reports/HeMAB/household_members/hh_members_reports.json",
+      "reports/HeMAB/women/women_reports.json",
+      "reports/HeMAB/health_workers/health_workers_reports.json"
     ],
     queries: [
-      "queries/hemab/household_members/hh_members_queries.json",
-      "queries/hemab/women/women_queries.json",
-      "queries/hemab/health_workers/health_workers_queries.json"
+      "queries/HeMAB/household_members/hh_members_queries.json",
+      "queries/HeMAB/women/women_queries.json",
+      "queries/HeMAB/health_workers/health_workers_queries.json"
     ]
   },
 
