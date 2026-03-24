@@ -208,78 +208,6 @@ async function hydrateDynamicProjectFiles(project) {
 }
 
 /**
- * Normalize loaded JSON into grouped query sections.
- * Supports either:
- * 1. flat arrays of items
- * 2. grouped arrays with { category, items }
- */
-function normalizeDynamicQuerySections(jsonData, fallbackCategory = "Queries") {
-  if (!Array.isArray(jsonData) || !jsonData.length) {
-    return [];
-  }
-
-  const groupedMode = jsonData.some(
-    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
-  );
-
-  if (groupedMode) {
-    return jsonData.map((section) => ({
-      category: section.category || fallbackCategory,
-      items: Array.isArray(section.items) ? section.items : []
-    }));
-  }
-
-  return [
-    {
-      category: fallbackCategory,
-      items: jsonData
-    }
-  ];
-}
-
-/**
- * Merge multiple grouped query JSON files into one project.queries array.
- */
-async function hydrateDynamicProjectFiles(project) {
-  const projectCode = normalizeText(project?.code);
-  const config = DYNAMIC_PROJECT_JSON[projectCode];
-
-  if (!config) return project;
-
-  const clonedProject = {
-    ...project,
-    queries: Array.isArray(project.queries) ? [...project.queries] : [],
-    reports: Array.isArray(project.reports) ? [...project.reports] : []
-  };
-
-  if (Array.isArray(config.reports) && config.reports.length) {
-    const loadedReportSections = [];
-
-    for (const path of config.reports) {
-      const jsonData = await fetchJsonSafe(path);
-      const sections = normalizeDynamicQuerySections(jsonData, "Reports");
-      loadedReportSections.push(...sections);
-    }
-
-    clonedProject.reports = loadedReportSections;
-  }
-
-  if (Array.isArray(config.queries) && config.queries.length) {
-    const loadedQuerySections = [];
-
-    for (const path of config.queries) {
-      const jsonData = await fetchJsonSafe(path);
-      const sections = normalizeDynamicQuerySections(jsonData, "Queries");
-      loadedQuerySections.push(...sections);
-    }
-
-    clonedProject.queries = loadedQuerySections;
-  }
-
-  return clonedProject;
-}
-
-/**
  * Load projects from Firestore.
  * If no Firestore projects exist yet, use the local fallback config from data/project-config.js.
  */
@@ -422,6 +350,95 @@ function formatFriendlyDate(value) {
   }
 
   return String(value);
+}
+
+function extractLatestTimestampFromItems(items = []) {
+  let latestDate = null;
+
+  (items || []).forEach((item) => {
+    const candidates = [
+      item?.updatedAt,
+      item?.lastUpdated,
+      item?.updated_at,
+      item?.last_updated,
+      item?.date,
+      item?.reportDate,
+      item?.queryDate
+    ];
+
+    candidates.forEach((value) => {
+      if (!value) return;
+
+      let parsed = null;
+
+      if (typeof value === "string") {
+        const testDate = new Date(value);
+        if (!Number.isNaN(testDate.getTime())) {
+          parsed = testDate;
+        }
+      } else if (value?.toDate) {
+        parsed = value.toDate();
+      } else if (value instanceof Date) {
+        parsed = value;
+      }
+
+      if (parsed && (!latestDate || parsed > latestDate)) {
+        latestDate = parsed;
+      }
+    });
+  });
+
+  return latestDate;
+}
+
+function getFreshnessStatus(latestDate) {
+  if (!latestDate) {
+    return {
+      label: "Update time unavailable",
+      tone: "unknown"
+    };
+  }
+
+  const now = new Date();
+  const diffMs = now - latestDate;
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  if (diffDays <= 2) {
+    return {
+      label: `Fresh · updated ${formatFriendlyDate(latestDate)}`,
+      tone: "fresh"
+    };
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Recent · updated ${formatFriendlyDate(latestDate)}`,
+      tone: "recent"
+    };
+  }
+
+  if (diffDays <= 30) {
+    return {
+      label: `Aging · updated ${formatFriendlyDate(latestDate)}`,
+      tone: "aging"
+    };
+  }
+
+  return {
+    label: `Stale · updated ${formatFriendlyDate(latestDate)}`,
+    tone: "stale"
+  };
+}
+
+function buildFreshnessBadgeFromItems(items = []) {
+  const latestDate = extractLatestTimestampFromItems(items);
+  const freshness = getFreshnessStatus(latestDate);
+
+  const badge = document.createElement("div");
+  badge.className = `data-freshness-badge data-freshness-${freshness.tone}`;
+  badge.textContent = freshness.label;
+
+  return badge;
 }
 
 /**
@@ -619,27 +636,6 @@ function buildResourceCard(
   });
 
   return link;
-}
-
-function buildEmptyStateCard(message, type = "info") {
-  const div = document.createElement("div");
-  div.className = `empty-state-card ${type}`;
-
-  div.innerHTML = `
-    <div class="empty-icon">
-      ${type === "warning" ? "⚠️" : "ℹ️"}
-    </div>
-    <div class="empty-content">
-      <div class="empty-title">
-        ${type === "warning" ? "Not available yet" : "Nothing to show yet"}
-      </div>
-      <div class="empty-text">
-        ${message || "No files available for this section."}
-      </div>
-    </div>
-  `;
-
-  return div;
 }
 
 /**
@@ -962,10 +958,15 @@ function renderAdvancedQueries(project) {
   const header = document.createElement("div");
   header.className = "advanced-library-header";
   header.innerHTML = `
-    <div>
-      <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
-      <p>Search and filter query files by field worker, ${escapeHtml(locationLabel.toLowerCase())}, supervisor, and date.</p>
-    </div>
+<div>
+  <div class="section-title-row">
+    <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
+    <span class="data-freshness-badge data-freshness-${getFreshnessStatus(extractLatestTimestampFromItems(normalizedItems)).tone}">
+      ${escapeHtml(getFreshnessStatus(extractLatestTimestampFromItems(normalizedItems)).label)}
+    </span>
+  </div>
+  <p>Search and filter query files by field worker, ${escapeHtml(locationLabel.toLowerCase())}, supervisor, and date.</p>
+</div>
     <div class="advanced-library-summary" id="queriesSummaryText">0 files</div>
   `;
   shell.appendChild(header);
@@ -1124,7 +1125,12 @@ function renderAdvancedReports(project) {
     header.className = "advanced-library-header";
     header.innerHTML = `
       <div>
-        <h3>${escapeHtml(section.category || "Reports")}</h3>
+        <div class="section-title-row">
+          <h3>${escapeHtml(section.category || "Reports")}</h3>
+          <span class="data-freshness-badge data-freshness-${getFreshnessStatus(extractLatestTimestampFromItems(sectionItems)).tone}">
+            ${escapeHtml(getFreshnessStatus(extractLatestTimestampFromItems(sectionItems)).label)}
+          </span>
+        </div>
         <p>Filter report files by ${locationLabel.toLowerCase()} and reporting date.</p>
       </div>
       <div class="advanced-library-summary" id="reportsSummaryText_${index}">0 files</div>
@@ -1271,9 +1277,16 @@ function renderStandardReports(project) {
     const block = document.createElement("div");
     block.className = "report-category";
 
+    const titleRow = document.createElement("div");
+    titleRow.className = "section-title-row";
+
     const title = document.createElement("h3");
     title.textContent = section.category || "Reports";
-    block.appendChild(title);
+
+    titleRow.appendChild(title);
+    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || []));
+
+    block.appendChild(titleRow);
 
     const items = Array.isArray(section.items) ? section.items : [];
 
@@ -1329,9 +1342,16 @@ function renderStandardQueries(project) {
     const block = document.createElement("div");
     block.className = "report-category";
 
+    const titleRow = document.createElement("div");
+    titleRow.className = "section-title-row";
+
     const title = document.createElement("h3");
     title.textContent = section.category || "Queries";
-    block.appendChild(title);
+
+    titleRow.appendChild(title);
+    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || []));
+
+    block.appendChild(titleRow);
 
     const items = Array.isArray(section.items) ? section.items : [];
 
