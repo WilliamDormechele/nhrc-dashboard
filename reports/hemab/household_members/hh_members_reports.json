@@ -1,10 +1,10 @@
 [
   {
-    category: Household Members,
-    items: [
+    "category": "Household Members",
+    "items": [
       {
-        title: HH Members Query Tracker,
-        file: reports/hemab/household_members/hh_members_report_tracker_2026-03-24.pdf
+        "title": "HH Members Query Tracker",
+        "file": "reports/hemab/household_members/hh_members_report_tracker_2026-03-24.pdf"
       }
     ]
   }
