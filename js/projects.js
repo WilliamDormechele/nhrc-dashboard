@@ -13,9 +13,15 @@ window.projectUsersDirectory = {
  */
 const DYNAMIC_PROJECT_JSON = {
   hemab: {
+    reports: [
+      "reports/hemab/household_members/hh_members_reports.json"
+      // Later:
+      // "reports/HeMAB/women/women_reports.json",
+      // "reports/HeMAB/health_workers/health_workers_reports.json"
+    ],
     queries: [
-      "queries/HeMAB/household_members/hh_members_queries.json"
-      // Later you can add:
+      "queries/hemab/household_members/hh_members_queries.json"
+      // Later:
       // "queries/HeMAB/women/women_queries.json",
       // "queries/HeMAB/health_workers/health_workers_queries.json"
     ]
@@ -86,16 +92,28 @@ async function hydrateDynamicProjectFiles(project) {
     reports: Array.isArray(project.reports) ? [...project.reports] : []
   };
 
+  if (Array.isArray(config.reports) && config.reports.length) {
+    const loadedReportSections = [];
+
+    for (const path of config.reports) {
+      const jsonData = await fetchJsonSafe(path);
+      const sections = normalizeDynamicQuerySections(jsonData, "HeMAB Reports");
+      loadedReportSections.push(...sections);
+    }
+
+    clonedProject.reports = loadedReportSections;
+  }
+
   if (Array.isArray(config.queries) && config.queries.length) {
-    const loadedSections = [];
+    const loadedQuerySections = [];
 
     for (const path of config.queries) {
       const jsonData = await fetchJsonSafe(path);
       const sections = normalizeDynamicQuerySections(jsonData, "HeMAB Queries");
-      loadedSections.push(...sections);
+      loadedQuerySections.push(...sections);
     }
 
-    clonedProject.queries = loadedSections;
+    clonedProject.queries = loadedQuerySections;
   }
 
   return clonedProject;
