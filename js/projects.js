@@ -99,22 +99,23 @@ function normalizeDynamicQuerySections(jsonData, fallbackCategory = "Files") {
     (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
   );
 
-  if (groupedMode) {
-    return jsonData.map((section) => ({
-      category: section.category || fallbackCategory,
-      items: Array.isArray(section.items) ? section.items : [],
-      emptyMessage: section.emptyMessage || "No files available in this section yet."
-    }));
-  }
-
-  return [
-    {
-      category: fallbackCategory,
-      items: jsonData,
-      emptyMessage: "No files available in this section yet."
-    }
-  ];
+if (groupedMode) {
+  return jsonData.map((section) => ({
+    category: section.category || fallbackCategory,
+    updatedAt: section.updatedAt || section.lastUpdated || section.updated_at || section.last_updated || "",
+    items: Array.isArray(section.items) ? section.items : [],
+    emptyMessage: section.emptyMessage || "No files available in this section yet."
+  }));
 }
+
+return [
+  {
+    category: fallbackCategory,
+    updatedAt: "",
+    items: jsonData,
+    emptyMessage: "No files available in this section yet."
+  }
+];
 
 /**
  * Merge multiple grouped JSON files into one project.reports and project.queries array.
