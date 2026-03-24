@@ -1195,11 +1195,13 @@ function renderQueries(project) {
  * Load the selected project into the dashboard tab.
  */
 async function loadProject(projectCode) {
-  const project = window.projectRegistry[projectCode];
-  if (!project) {
+  const baseProject = window.projectRegistry[projectCode];
+  if (!baseProject) {
     alert(`Project "${projectCode}" is not configured.`);
     return;
   }
+
+  const project = await hydrateDynamicProjectFiles(baseProject);
 
   window.currentProjectCode = projectCode;
 
@@ -1214,7 +1216,7 @@ async function loadProject(projectCode) {
   renderReports(project);
   renderQueries(project);
 
-  logActivity("project_opened", {
+  await logActivity("project_opened", {
     page: "project_switch",
     target: projectCode
   });
