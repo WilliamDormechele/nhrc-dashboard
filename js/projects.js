@@ -352,9 +352,18 @@ function formatFriendlyDate(value) {
   return String(value);
 }
 
-function extractLatestTimestampFromItems(items = []) {
+function extractLatestTimestampFromItems(items = [], section = null) {
   let latestDate = null;
 
+  // 🔹 FIRST: check section-level timestamp
+  if (section?.updatedAt) {
+    const d = new Date(section.updatedAt);
+    if (!isNaN(d)) {
+      latestDate = d;
+    }
+  }
+
+  // 🔹 THEN: check items
   (items || []).forEach((item) => {
     const candidates = [
       item?.updatedAt,
@@ -369,20 +378,8 @@ function extractLatestTimestampFromItems(items = []) {
     candidates.forEach((value) => {
       if (!value) return;
 
-      let parsed = null;
-
-      if (typeof value === "string") {
-        const testDate = new Date(value);
-        if (!Number.isNaN(testDate.getTime())) {
-          parsed = testDate;
-        }
-      } else if (value?.toDate) {
-        parsed = value.toDate();
-      } else if (value instanceof Date) {
-        parsed = value;
-      }
-
-      if (parsed && (!latestDate || parsed > latestDate)) {
+      const parsed = new Date(value);
+      if (!isNaN(parsed) && (!latestDate || parsed > latestDate)) {
         latestDate = parsed;
       }
     });
@@ -430,8 +427,8 @@ function getFreshnessStatus(latestDate) {
   };
 }
 
-function buildFreshnessBadgeFromItems(items = []) {
-  const latestDate = extractLatestTimestampFromItems(items);
+function buildFreshnessBadgeFromItems(items = [], section = null) {
+  const latestDate = extractLatestTimestampFromItems(items, section);
   const freshness = getFreshnessStatus(latestDate);
 
   const badge = document.createElement("div");
@@ -1127,8 +1124,8 @@ function renderAdvancedReports(project) {
       <div>
         <div class="section-title-row">
           <h3>${escapeHtml(section.category || "Reports")}</h3>
-          <span class="data-freshness-badge data-freshness-${getFreshnessStatus(extractLatestTimestampFromItems(sectionItems)).tone}">
-            ${escapeHtml(getFreshnessStatus(extractLatestTimestampFromItems(sectionItems)).label)}
+          <span class="data-freshness-badge data-freshness-${getFreshnessStatus(extractLatestTimestampFromItems(sectionItems, section)).tone}">
+            ${escapeHtml(getFreshnessStatus(extractLatestTimestampFromItems(sectionItems, section)).label)}
           </span>
         </div>
         <p>Filter report files by ${locationLabel.toLowerCase()} and reporting date.</p>
@@ -1284,7 +1281,7 @@ function renderStandardReports(project) {
     title.textContent = section.category || "Reports";
 
     titleRow.appendChild(title);
-    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || []));
+    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || [], section));
 
     block.appendChild(titleRow);
 
@@ -1349,7 +1346,7 @@ function renderStandardQueries(project) {
     title.textContent = section.category || "Queries";
 
     titleRow.appendChild(title);
-    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || []));
+    titleRow.appendChild(buildFreshnessBadgeFromItems(section.items || [], section));
 
     block.appendChild(titleRow);
 
