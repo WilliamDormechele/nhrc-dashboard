@@ -4,7 +4,9 @@
     "items": [
       {
         "title": "Women Query Tracker",
-        "file": "reports/hemab/women/women_report_tracker_2026-03-24.html"
+        "file": "reports/hemab/women/women_report_tracker_2026-03-24.html",
+        "updatedAt": "2026-03-24T12:03:27",
+        "reportDate": "2026-03-24"
       }
     ]
   }
