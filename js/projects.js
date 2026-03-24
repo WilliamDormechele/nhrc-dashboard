@@ -39,20 +39,172 @@ const DYNAMIC_PROJECT_JSON = {
 /**
  * Fetch JSON safely.
  */
+/**
+ * Convert a JSON path into a friendly section label.
+ */
+function inferSectionCategoryFromPath(path = "") {
+  const safePath = String(path).toLowerCase();
+
+  if (safePath.includes("/household_members/")) return "Household Members";
+  if (safePath.includes("/women/")) return "Women";
+  if (safePath.includes("/health_workers/")) return "Health Workers";
+
+  return "Files";
+}
+
+/**
+ * Build a visible empty section instead of hiding it.
+ */
+function createEmptySection(category, message, sourcePath = "") {
+  return {
+    category: category || "Files",
+    items: [],
+    emptyMessage: message || "No files available in this section yet.",
+    sourcePath: sourcePath || ""
+  };
+}
+
+/**
+ * Fetch JSON safely.
+ * Returns null for missing/bad files so we can show an empty state in the UI.
+ */
 async function fetchJsonSafe(path) {
   try {
     const response = await fetch(path, { cache: "no-store" });
 
     if (!response.ok) {
       console.warn(`JSON fetch failed for ${path}: ${response.status}`);
-      return [];
+      return null;
     }
 
     return await response.json();
   } catch (error) {
     console.warn(`JSON fetch error for ${path}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Normalize loaded JSON into grouped sections.
+ * Supports either:
+ * 1. flat arrays of items
+ * 2. grouped arrays with { category, items }
+ */
+function normalizeDynamicQuerySections(jsonData, fallbackCategory = "Files") {
+  if (!Array.isArray(jsonData) || !jsonData.length) {
     return [];
   }
+
+  const groupedMode = jsonData.some(
+    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
+  );
+
+  if (groupedMode) {
+    return jsonData.map((section) => ({
+      category: section.category || fallbackCategory,
+      items: Array.isArray(section.items) ? section.items : [],
+      emptyMessage: section.emptyMessage || "No files available in this section yet."
+    }));
+  }
+
+  return [
+    {
+      category: fallbackCategory,
+      items: jsonData,
+      emptyMessage: "No files available in this section yet."
+    }
+  ];
+}
+
+/**
+ * Merge multiple grouped JSON files into one project.reports and project.queries array.
+ * Empty/missing files are preserved as visible empty sections.
+ */
+async function hydrateDynamicProjectFiles(project) {
+  const projectCode = normalizeText(project?.code);
+  const config = DYNAMIC_PROJECT_JSON[projectCode];
+
+  if (!config) return project;
+
+  const clonedProject = {
+    ...project,
+    queries: Array.isArray(project.queries) ? [...project.queries] : [],
+    reports: Array.isArray(project.reports) ? [...project.reports] : []
+  };
+
+  if (Array.isArray(config.reports) && config.reports.length) {
+    const loadedReportSections = [];
+
+    for (const path of config.reports) {
+      const category = inferSectionCategoryFromPath(path);
+      const jsonData = await fetchJsonSafe(path);
+
+      if (jsonData === null) {
+        loadedReportSections.push(
+          createEmptySection(
+            category,
+            "Report file is missing or could not be loaded yet.",
+            path
+          )
+        );
+        continue;
+      }
+
+      const sections = normalizeDynamicQuerySections(jsonData, category);
+
+      if (!sections.length) {
+        loadedReportSections.push(
+          createEmptySection(
+            category,
+            "No report files available in this section yet.",
+            path
+          )
+        );
+      } else {
+        loadedReportSections.push(...sections);
+      }
+    }
+
+    clonedProject.reports = loadedReportSections;
+  }
+
+  if (Array.isArray(config.queries) && config.queries.length) {
+    const loadedQuerySections = [];
+
+    for (const path of config.queries) {
+      const category = inferSectionCategoryFromPath(path);
+      const jsonData = await fetchJsonSafe(path);
+
+      if (jsonData === null) {
+        loadedQuerySections.push(
+          createEmptySection(
+            category,
+            "Query file is missing or could not be loaded yet.",
+            path
+          )
+        );
+        continue;
+      }
+
+      const sections = normalizeDynamicQuerySections(jsonData, category);
+
+      if (!sections.length) {
+        loadedQuerySections.push(
+          createEmptySection(
+            category,
+            "No query files available in this section yet.",
+            path
+          )
+        );
+      } else {
+        loadedQuerySections.push(...sections);
+      }
+    }
+
+    clonedProject.queries = loadedQuerySections;
+  }
+
+  return clonedProject;
 }
 
 /**
@@ -109,9 +261,7 @@ async function hydrateDynamicProjectFiles(project) {
       loadedReportSections.push(...sections);
     }
 
-    clonedProject.reports = loadedReportSections.filter(
-      (section) => Array.isArray(section.items) && section.items.length
-    );
+    clonedProject.reports = loadedReportSections;
   }
 
   if (Array.isArray(config.queries) && config.queries.length) {
@@ -123,9 +273,7 @@ async function hydrateDynamicProjectFiles(project) {
       loadedQuerySections.push(...sections);
     }
 
-    clonedProject.queries = loadedQuerySections.filter(
-      (section) => Array.isArray(section.items) && section.items.length
-    );
+    clonedProject.queries = loadedQuerySections;
   }
 
   return clonedProject;
@@ -471,6 +619,27 @@ function buildResourceCard(
   });
 
   return link;
+}
+
+function buildEmptyStateCard(message, type = "info") {
+  const div = document.createElement("div");
+  div.className = `empty-state-card ${type}`;
+
+  div.innerHTML = `
+    <div class="empty-icon">
+      ${type === "warning" ? "⚠️" : "ℹ️"}
+    </div>
+    <div class="empty-content">
+      <div class="empty-title">
+        ${type === "warning" ? "Not available yet" : "Nothing to show yet"}
+      </div>
+      <div class="empty-text">
+        ${message || "No files available for this section."}
+      </div>
+    </div>
+  `;
+
+  return div;
 }
 
 /**
@@ -1049,6 +1218,34 @@ function renderAdvancedReports(project) {
   });
 }
 
+function buildEmptyStateCard(message, type = "info") {
+  const box = document.createElement("div");
+  box.className = `empty-state-card empty-state-${type}`;
+
+  const icon = document.createElement("div");
+  icon.className = "empty-state-icon";
+  icon.textContent = type === "warning" ? "⚠" : "ℹ";
+
+  const content = document.createElement("div");
+  content.className = "empty-state-content";
+
+  const title = document.createElement("div");
+  title.className = "empty-state-title";
+  title.textContent = type === "warning" ? "Not available yet" : "Nothing to show yet";
+
+  const text = document.createElement("div");
+  text.className = "empty-state-text";
+  text.textContent = message || "No files available.";
+
+  content.appendChild(title);
+  content.appendChild(text);
+
+  box.appendChild(icon);
+  box.appendChild(content);
+
+  return box;
+}
+
 /**
  * Legacy reports renderer for non-HDSS projects.
  */
@@ -1063,36 +1260,48 @@ function renderStandardReports(project) {
     return;
   }
 
-  (project.reports || []).forEach((section) => {
+  const reportSections = Array.isArray(project.reports) ? project.reports : [];
+
+  if (!reportSections.length) {
+    reportsContainer.innerHTML = `<div class="placeholder-box">No reports configured for this project yet.</div>`;
+    return;
+  }
+
+  reportSections.forEach((section) => {
     const block = document.createElement("div");
     block.className = "report-category";
 
     const title = document.createElement("h3");
-    title.textContent = section.category;
+    title.textContent = section.category || "Reports";
     block.appendChild(title);
 
-    const grid = document.createElement("div");
-    grid.className = "resource-grid";
+    const items = Array.isArray(section.items) ? section.items : [];
 
-    (section.items || []).forEach((item) => {
-      const card = buildResourceCard(
-        item,
-        permissions.canDownloadReports ? "Download" : "View",
-        "download_report",
-        "reports",
-        permissions.canDownloadReports
+    if (!items.length) {
+      block.appendChild(
+        buildEmptyStateCard("No report files available in this section.")
       );
+    } else {
+      const grid = document.createElement("div");
+      grid.className = "resource-grid";
 
-      grid.appendChild(card);
-    });
+      items.forEach((item) => {
+        grid.appendChild(
+          buildResourceCard(
+            item,
+            "Download",
+            "download_report",
+            "reports",
+            permissions.canDownloadReports
+          )
+        );
+      });
 
-    block.appendChild(grid);
+      block.appendChild(grid);
+    }
+
     reportsContainer.appendChild(block);
   });
-
-  if (!project.reports || project.reports.length === 0) {
-    reportsContainer.innerHTML = `<div class="placeholder-box">No reports configured for this project yet.</div>`;
-  }
 }
 
 /**
@@ -1116,62 +1325,34 @@ function renderStandardQueries(project) {
     return;
   }
 
-  // NEW:
-  // Support both old flat format:
-  // [
-  //   { title: "...", file: "..." }
-  // ]
-  //
-  // and new grouped format:
-  // [
-  //   {
-  //     category: "Household Members",
-  //     items: [{ title: "...", file: "..." }]
-  //   }
-  // ]
-
-  const groupedMode = rawQueries.some(
-    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
-  );
-
-  const sections = groupedMode
-    ? rawQueries
-    : [
-        {
-          category: `${project.name} Queries`,
-          items: rawQueries
-        }
-      ];
-
-  sections.forEach((section) => {
+  rawQueries.forEach((section) => {
     const block = document.createElement("div");
     block.className = "report-category";
 
     const title = document.createElement("h3");
-    title.textContent = section.category || `${project.name} Queries`;
+    title.textContent = section.category || "Queries";
     block.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "resource-grid";
 
     const items = Array.isArray(section.items) ? section.items : [];
 
     if (!items.length) {
-      const emptyBox = document.createElement("div");
-      emptyBox.className = "placeholder-box";
-      emptyBox.textContent = "No query files available in this section yet.";
-      block.appendChild(emptyBox);
+      block.appendChild(
+        buildEmptyStateCard("No query files available in this section.")
+      );
     } else {
-      items.forEach((item) => {
-        const card = buildResourceCard(
-          item,
-          "Open / Download",
-          "download_query",
-          "queries",
-          true
-        );
+      const grid = document.createElement("div");
+      grid.className = "resource-grid";
 
-        grid.appendChild(card);
+      items.forEach((item) => {
+        grid.appendChild(
+          buildResourceCard(
+            item,
+            "Open / Download",
+            "download_query",
+            "queries",
+            true
+          )
+        );
       });
 
       block.appendChild(grid);
