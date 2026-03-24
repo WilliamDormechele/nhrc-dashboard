@@ -8,6 +8,100 @@ window.projectUsersDirectory = {
 };
 
 /**
+ * Dynamic JSON sources that are fetched at runtime from GitHub Pages.
+ * This lets Stata fully control reports/queries without Firestore editing.
+ */
+const DYNAMIC_PROJECT_JSON = {
+  hemab: {
+    queries: [
+      "queries/HeMAB/household_members/hh_members_queries.json"
+      // Later you can add:
+      // "queries/HeMAB/women/women_queries.json",
+      // "queries/HeMAB/health_workers/health_workers_queries.json"
+    ]
+  }
+};
+
+/**
+ * Fetch JSON safely.
+ */
+async function fetchJsonSafe(path) {
+  try {
+    const response = await fetch(path, { cache: "no-store" });
+
+    if (!response.ok) {
+      console.warn(`JSON fetch failed for ${path}: ${response.status}`);
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn(`JSON fetch error for ${path}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Normalize loaded JSON into grouped query sections.
+ * Supports either:
+ * 1. flat arrays of items
+ * 2. grouped arrays with { category, items }
+ */
+function normalizeDynamicQuerySections(jsonData, fallbackCategory = "Queries") {
+  if (!Array.isArray(jsonData) || !jsonData.length) {
+    return [];
+  }
+
+  const groupedMode = jsonData.some(
+    (entry) => entry && typeof entry === "object" && Array.isArray(entry.items)
+  );
+
+  if (groupedMode) {
+    return jsonData.map((section) => ({
+      category: section.category || fallbackCategory,
+      items: Array.isArray(section.items) ? section.items : []
+    }));
+  }
+
+  return [
+    {
+      category: fallbackCategory,
+      items: jsonData
+    }
+  ];
+}
+
+/**
+ * Merge multiple grouped query JSON files into one project.queries array.
+ */
+async function hydrateDynamicProjectFiles(project) {
+  const projectCode = normalizeText(project?.code);
+  const config = DYNAMIC_PROJECT_JSON[projectCode];
+
+  if (!config) return project;
+
+  const clonedProject = {
+    ...project,
+    queries: Array.isArray(project.queries) ? [...project.queries] : [],
+    reports: Array.isArray(project.reports) ? [...project.reports] : []
+  };
+
+  if (Array.isArray(config.queries) && config.queries.length) {
+    const loadedSections = [];
+
+    for (const path of config.queries) {
+      const jsonData = await fetchJsonSafe(path);
+      const sections = normalizeDynamicQuerySections(jsonData, "HeMAB Queries");
+      loadedSections.push(...sections);
+    }
+
+    clonedProject.queries = loadedSections;
+  }
+
+  return clonedProject;
+}
+
+/**
  * Load projects from Firestore.
  * If no Firestore projects exist yet, use the local fallback config from data/project-config.js.
  */
