@@ -14,17 +14,25 @@ window.projectUsersDirectory = {
 const DYNAMIC_PROJECT_JSON = {
   hemab: {
     reports: [
-      "reports/hemab/household_members/hh_members_reports.json"
-      // Later:
-      // "reports/HeMAB/women/women_reports.json",
-      // "reports/HeMAB/health_workers/health_workers_reports.json"
+      "reports/hemab/household_members/hh_members_reports.json",
+      "reports/hemab/women/women_reports.json",
+      "reports/hemab/health_workers/health_workers_reports.json"
     ],
     queries: [
-      "queries/hemab/household_members/hh_members_queries.json"
-      // Later:
-      // "queries/HeMAB/women/women_queries.json",
-      // "queries/HeMAB/health_workers/health_workers_queries.json"
+      "queries/hemab/household_members/hh_members_queries.json",
+      "queries/hemab/women/women_queries.json",
+      "queries/hemab/health_workers/health_workers_queries.json"
     ]
+  },
+
+  brave: {
+    reports: [],
+    queries: []
+  },
+
+  hdss: {
+    reports: [],
+    queries: []
   }
 };
 
@@ -97,11 +105,13 @@ async function hydrateDynamicProjectFiles(project) {
 
     for (const path of config.reports) {
       const jsonData = await fetchJsonSafe(path);
-      const sections = normalizeDynamicQuerySections(jsonData, "HeMAB Reports");
+      const sections = normalizeDynamicQuerySections(jsonData, "Reports");
       loadedReportSections.push(...sections);
     }
 
-    clonedProject.reports = loadedReportSections;
+    clonedProject.reports = loadedReportSections.filter(
+      (section) => Array.isArray(section.items) && section.items.length
+    );
   }
 
   if (Array.isArray(config.queries) && config.queries.length) {
@@ -109,11 +119,13 @@ async function hydrateDynamicProjectFiles(project) {
 
     for (const path of config.queries) {
       const jsonData = await fetchJsonSafe(path);
-      const sections = normalizeDynamicQuerySections(jsonData, "HeMAB Queries");
+      const sections = normalizeDynamicQuerySections(jsonData, "Queries");
       loadedQuerySections.push(...sections);
     }
 
-    clonedProject.queries = loadedQuerySections;
+    clonedProject.queries = loadedQuerySections.filter(
+      (section) => Array.isArray(section.items) && section.items.length
+    );
   }
 
   return clonedProject;
