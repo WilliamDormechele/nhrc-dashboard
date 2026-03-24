@@ -31,7 +31,10 @@ const DYNAMIC_PROJECT_JSON = {
   },
 
   hdss: {
-    reports: [],
+    reports: [
+      "reports/HDSS/compoundsnotvisited/hdss_compoundsnotvisited_reports.json",
+      "reports/HDSS/householdsnotvisited/hdss_householdsnotvisited_reports.json"
+    ],
     queries: []
   }
 };
@@ -48,6 +51,9 @@ function inferSectionCategoryFromPath(path = "") {
   if (safePath.includes("/household_members/")) return "Household Members";
   if (safePath.includes("/women/")) return "Women";
   if (safePath.includes("/health_workers/")) return "Health Workers";
+
+  if (safePath.includes("/compoundsnotvisited/")) return "Compounds Not Visited";
+  if (safePath.includes("/householdsnotvisited/")) return "Households Not Visited";
 
   return "Files";
 }
