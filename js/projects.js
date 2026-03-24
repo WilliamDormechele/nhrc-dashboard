@@ -30,13 +30,17 @@ const DYNAMIC_PROJECT_JSON = {
     queries: []
   },
 
-  hdss: {
-    reports: [
-      "reports/HDSS/compoundsnotvisited/hdss_compoundsnotvisited_reports.json",
-      "reports/HDSS/householdsnotvisited/hdss_householdsnotvisited_reports.json"
-    ],
-    queries: []
-  }
+hdss: {
+  reports: [
+    "reports/HDSS/compoundsnotvisited/hdss_compoundsnotvisited_reports.json",
+    "reports/HDSS/householdsnotvisited/hdss_householdsnotvisited_reports.json"
+  ],
+  queries: [
+    "queries/HDSS/compoundsnotvisited_by_fieldworker/hdss_compoundsnotvisited_by_fieldworker_queries.json",
+    "queries/HDSS/householdsnotvisited_by_fieldworker/hdss_householdsnotvisited_by_fieldworker_queries.json",
+    "queries/HDSS/no_membership/hdss_no_membership_queries.json"
+  ]
+}
 };
 
 /**
