@@ -2,28 +2,31 @@
   {
     "title": "Households Not Visited - BUILSA NORTH DISTRICT", 
     "district": "BUILSA NORTH DISTRICT", 
-    "districtCode": "bnd", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:27", 
-    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbnd2026-03-24.pdf"
+    "supervisorName": "`"Sup-Francis"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:09", 
+    "hasData": "true", 
+    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbnd2026-03-25.pdf"
   }
 ,
   {
     "title": "Households Not Visited - BUILSA SOUTH DISTRICT", 
     "district": "BUILSA SOUTH DISTRICT", 
-    "districtCode": "bsd", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:27", 
-    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbsd2026-03-24.pdf"
+    "supervisorName": "`"Sup-Joshua"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:09", 
+    "hasData": "true", 
+    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbsd2026-03-25.pdf"
   }
 ,
   {
     "title": "Households Not Visited - MANPURUGU MAGDORI DISTRICT", 
     "district": "MANPURUGU MAGDORI DISTRICT", 
-    "districtCode": "mpr", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:27", 
-    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedmpr2026-03-24.pdf"
+    "supervisorName": "`"Sup-Issah"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:09", 
+    "hasData": "true", 
+    "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedmpr2026-03-25.pdf"
   }
 
 ]

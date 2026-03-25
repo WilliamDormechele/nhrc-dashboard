@@ -2,28 +2,31 @@
   {
     "title": "Compounds Not Visited - BUILSA NORTH DISTRICT", 
     "district": "BUILSA NORTH DISTRICT", 
-    "districtCode": "bnd", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:25", 
-    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbnd2026-03-24.pdf"
+    "supervisorName": "`"Sup-Francis"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:06", 
+    "hasData": "true", 
+    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbnd2026-03-25.pdf"
   }
 ,
   {
     "title": "Compounds Not Visited - BUILSA SOUTH DISTRICT", 
     "district": "BUILSA SOUTH DISTRICT", 
-    "districtCode": "bsd", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:25", 
-    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbsd2026-03-24.pdf"
+    "supervisorName": "`"Sup-Joshua"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:06", 
+    "hasData": "true", 
+    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbsd2026-03-25.pdf"
   }
 ,
   {
     "title": "Compounds Not Visited - MANPURUGU MAGDORI DISTRICT", 
     "district": "MANPURUGU MAGDORI DISTRICT", 
-    "districtCode": "mpr", 
-    "reportDate": "2026-03-24", 
-    "updatedAt": "2026-03-24T22:37:25", 
-    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedmpr2026-03-24.pdf"
+    "supervisorName": "`"Sup-Issah"'", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T15:24:06", 
+    "hasData": "true", 
+    "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedmpr2026-03-25.pdf"
   }
 
 ]
