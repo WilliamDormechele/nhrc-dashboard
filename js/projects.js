@@ -56,8 +56,14 @@ function inferSectionCategoryFromPath(path = "") {
   if (safePath.includes("/women/")) return "Women";
   if (safePath.includes("/health_workers/")) return "Health Workers";
 
+  // HDSS reports
   if (safePath.includes("/compoundsnotvisited/")) return "Compounds Not Visited";
   if (safePath.includes("/householdsnotvisited/")) return "Households Not Visited";
+
+  // HDSS queries
+  if (safePath.includes("/compoundsnotvisited_by_fieldworker/")) return "Compounds Not Visited";
+  if (safePath.includes("/householdsnotvisited_by_fieldworker/")) return "Households Not Visited";
+  if (safePath.includes("/no_membership/")) return "No Membership";
 
   return "Files";
 }
