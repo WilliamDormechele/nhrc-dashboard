@@ -550,7 +550,7 @@ function buildResourceCard(
   const filePath = String(safeItem.file || "").trim();
   const titleText = String(safeItem.title || "Untitled resource").trim();
 
-  const unavailable = options.unavailable === true || !filePath || !hasData;
+  const unavailable = options.unavailable === true || !filePath;
   const unavailableMessage =
     options.unavailableMessage || "No file is currently available for this selection.";
 
