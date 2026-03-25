@@ -1351,3 +1351,38 @@ body.admin-loading {
   color: #4b5563;
   border-color: #d1d5db;
 }
+
+/* === HDSS Queries Toolbar – keep all filters on one clean row === */
+.advanced-library-toolbar {
+  display: grid;
+  grid-template-columns: 
+    minmax(260px, 2fr)   /* Search (wider) */
+    repeat(4, minmax(160px, 1fr))  /* District, Supervisor, Query Type, Date */
+    minmax(160px, 0.8fr); /* Clear button */
+  gap: 14px;
+  align-items: end;
+}
+
+/* Prevent shrinking too much */
+.advanced-filter-group {
+  min-width: 140px;
+}
+
+/* Keep button aligned nicely */
+.advanced-filter-actions {
+  align-self: end;
+}
+
+/* Responsive: wrap nicely on smaller screens */
+@media (max-width: 1200px) {
+  .advanced-library-toolbar {
+    grid-template-columns:
+      repeat(3, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .advanced-library-toolbar {
+    grid-template-columns: 1fr;
+  }
+}

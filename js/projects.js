@@ -836,7 +836,9 @@ function normalizeQueryItems(rawItems = []) {
       resolveUserNameByEmail(item.fieldworkerEmail, item.title || "");
 
     const reportDate = item.date || item.queryDate || "";
-    const updatedAtLabel = item.updatedAtLabel || formatFriendlyDate(item.updatedAt || item.lastUpdated || "");
+    const updatedAtLabel =
+      item.updatedAtLabel ||
+      formatFriendlyDate(item.updatedAt || item.lastUpdated || "");
 
     return {
       title: item.title || fieldworkerName || "Data Query",
@@ -847,7 +849,10 @@ function normalizeQueryItems(rawItems = []) {
       fieldworkerEmail: item.fieldworkerEmail || "",
       fieldworkerName,
       reportDate,
-      updatedAtLabel
+      updatedAtLabel,
+
+      // NEW: keep query type/category for filtering
+      queryType: item.queryType || item.category || item.sectionCategory || ""
     };
   });
 }
@@ -889,17 +894,27 @@ function filterAdvancedItems(items, {
   district = "",
   supervisor = "",
   date = "",
-  search = ""
+  search = "",
+  queryType = ""
 }) {
   const searchNorm = normalizeText(search);
   const districtNorm = normalizeText(district);
   const supervisorNorm = normalizeText(supervisor);
   const dateNorm = normalizeText(date);
+  const queryTypeNorm = normalizeText(queryType);
 
   return (items || []).filter((item) => {
-    const matchesDistrict = !districtNorm || normalizeText(item.district) === districtNorm;
-    const matchesSupervisor = !supervisorNorm || normalizeText(item.supervisorName) === supervisorNorm;
-    const matchesDate = !dateNorm || normalizeText(item.reportDate) === dateNorm;
+    const matchesDistrict =
+      !districtNorm || normalizeText(item.district) === districtNorm;
+
+    const matchesSupervisor =
+      !supervisorNorm || normalizeText(item.supervisorName) === supervisorNorm;
+
+    const matchesDate =
+      !dateNorm || normalizeText(item.reportDate) === dateNorm;
+
+    const matchesQueryType =
+      !queryTypeNorm || normalizeText(item.queryType) === queryTypeNorm;
 
     const searchBlob = [
       item.title,
@@ -907,12 +922,19 @@ function filterAdvancedItems(items, {
       item.fieldworkerEmail,
       item.supervisorName,
       item.supervisorEmail,
-      item.district
+      item.district,
+      item.queryType
     ].join(" ").toLowerCase();
 
     const matchesSearch = !searchNorm || searchBlob.includes(searchNorm);
 
-    return matchesDistrict && matchesSupervisor && matchesDate && matchesSearch;
+    return (
+      matchesDistrict &&
+      matchesSupervisor &&
+      matchesDate &&
+      matchesQueryType &&
+      matchesSearch
+    );
   });
 }
 
@@ -947,9 +969,16 @@ function renderAdvancedQueries(project) {
   // and one combined results area, not separate tool sections.
   const flattenedQueries = rawQueries.flatMap((entry) => {
     if (entry && typeof entry === "object" && Array.isArray(entry.items)) {
-      return entry.items;
+      return entry.items.map((item) => ({
+        ...item,
+        queryType: item.queryType || entry.category || ""
+      }));
     }
-    return [entry];
+
+    return [{
+      ...entry,
+      queryType: entry?.queryType || entry?.category || ""
+    }];
   });
 
   const normalizedItems = normalizeQueryItems(flattenedQueries);
@@ -964,6 +993,7 @@ function renderAdvancedQueries(project) {
 
   const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
   const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
+  const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType));
 
   const shell = document.createElement("div");
   shell.className = "advanced-library-shell";
@@ -1016,6 +1046,14 @@ function renderAdvancedQueries(project) {
     </div>
 
     <div class="advanced-filter-group">
+      <label for="queriesTypeFilter">Query Type</label>
+      <select id="queriesTypeFilter">
+        <option value="">All query types</option>
+        ${allQueryTypes.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`).join("")}
+      </select>
+    </div>
+
+    <div class="advanced-filter-group">
       <label for="queriesDateFilter">Query date</label>
       <input type="date" id="queriesDateFilter" />
     </div>
@@ -1027,6 +1065,7 @@ function renderAdvancedQueries(project) {
       </button>
     </div>
   `;
+
   shell.appendChild(toolbar);
 
   const resultsWrap = document.createElement("div");
@@ -1038,6 +1077,7 @@ function renderAdvancedQueries(project) {
   function repaint() {
     const district = document.getElementById("queriesDistrictFilter")?.value || "";
     const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
+    const queryType = document.getElementById("queriesTypeFilter")?.value || "";
     const date = document.getElementById("queriesDateFilter")?.value || "";
     const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
 
@@ -1045,7 +1085,8 @@ function renderAdvancedQueries(project) {
       district,
       supervisor,
       date,
-      search
+      search,
+      queryType
     });
 
     const summary = document.getElementById("queriesSummaryText");
@@ -1084,17 +1125,20 @@ function renderAdvancedQueries(project) {
   document.getElementById("queriesFieldworkerSearch")?.addEventListener("input", repaint);
   document.getElementById("queriesDistrictFilter")?.addEventListener("change", repaint);
   document.getElementById("queriesSupervisorFilter")?.addEventListener("change", repaint);
+  document.getElementById("queriesTypeFilter")?.addEventListener("change", repaint);
   document.getElementById("queriesDateFilter")?.addEventListener("change", repaint);
 
   document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
     const searchEl = document.getElementById("queriesFieldworkerSearch");
     const districtEl = document.getElementById("queriesDistrictFilter");
     const supervisorEl = document.getElementById("queriesSupervisorFilter");
+    const queryTypeEl = document.getElementById("queriesTypeFilter");
     const dateEl = document.getElementById("queriesDateFilter");
 
     if (searchEl) searchEl.value = "";
     if (districtEl) districtEl.value = "";
     if (supervisorEl) supervisorEl.value = "";
+    if (queryTypeEl) queryTypeEl.value = "";
     if (dateEl) dateEl.value = "";
 
     repaint();
