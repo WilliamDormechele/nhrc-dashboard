@@ -1,10 +1,14 @@
 [
   {
+    "category": "Compounds Not Visited",
+    "updatedAt": "2026-03-25T15:43:37", 
+    "items": [
+  {
     "title": "Compounds Not Visited - BUILSA NORTH DISTRICT", 
     "district": "BUILSA NORTH DISTRICT", 
-    "supervisorName": "`"Sup-Francis"'", 
+    "supervisorName": "Unassigned", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T15:27:10", 
+    "updatedAt": "2026-03-25T15:43:37", 
     "hasData": "true", 
     "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbnd2026-03-25.pdf"
   }
@@ -12,9 +16,9 @@
   {
     "title": "Compounds Not Visited - BUILSA SOUTH DISTRICT", 
     "district": "BUILSA SOUTH DISTRICT", 
-    "supervisorName": "`"Sup-Joshua"'", 
+    "supervisorName": "Unassigned", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T15:27:10", 
+    "updatedAt": "2026-03-25T15:43:37", 
     "hasData": "true", 
     "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedbsd2026-03-25.pdf"
   }
@@ -22,11 +26,12 @@
   {
     "title": "Compounds Not Visited - MANPURUGU MAGDORI DISTRICT", 
     "district": "MANPURUGU MAGDORI DISTRICT", 
-    "supervisorName": "`"Sup-Issah"'", 
+    "supervisorName": "Unassigned", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T15:27:10", 
+    "updatedAt": "2026-03-25T15:43:37", 
     "hasData": "true", 
     "file": "reports/HDSS/compoundsnotvisited/compoundsnotvisitedmpr2026-03-25.pdf"
   }
-
+    ]
+  }
 ]
