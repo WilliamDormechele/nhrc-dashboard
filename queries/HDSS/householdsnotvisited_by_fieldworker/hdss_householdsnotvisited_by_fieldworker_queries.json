@@ -1,13 +1,35 @@
 [
   {
+    "title": "Households Not Visited - DORCAS AJAAB", 
+    "district": "BUILSA SOUTH DISTRICT", 
+    "fieldworkerName": "DORCAS AJAAB", 
+    "fwcode": "", 
+    "supervisorName": "", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_dorcas_ajaab_2026-03-25.pdf"
+  }
+,
+  {
     "title": "Households Not Visited - EDNA AKUKU", 
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "EDNA AKUKU", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_edna_akuku_2026-03-25.pdf"
+  }
+,
+  {
+    "title": "Households Not Visited - FRANCIS AMOAK", 
+    "district": "BUILSA SOUTH DISTRICT", 
+    "fieldworkerName": "FRANCIS AMOAK", 
+    "fwcode": "", 
+    "supervisorName": "", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_francis_amoak_2026-03-25.pdf"
   }
 ,
   {
@@ -15,9 +37,9 @@
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "HELINA AWARIWENA ANAALIE", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_helina_awariwena_anaalie_2026-03-25.pdf"
   }
 ,
@@ -26,10 +48,32 @@
     "district": "BUILSA SOUTH DISTRICT", 
     "fieldworkerName": "JANET ABUDEM", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_janet_abudem_2026-03-25.pdf"
+  }
+,
+  {
+    "title": "Households Not Visited - JONAH AKPABIL", 
+    "district": "MANPURUGU MAGDORI DISTRICT", 
+    "fieldworkerName": "JONAH AKPABIL", 
+    "fwcode": "", 
+    "supervisorName": "", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_manpurugu_magdori_district_jonah_akpabil_2026-03-25.pdf"
+  }
+,
+  {
+    "title": "Households Not Visited - LUCY BAWA", 
+    "district": "BUILSA NORTH DISTRICT", 
+    "fieldworkerName": "LUCY BAWA", 
+    "fwcode": "", 
+    "supervisorName": "", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_lucy_bawa_2026-03-25.pdf"
   }
 ,
   {
@@ -37,9 +81,9 @@
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "MATILDA A. ATENGZUG", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_matilda_a__atengzug_2026-03-25.pdf"
   }
 ,
@@ -48,21 +92,21 @@
     "district": "BUILSA SOUTH DISTRICT", 
     "fieldworkerName": "MAXWELL AMANGKATOA", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_maxwell_amangkatoa_2026-03-25.pdf"
   }
 ,
   {
     "title": "Households Not Visited - OSCAR ABAMBEY", 
-    "district": "MANPURUGU MAGDORI DISTRICT", 
+    "district": "BUILSA SOUTH DISTRICT", 
     "fieldworkerName": "OSCAR ABAMBEY", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
-    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_manpurugu_magdori_district_oscar_abambey_2026-03-25.pdf"
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_oscar_abambey_2026-03-25.pdf"
   }
 ,
   {
@@ -70,9 +114,9 @@
     "district": "BUILSA SOUTH DISTRICT", 
     "fieldworkerName": "PATRICK AWEENAGUA", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_patrick_aweenagua_2026-03-25.pdf"
   }
 ,
@@ -81,10 +125,21 @@
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "TIMOTHY AYAAAKAYEGA ASAARIK", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_timothy_ayaaakayega_asaarik_2026-03-25.pdf"
+  }
+,
+  {
+    "title": "Households Not Visited - VIDA ATAGABEY", 
+    "district": "BUILSA NORTH DISTRICT", 
+    "fieldworkerName": "VIDA ATAGABEY", 
+    "fwcode": "", 
+    "supervisorName": "", 
+    "queryDate": "2026-03-25", 
+    "updatedAt": "2026-03-25T12:48:20", 
+    "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_vida_atagabey_2026-03-25.pdf"
   }
 ,
   {
@@ -92,9 +147,9 @@
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "VITUS AGOMINAB ANUEKATOA", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_vitus_agominab_anuekatoa_2026-03-25.pdf"
   }
 ,
@@ -103,9 +158,9 @@
     "district": "BUILSA NORTH DISTRICT", 
     "fieldworkerName": "WISDOM AWAANKA", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_north_district_wisdom_awaanka_2026-03-25.pdf"
   }
 ,
@@ -114,9 +169,9 @@
     "district": "BUILSA SOUTH DISTRICT", 
     "fieldworkerName": "ZAKIA ABDULLAH", 
     "fwcode": "", 
-    "supervisorName": "Unassigned", 
+    "supervisorName": "", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T11:51:13", 
+    "updatedAt": "2026-03-25T12:48:20", 
     "file": "queries/HDSS/householdsnotvisited_by_fieldworker/households_not_visited_by_fieldworker_builsa_south_district_zakia_abdullah_2026-03-25.pdf"
   }
 ]
