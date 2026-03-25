@@ -550,7 +550,7 @@ function buildResourceCard(
   const filePath = String(safeItem.file || "").trim();
   const titleText = String(safeItem.title || "Untitled resource").trim();
 
-  const unavailable = options.unavailable === true || !filePath;
+  const unavailable = options.unavailable === true || !filePath || !hasData;
   const unavailableMessage =
     options.unavailableMessage || "No file is currently available for this selection.";
 
@@ -652,23 +652,27 @@ function buildResourceCard(
  */
 function buildAdvancedFileCard(item, config = {}) {
   const filePath = String(item.file || "").trim();
+  const hasData = String(item.hasData || "true") !== "false";
   const typeLabel = getFileTypeLabel(filePath);
   const canDownload = config.canDownload !== false;
   const actionName = config.actionName || "download_file";
   const pageName = config.pageName || "files";
-  const unavailableMessage = config.unavailableMessage || "No file is currently available for this selection.";
+  const unavailableMessage =
+  !hasData
+    ? "This file contains no records."
+    : (config.unavailableMessage || "No file is currently available for this selection.");
 
   const card = buildResourceCard(
     {
       title: item.title || item.fieldworkerName || "Untitled file",
       file: filePath
     },
-    filePath ? (canDownload ? "Open / Download" : "Open") : "Unavailable",
+    filePath && hasData ? (canDownload ? "Open / Download" : "Open") : "Unavailable",
     actionName,
     pageName,
-    filePath ? canDownload : false,
+    filePath && hasData ? canDownload : false,
     {
-      unavailable: !filePath,
+      unavailable: !filePath || !hasData,
       unavailableMessage
     }
   );

@@ -4,9 +4,10 @@
     "district": "Unknown District", 
     "fieldworkerName": ".", 
     "fwcode": "", 
-    "supervisorName": "", 
+    "supervisorName": "Unknown", 
     "queryDate": "2026-03-25", 
-    "updatedAt": "2026-03-25T00:05:09", 
+    "updatedAt": "2026-03-25T00:32:53", 
+    "hasData": "true", 
     "file": "queries/HDSS/no_membership/no_membership_by_fieldworker_unknown_district___2026-03-25.pdf"
   }
 ]
