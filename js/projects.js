@@ -858,7 +858,6 @@ function normalizeQueryItems(rawItems = []) {
       fieldworkerName,
       reportDate,
       updatedAtLabel,
-
       queryType: item.queryType || item.category || item.sectionCategory || ""
     };
   });
@@ -899,7 +898,7 @@ function normalizeReportItems(rawItems = []) {
  */
 function filterAdvancedItems(items, {
   district = "",
-  villcode = "",
+  villcodes = [],
   supervisor = "",
   date = "",
   search = "",
@@ -907,7 +906,9 @@ function filterAdvancedItems(items, {
 }) {
   const searchNorm = normalizeText(search);
   const districtNorm = normalizeText(district);
-  const villcodeNorm = normalizeText(villcode);
+  const selectedVillcodes = Array.isArray(villcodes)
+    ? villcodes.map((v) => normalizeText(v)).filter(Boolean)
+    : [];
   const supervisorNorm = normalizeText(supervisor);
   const dateNorm = normalizeText(date);
   const queryTypeNorm = normalizeText(queryType);
@@ -916,8 +917,14 @@ function filterAdvancedItems(items, {
     const matchesDistrict =
       !districtNorm || normalizeText(item.district) === districtNorm;
 
+    const itemVillcodes = String(item.villcode || "")
+      .split(",")
+      .map((v) => normalizeText(v))
+      .filter(Boolean);
+
     const matchesVillcode =
-      !villcodeNorm || normalizeText(item.villcode) === villcodeNorm;
+      !selectedVillcodes.length ||
+      selectedVillcodes.some((selected) => itemVillcodes.includes(selected));
 
     const matchesSupervisor =
       !supervisorNorm || normalizeText(item.supervisorName) === supervisorNorm;
@@ -1005,10 +1012,17 @@ function renderAdvancedQueries(project) {
   const locationLabel = isBrave ? "Hospital / Facility" : "District";
   const locationPlaceholder = isBrave ? "All hospitals / facilities" : "All districts";
 
-  const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
-  const allVillcodes = uniqueSorted(normalizedItems.map((item) => item.villcode));
-  const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
-  const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType));
+const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
+const allVillcodes = uniqueSorted(
+  normalizedItems.flatMap((item) =>
+    String(item.villcode || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean)
+  )
+);
+const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
+const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType));
 
   const shell = document.createElement("div");
   shell.className = "advanced-library-shell";
@@ -1054,12 +1068,12 @@ function renderAdvancedQueries(project) {
 
     <div class="advanced-filter-group">
       <label for="queriesVillcodeFilter">Villcode</label>
-      <select id="queriesVillcodeFilter">
-        <option value="">All villcodes</option>
+      <select id="queriesVillcodeFilter" multiple size="6" title="Hold Ctrl (or Cmd on Mac) to select multiple villcodes">
         ${allVillcodes.map((villcode) => `
           <option value="${escapeHtml(villcode)}">${escapeHtml(villcode)}</option>
         `).join("")}
       </select>
+      <small class="filter-help-text">Hold Ctrl (or Cmd on Mac) to select one or more villcodes.</small>
     </div>
 
     <div class="advanced-filter-group">
@@ -1101,7 +1115,10 @@ function renderAdvancedQueries(project) {
 
   function repaint() {
     const district = document.getElementById("queriesDistrictFilter")?.value || "";
-    const villcode = document.getElementById("queriesVillcodeFilter")?.value || "";
+    const villcodeSelect = document.getElementById("queriesVillcodeFilter");
+    const villcodes = villcodeSelect
+      ? Array.from(villcodeSelect.selectedOptions).map((opt) => opt.value)
+      : [];
     const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
     const queryType = document.getElementById("queriesTypeFilter")?.value || "";
     const date = document.getElementById("queriesDateFilter")?.value || "";
@@ -1109,7 +1126,7 @@ function renderAdvancedQueries(project) {
 
     const filteredItems = filterAdvancedItems(normalizedItems, {
       district,
-      villcode,
+      villcodes,
       supervisor,
       date,
       search,
@@ -1166,7 +1183,11 @@ document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
 
   if (searchEl) searchEl.value = "";
   if (districtEl) districtEl.value = "";
-  if (villcodeEl) villcodeEl.value = "";
+  if (villcodeEl) {
+    Array.from(villcodeEl.options).forEach((opt) => {
+      opt.selected = false;
+    });
+  }
   if (supervisorEl) supervisorEl.value = "";
   if (queryTypeEl) queryTypeEl.value = "";
   if (dateEl) dateEl.value = "";

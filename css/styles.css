@@ -1386,3 +1386,14 @@ body.admin-loading {
     grid-template-columns: 1fr;
   }
 }
+
+#queriesVillcodeFilter[multiple] {
+  min-height: 140px;
+}
+
+.filter-help-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
