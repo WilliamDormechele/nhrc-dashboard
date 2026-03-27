@@ -45,7 +45,7 @@ const PROJECTS = {
     code: "hdss",
     name: "HDSS",
     description: "HDSS dashboard and reports.",
-    dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiNzAyOGRjY2QtYjJkMS00MjNkLTg0OWEtYzZkYTk4ZmUxZThmIiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9&pageName=9c0e0090daad13b8cc2e",
+    dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiNWUwOTI4OGEtZTM0OS00ZmE3LWExODYtOTAyNjEzYTY0YTZmIiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9",
     dashboardPdf: "reports/hdss/HDSS_Dashboard_Latest.pdf",
     dashboardPpt: "reports/hdss/HDSS_Dashboard_Latest.pptx",
 
