@@ -850,6 +850,8 @@ function normalizeQueryItems(rawItems = []) {
       title: item.title || fieldworkerName || "Data Query",
       file: item.file || "",
       district: item.district || "",
+      villcode: item.villcode || "",
+      fwcode: item.fwcode || "",
       supervisorEmail: item.supervisorEmail || "",
       supervisorName,
       fieldworkerEmail: item.fieldworkerEmail || "",
@@ -857,7 +859,6 @@ function normalizeQueryItems(rawItems = []) {
       reportDate,
       updatedAtLabel,
 
-      // NEW: keep query type/category for filtering
       queryType: item.queryType || item.category || item.sectionCategory || ""
     };
   });
@@ -898,6 +899,7 @@ function normalizeReportItems(rawItems = []) {
  */
 function filterAdvancedItems(items, {
   district = "",
+  villcode = "",
   supervisor = "",
   date = "",
   search = "",
@@ -905,6 +907,7 @@ function filterAdvancedItems(items, {
 }) {
   const searchNorm = normalizeText(search);
   const districtNorm = normalizeText(district);
+  const villcodeNorm = normalizeText(villcode);
   const supervisorNorm = normalizeText(supervisor);
   const dateNorm = normalizeText(date);
   const queryTypeNorm = normalizeText(queryType);
@@ -912,6 +915,9 @@ function filterAdvancedItems(items, {
   return (items || []).filter((item) => {
     const matchesDistrict =
       !districtNorm || normalizeText(item.district) === districtNorm;
+
+    const matchesVillcode =
+      !villcodeNorm || normalizeText(item.villcode) === villcodeNorm;
 
     const matchesSupervisor =
       !supervisorNorm || normalizeText(item.supervisorName) === supervisorNorm;
@@ -929,6 +935,7 @@ function filterAdvancedItems(items, {
       item.supervisorName,
       item.supervisorEmail,
       item.district,
+      item.villcode,
       item.queryType
     ].join(" ").toLowerCase();
 
@@ -936,6 +943,7 @@ function filterAdvancedItems(items, {
 
     return (
       matchesDistrict &&
+      matchesVillcode &&
       matchesSupervisor &&
       matchesDate &&
       matchesQueryType &&
@@ -998,6 +1006,7 @@ function renderAdvancedQueries(project) {
   const locationPlaceholder = isBrave ? "All hospitals / facilities" : "All districts";
 
   const allLocations = uniqueSorted(normalizedItems.map((item) => item.district));
+  const allVillcodes = uniqueSorted(normalizedItems.map((item) => item.villcode));
   const allSupervisors = uniqueSorted(normalizedItems.map((item) => item.supervisorName));
   const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType));
 
@@ -1044,6 +1053,16 @@ function renderAdvancedQueries(project) {
     </div>
 
     <div class="advanced-filter-group">
+      <label for="queriesVillcodeFilter">Villcode</label>
+      <select id="queriesVillcodeFilter">
+        <option value="">All villcodes</option>
+        ${allVillcodes.map((villcode) => `
+          <option value="${escapeHtml(villcode)}">${escapeHtml(villcode)}</option>
+        `).join("")}
+      </select>
+    </div>
+
+    <div class="advanced-filter-group">
       <label for="queriesSupervisorFilter">Supervisor</label>
       <select id="queriesSupervisorFilter">
         <option value="">All supervisors</option>
@@ -1082,6 +1101,7 @@ function renderAdvancedQueries(project) {
 
   function repaint() {
     const district = document.getElementById("queriesDistrictFilter")?.value || "";
+    const villcode = document.getElementById("queriesVillcodeFilter")?.value || "";
     const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
     const queryType = document.getElementById("queriesTypeFilter")?.value || "";
     const date = document.getElementById("queriesDateFilter")?.value || "";
@@ -1089,6 +1109,7 @@ function renderAdvancedQueries(project) {
 
     const filteredItems = filterAdvancedItems(normalizedItems, {
       district,
+      villcode,
       supervisor,
       date,
       search,
@@ -1128,27 +1149,30 @@ function renderAdvancedQueries(project) {
     resultsWrap.appendChild(grid);
   }
 
-  document.getElementById("queriesFieldworkerSearch")?.addEventListener("input", repaint);
-  document.getElementById("queriesDistrictFilter")?.addEventListener("change", repaint);
-  document.getElementById("queriesSupervisorFilter")?.addEventListener("change", repaint);
-  document.getElementById("queriesTypeFilter")?.addEventListener("change", repaint);
-  document.getElementById("queriesDateFilter")?.addEventListener("change", repaint);
+document.getElementById("queriesFieldworkerSearch")?.addEventListener("input", repaint);
+document.getElementById("queriesDistrictFilter")?.addEventListener("change", repaint);
+document.getElementById("queriesVillcodeFilter")?.addEventListener("change", repaint);
+document.getElementById("queriesSupervisorFilter")?.addEventListener("change", repaint);
+document.getElementById("queriesTypeFilter")?.addEventListener("change", repaint);
+document.getElementById("queriesDateFilter")?.addEventListener("change", repaint);
 
-  document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
-    const searchEl = document.getElementById("queriesFieldworkerSearch");
-    const districtEl = document.getElementById("queriesDistrictFilter");
-    const supervisorEl = document.getElementById("queriesSupervisorFilter");
-    const queryTypeEl = document.getElementById("queriesTypeFilter");
-    const dateEl = document.getElementById("queriesDateFilter");
+document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
+  const searchEl = document.getElementById("queriesFieldworkerSearch");
+  const districtEl = document.getElementById("queriesDistrictFilter");
+  const villcodeEl = document.getElementById("queriesVillcodeFilter");
+  const supervisorEl = document.getElementById("queriesSupervisorFilter");
+  const queryTypeEl = document.getElementById("queriesTypeFilter");
+  const dateEl = document.getElementById("queriesDateFilter");
 
-    if (searchEl) searchEl.value = "";
-    if (districtEl) districtEl.value = "";
-    if (supervisorEl) supervisorEl.value = "";
-    if (queryTypeEl) queryTypeEl.value = "";
-    if (dateEl) dateEl.value = "";
+  if (searchEl) searchEl.value = "";
+  if (districtEl) districtEl.value = "";
+  if (villcodeEl) villcodeEl.value = "";
+  if (supervisorEl) supervisorEl.value = "";
+  if (queryTypeEl) queryTypeEl.value = "";
+  if (dateEl) dateEl.value = "";
 
-    repaint();
-  });
+  repaint();
+});
 
   repaint();
 }

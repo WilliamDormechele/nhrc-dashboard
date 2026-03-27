@@ -1357,7 +1357,7 @@ body.admin-loading {
   display: grid;
   grid-template-columns: 
     minmax(260px, 2fr)   /* Search (wider) */
-    repeat(4, minmax(160px, 1fr))  /* District, Supervisor, Query Type, Date */
+    repeat(5, minmax(160px, 1fr))  /* District, villcode, Supervisor, Query Type, Date */
     minmax(160px, 0.8fr); /* Clear button */
   gap: 14px;
   align-items: end;
