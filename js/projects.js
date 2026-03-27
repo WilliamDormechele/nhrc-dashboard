@@ -1066,14 +1066,40 @@ const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType)
       </select>
     </div>
 
-    <div class="advanced-filter-group">
-      <label for="queriesVillcodeFilter">Villcode</label>
-      <select id="queriesVillcodeFilter" multiple size="6" title="Hold Ctrl (or Cmd on Mac) to select multiple villcodes">
-        ${allVillcodes.map((villcode) => `
-          <option value="${escapeHtml(villcode)}">${escapeHtml(villcode)}</option>
-        `).join("")}
-      </select>
-      <small class="filter-help-text">Hold Ctrl (or Cmd on Mac) to select one or more villcodes.</small>
+    <div class="advanced-filter-group villcode-filter-group">
+      <label for="queriesVillcodeDropdownBtn">Villcode</label>
+
+      <div class="checkbox-dropdown" id="queriesVillcodeDropdown">
+        <button
+          type="button"
+          class="checkbox-dropdown-toggle"
+          id="queriesVillcodeDropdownBtn"
+          aria-expanded="false"
+        >
+          <span id="queriesVillcodeDropdownLabel">All villcodes</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+
+        <div class="checkbox-dropdown-menu" id="queriesVillcodeMenu">
+          <label class="checkbox-dropdown-item checkbox-dropdown-item-all">
+            <input type="checkbox" id="queriesVillcodeAll" checked />
+            <span>All villcodes</span>
+          </label>
+
+          <div class="checkbox-dropdown-list">
+            ${allVillcodes.map((villcode) => `
+              <label class="checkbox-dropdown-item">
+                <input
+                  type="checkbox"
+                  class="queries-villcode-checkbox"
+                  value="${escapeHtml(villcode)}"
+                />
+                <span>${escapeHtml(villcode)}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="advanced-filter-group">
@@ -1114,15 +1140,14 @@ const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType)
   queriesContainer.appendChild(shell);
 
   function repaint() {
-    const district = document.getElementById("queriesDistrictFilter")?.value || "";
-    const villcodeSelect = document.getElementById("queriesVillcodeFilter");
-    const villcodes = villcodeSelect
-      ? Array.from(villcodeSelect.selectedOptions).map((opt) => opt.value)
-      : [];
-    const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
-    const queryType = document.getElementById("queriesTypeFilter")?.value || "";
-    const date = document.getElementById("queriesDateFilter")?.value || "";
-    const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
+  const district = document.getElementById("queriesDistrictFilter")?.value || "";
+  const villcodes = Array.from(
+    document.querySelectorAll(".queries-villcode-checkbox:checked")
+  ).map((checkbox) => checkbox.value);
+  const supervisor = document.getElementById("queriesSupervisorFilter")?.value || "";
+  const queryType = document.getElementById("queriesTypeFilter")?.value || "";
+  const date = document.getElementById("queriesDateFilter")?.value || "";
+  const search = document.getElementById("queriesFieldworkerSearch")?.value || "";
 
     const filteredItems = filterAdvancedItems(normalizedItems, {
       district,
@@ -1168,29 +1193,102 @@ const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType)
 
 document.getElementById("queriesFieldworkerSearch")?.addEventListener("input", repaint);
 document.getElementById("queriesDistrictFilter")?.addEventListener("change", repaint);
-document.getElementById("queriesVillcodeFilter")?.addEventListener("change", repaint);
 document.getElementById("queriesSupervisorFilter")?.addEventListener("change", repaint);
 document.getElementById("queriesTypeFilter")?.addEventListener("change", repaint);
 document.getElementById("queriesDateFilter")?.addEventListener("change", repaint);
 
+const villcodeDropdown = document.getElementById("queriesVillcodeDropdown");
+const villcodeToggleBtn = document.getElementById("queriesVillcodeDropdownBtn");
+const villcodeMenu = document.getElementById("queriesVillcodeMenu");
+const villcodeLabel = document.getElementById("queriesVillcodeDropdownLabel");
+const villcodeAll = document.getElementById("queriesVillcodeAll");
+const villcodeCheckboxes = Array.from(document.querySelectorAll(".queries-villcode-checkbox"));
+
+function updateVillcodeDropdownLabel() {
+  const selected = villcodeCheckboxes
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => checkbox.value);
+
+  if (!selected.length) {
+    if (villcodeLabel) villcodeLabel.textContent = "All villcodes";
+    if (villcodeAll) villcodeAll.checked = true;
+    return;
+  }
+
+  if (villcodeAll) villcodeAll.checked = false;
+
+  if (selected.length === 1) {
+    villcodeLabel.textContent = selected[0];
+    return;
+  }
+
+  villcodeLabel.textContent = `${selected.length} villcodes selected`;
+}
+
+villcodeToggleBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  villcodeDropdown?.classList.toggle("open");
+  const expanded = villcodeDropdown?.classList.contains("open") ? "true" : "false";
+  villcodeToggleBtn.setAttribute("aria-expanded", expanded);
+});
+
+document.addEventListener("click", (event) => {
+  if (!villcodeDropdown?.contains(event.target)) {
+    villcodeDropdown?.classList.remove("open");
+    villcodeToggleBtn?.setAttribute("aria-expanded", "false");
+  }
+});
+
+villcodeAll?.addEventListener("change", () => {
+  if (villcodeAll.checked) {
+    villcodeCheckboxes.forEach((checkbox) => {
+      checkbox.checked = false;
+    });
+  }
+  updateVillcodeDropdownLabel();
+  repaint();
+});
+
+villcodeCheckboxes.forEach((checkbox) => {
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked && villcodeAll) {
+      villcodeAll.checked = false;
+    }
+
+    const anyChecked = villcodeCheckboxes.some((item) => item.checked);
+    if (!anyChecked && villcodeAll) {
+      villcodeAll.checked = true;
+    }
+
+    updateVillcodeDropdownLabel();
+    repaint();
+  });
+});
+
+updateVillcodeDropdownLabel();
+
 document.getElementById("queriesClearBtn")?.addEventListener("click", () => {
   const searchEl = document.getElementById("queriesFieldworkerSearch");
   const districtEl = document.getElementById("queriesDistrictFilter");
-  const villcodeEl = document.getElementById("queriesVillcodeFilter");
   const supervisorEl = document.getElementById("queriesSupervisorFilter");
   const queryTypeEl = document.getElementById("queriesTypeFilter");
   const dateEl = document.getElementById("queriesDateFilter");
+  const allVillcodesEl = document.getElementById("queriesVillcodeAll");
+  const villcodeCheckboxes = document.querySelectorAll(".queries-villcode-checkbox");
+  const villcodeLabel = document.getElementById("queriesVillcodeDropdownLabel");
 
   if (searchEl) searchEl.value = "";
   if (districtEl) districtEl.value = "";
-  if (villcodeEl) {
-    Array.from(villcodeEl.options).forEach((opt) => {
-      opt.selected = false;
-    });
-  }
   if (supervisorEl) supervisorEl.value = "";
   if (queryTypeEl) queryTypeEl.value = "";
   if (dateEl) dateEl.value = "";
+
+  if (allVillcodesEl) allVillcodesEl.checked = true;
+  villcodeCheckboxes.forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+
+  if (villcodeLabel) villcodeLabel.textContent = "All villcodes";
 
   repaint();
 });
