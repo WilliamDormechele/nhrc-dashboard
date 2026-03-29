@@ -492,6 +492,32 @@ async function sendResetEmail() {
   }
 }
 
+function focusAndHighlightAuthMessage(success = true) {
+  const authMessage = document.getElementById("authMessage");
+  const emailInput = document.getElementById("emailInput");
+  const authCard = document.querySelector(".auth-card");
+
+  if (authCard) {
+    authCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  if (authMessage) {
+    authMessage.classList.remove("auth-message-flash-success", "auth-message-flash-error");
+    void authMessage.offsetWidth;
+
+    authMessage.classList.add(
+      success ? "auth-message-flash-success" : "auth-message-flash-error"
+    );
+  }
+
+  setTimeout(() => {
+    if (emailInput) {
+      emailInput.focus();
+      emailInput.select?.();
+    }
+  }, 250);
+}
+
 async function confirmCustomPasswordReset() {
   const { oobCode } = getResetModeInfo();
   const newPasswordInput = document.getElementById("newPasswordInput");
@@ -532,11 +558,14 @@ async function confirmCustomPasswordReset() {
 
     authMessage.style.color = "#047857";
     authMessage.textContent =
-      "Your password has been reset successfully. You can now sign in with your new password.";
+      "Your password has been reset successfully. Please sign in with your new password.";
 
     const signInSection = document.getElementById("signInSection");
     const resetPasswordSection = document.getElementById("resetPasswordSection");
     const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const newPasswordInputEl = document.getElementById("newPasswordInput");
+    const confirmPasswordInputEl = document.getElementById("confirmPasswordInput");
 
     if (signInSection) signInSection.style.display = "block";
     if (resetPasswordSection) resetPasswordSection.style.display = "none";
@@ -546,6 +575,17 @@ async function confirmCustomPasswordReset() {
       if (prefillEmail) emailInput.value = prefillEmail;
     }
 
+    // Clear reset fields
+    if (newPasswordInputEl) newPasswordInputEl.value = "";
+    if (confirmPasswordInputEl) confirmPasswordInputEl.value = "";
+
+    // Clear login password field too
+    if (passwordInput) passwordInput.value = "";
+
+    // Reset strength UI back to sign-in state
+    updatePasswordStrengthUI();
+
+    // Clean the URL back to login mode
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.delete("mode");
     cleanUrl.searchParams.delete("oobCode");
@@ -553,6 +593,14 @@ async function confirmCustomPasswordReset() {
     cleanUrl.searchParams.delete("lang");
     cleanUrl.searchParams.set("fromReset", "1");
     window.history.replaceState({}, document.title, cleanUrl.toString());
+
+    // Focus email and highlight success
+    focusAndHighlightAuthMessage(true);
+
+    // Optional polished redirect-to-login state refresh
+    setTimeout(() => {
+      applyAuthPageStateFromUrl();
+    }, 150);
   } catch (error) {
     console.error("Custom password reset failed:", error);
     authMessage.textContent =
