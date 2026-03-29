@@ -158,6 +158,42 @@ function buildPrimaryButton(label, href, bg = "#1d4ed8") {
   `;
 }
 
+function convertFirebaseActionLinkToCustomHandler(firebaseLink, email = "") {
+  if (!firebaseLink) return "";
+
+  const sourceUrl = new URL(firebaseLink);
+  const sourceParams = sourceUrl.searchParams;
+
+  const targetUrl = new URL(APP_BASE_URL);
+
+  const mode = sourceParams.get("mode") || "resetPassword";
+  const oobCode = sourceParams.get("oobCode") || "";
+  const apiKey = sourceParams.get("apiKey") || "";
+  const lang = sourceParams.get("lang") || "";
+
+  targetUrl.searchParams.set("mode", mode);
+
+  if (oobCode) {
+    targetUrl.searchParams.set("oobCode", oobCode);
+  }
+
+  if (apiKey) {
+    targetUrl.searchParams.set("apiKey", apiKey);
+  }
+
+  if (lang) {
+    targetUrl.searchParams.set("lang", lang);
+  }
+
+  if (email) {
+    targetUrl.searchParams.set("prefillEmail", email);
+  }
+
+  targetUrl.searchParams.set("fromReset", "1");
+
+  return targetUrl.toString();
+}
+
 function buildEmailShell({ title, greeting, introHtml, detailsHtml, actionsHtml, footerNoteHtml = "" }) {
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px;">
@@ -284,10 +320,12 @@ async function sendLifecycleEmail({
   let resetLink = "";
 
   if (eventType === "created" || eventType === "password_reset") {
-    resetLink = await admin.auth().generatePasswordResetLink(
+    const firebaseResetLink = await admin.auth().generatePasswordResetLink(
       user.email,
       buildPasswordResetActionCodeSettings(user.email)
     );
+
+    resetLink = convertFirebaseActionLinkToCustomHandler(firebaseResetLink, user.email);
   }
 
   if (eventType === "created") {
