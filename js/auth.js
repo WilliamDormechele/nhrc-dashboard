@@ -395,18 +395,40 @@ async function fetchUserProfile(uid) {
 }
 
 async function sendResetEmail() {
-  const email = document.getElementById("emailInput").value.trim().toLowerCase();
+  const emailInput = document.getElementById("emailInput");
   const authMessage = document.getElementById("authMessage");
+
+  let email = (emailInput?.value || "").trim().toLowerCase();
 
   authMessage.textContent = "";
   authMessage.style.color = "#b91c1c";
 
+  // 🔹 If no email → ask via popup
   if (!email) {
-    authMessage.textContent = "Enter your email first, then click 'Forgot password?'.";
-    return;
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: "Reset password",
+        input: "email",
+        inputLabel: "Enter your email address",
+        inputPlaceholder: "name@nhrc.org or name@gmail.com",
+        confirmButtonText: "Send reset link",
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) return "Email is required";
+        }
+      });
+
+      if (!result.isConfirmed) return;
+
+      email = result.value.trim().toLowerCase();
+    } else {
+      authMessage.textContent = "Enter your email first, then click 'Forgot password?'.";
+      return;
+    }
   }
 
   try {
+    // 🔍 Validate user exists
     const userQuery = await db
       .collection("users")
       .where("email", "==", email)
@@ -414,27 +436,56 @@ async function sendResetEmail() {
       .get();
 
     if (userQuery.empty) {
-      throw new Error("No dashboard user account was found for this email. Please contact the administrator.");
+      throw new Error("No dashboard user account found for this email.");
     }
 
     const userDoc = userQuery.docs[0];
     const userId = userDoc.id;
 
+    // 🔄 Show loading
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        title: "Sending reset email...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+    }
+
+    // 📧 Send reset email
     await sendUserLifecycleEmailCallable({
       eventType: "password_reset",
       userId
     });
 
+    // ✅ Success
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        icon: "success",
+        title: "Reset email sent",
+        text: "Check your email to reset your password.",
+        confirmButtonText: "OK"
+      });
+    }
+
     authMessage.style.color = "#047857";
     authMessage.textContent =
-      "A branded password reset email has been sent. After resetting your password, return to the NHRC dashboard login page and sign in.";
+      "A password reset email has been sent. Please check your inbox.";
+
   } catch (error) {
-    console.error("Forgot password email failed:", error);
+    console.error("Forgot password failed:", error);
 
     const message =
       error?.message ||
       error?.details ||
-      "Failed to send the password reset email. Please try again or contact the administrator.";
+      "Failed to send reset email.";
+
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        icon: "error",
+        title: "Reset failed",
+        text: message
+      });
+    }
 
     authMessage.style.color = "#b91c1c";
     authMessage.textContent = message;
