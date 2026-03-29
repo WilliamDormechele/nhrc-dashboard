@@ -19,6 +19,7 @@ function watchCurrentUserProfile(uid) {
     if (!snapshot.exists) {
       alert("Your account record was removed. You will now be signed out.");
       stopWatchingCurrentUserProfile();
+      stopIdleTracking();
       await auth.signOut();
       return;
     }
@@ -30,7 +31,39 @@ function watchCurrentUserProfile(uid) {
     if (inactive || deleted) {
       alert("Your access has been disabled. Please contact the administrator.");
       stopWatchingCurrentUserProfile();
+      stopIdleTracking();
       await auth.signOut();
+      return;
+    }
+
+    // Force logout if role changes during active session
+    if (
+      window.currentUserProfile &&
+      window.currentUserProfile.role &&
+      data.role &&
+      window.currentUserProfile.role !== data.role
+    ) {
+      alert("Your role has changed. Please sign in again to continue with updated access.");
+      stopWatchingCurrentUserProfile();
+      stopIdleTracking();
+      await auth.signOut();
+      return;
+    }
+
+    // Optional: also force logout if assigned projects change
+    const oldProjects = Array.isArray(window.currentUserProfile?.assignedProjects)
+      ? [...window.currentUserProfile.assignedProjects].sort()
+      : [];
+    const newProjects = Array.isArray(data.assignedProjects)
+      ? [...data.assignedProjects].sort()
+      : [];
+
+    if (JSON.stringify(oldProjects) !== JSON.stringify(newProjects)) {
+      alert("Your project access has changed. Please sign in again to continue with updated access.");
+      stopWatchingCurrentUserProfile();
+      stopIdleTracking();
+      await auth.signOut();
+      return;
     }
   }, (error) => {
     console.error("User profile watch error:", error);
@@ -211,6 +244,7 @@ function showLogin() {
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     stopWatchingCurrentUserProfile();
+    stopIdleTracking();
     window.currentUserProfile = null;
     window.currentProjectCode = null;
     showLogin();
@@ -233,6 +267,8 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     window.currentUserProfile = profile;
+    setupIdleTracking();
+    resetIdleTimer();
     watchCurrentUserProfile(user.uid);
     console.log("Logged in profile:", profile);
 

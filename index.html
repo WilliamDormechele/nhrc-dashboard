@@ -46,7 +46,7 @@
 
       <div class="form-group">
         <label for="emailInput">Email</label>
-        <input type="email" id="emailInput" placeholder="name@nhrc.org" />
+        <input type="email" id="emailInput" placeholder="Enter your email (e.g. name@nhrc.org or name@gmail.com)" />
       </div>
 
 <div class="form-group">
@@ -75,13 +75,71 @@
     <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span></div>
   </div>
 </div>
-      <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+<div id="signInActions">
+  <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
 
-      <div class="forgot-line">
-        <a href="#" id="forgotPasswordLink">Forgot password?</a>
-      </div>
+  <div class="forgot-line">
+    <a href="#" id="forgotPasswordLink">Forgot password?</a>
+  </div>
+</div>
 
-      <div id="authMessage" class="auth-message"></div>
+<div id="resetPasswordSection" style="display:none; margin-top: 18px;">
+  <h3 style="margin-bottom:10px;">Set a new password</h3>
+  <p style="margin-bottom:14px; color:#475569;">
+    Enter your new password below. It must meet the password requirements.
+  </p>
+
+  <div class="form-group">
+    <label for="newPasswordInput">New password</label>
+    <div class="password-row">
+      <input
+        type="password"
+        id="newPasswordInput"
+        placeholder="Enter your new password"
+        autocomplete="new-password"
+      />
+      <button type="button" id="toggleNewPassword" class="btn btn-small">Show</button>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="confirmPasswordInput">Confirm new password</label>
+    <div class="password-row">
+      <input
+        type="password"
+        id="confirmPasswordInput"
+        placeholder="Re-enter your new password"
+        autocomplete="new-password"
+      />
+      <button type="button" id="toggleConfirmPassword" class="btn btn-small">Show</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    Your password must be strong before it can be saved.
+  </div>
+
+  <div class="password-strength-wrap">
+    <div class="password-strength-bar">
+      <div id="passwordStrengthFill" class="password-strength-fill"></div>
+    </div>
+    <div id="passwordStrengthText" class="password-strength-text">Password strength: not entered</div>
+  </div>
+
+  <div id="passwordCriteria" class="password-criteria">
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase letter</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 number</span></div>
+    <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span></div>
+  </div>
+
+  <button id="confirmResetBtn" class="btn btn-primary full-width" style="margin-top:16px;">
+    Save new password
+  </button>
+</div>
+
+<div id="authMessage" class="auth-message"></div>
     </div>
   </main>
 

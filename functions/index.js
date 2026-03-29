@@ -103,11 +103,12 @@ function buildPasswordResetActionCodeSettings(email = "") {
     params.set("prefillEmail", email);
   }
 
+  params.set("mode", "resetPassword");
   params.set("fromReset", "1");
 
   return {
     url: `${APP_BASE_URL}?${params.toString()}`,
-    handleCodeInApp: false
+    handleCodeInApp: true
   };
 }
 
