@@ -403,7 +403,6 @@ async function sendResetEmail() {
   authMessage.textContent = "";
   authMessage.style.color = "#b91c1c";
 
-  // 🔹 If no email → ask via popup
   if (!email) {
     if (typeof Swal !== "undefined") {
       const result = await Swal.fire({
@@ -419,7 +418,6 @@ async function sendResetEmail() {
       });
 
       if (!result.isConfirmed) return;
-
       email = result.value.trim().toLowerCase();
     } else {
       authMessage.textContent = "Enter your email first, then click 'Forgot password?'.";
@@ -428,21 +426,6 @@ async function sendResetEmail() {
   }
 
   try {
-    // 🔍 Validate user exists
-    const userQuery = await db
-      .collection("users")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-
-    if (userQuery.empty) {
-      throw new Error("No dashboard user account found for this email.");
-    }
-
-    const userDoc = userQuery.docs[0];
-    const userId = userDoc.id;
-
-    // 🔄 Show loading
     if (typeof Swal !== "undefined") {
       Swal.fire({
         title: "Sending reset email...",
@@ -451,18 +434,16 @@ async function sendResetEmail() {
       });
     }
 
-    // 📧 Send reset email
-    await sendUserLifecycleEmailCallable({
-      eventType: "password_reset",
-      userId
-    });
+    await auth.sendPasswordResetEmail(
+      email,
+      getPasswordResetActionCodeSettings(email)
+    );
 
-    // ✅ Success
     if (typeof Swal !== "undefined") {
-      Swal.fire({
+      await Swal.fire({
         icon: "success",
         title: "Reset email sent",
-        text: "Check your email to reset your password.",
+        text: "Check your email for the password reset link.",
         confirmButtonText: "OK"
       });
     }
@@ -470,17 +451,15 @@ async function sendResetEmail() {
     authMessage.style.color = "#047857";
     authMessage.textContent =
       "A password reset email has been sent. Please check your inbox.";
-
   } catch (error) {
-    console.error("Forgot password failed:", error);
+    console.error("Forgot password email failed:", error);
 
     const message =
       error?.message ||
-      error?.details ||
-      "Failed to send reset email.";
+      "Failed to send the password reset email. Please try again.";
 
     if (typeof Swal !== "undefined") {
-      Swal.fire({
+      await Swal.fire({
         icon: "error",
         title: "Reset failed",
         text: message
