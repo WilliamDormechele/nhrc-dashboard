@@ -29,6 +29,22 @@ body {
   align-items: center;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.3rem;
@@ -1122,6 +1138,16 @@ textarea:focus {
     gap: 8px;
   }
 
+    .topbar-left {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .topbar-logo {
+    width: 48px;
+    height: 48px;
+  }
+
   .powerbi-container {
     height: 62vh;
   }
@@ -1521,3 +1547,16 @@ body.admin-loading {
   margin-bottom: 4px;
   padding-bottom: 10px;
 }
+
+@media (max-width: 640px) {
+  .auth-container,
+  .app-container {
+    padding: 16px;
+  }
+
+  .topbar {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }

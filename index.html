@@ -11,19 +11,22 @@
 </head>
 
 <body>
-  <header class="topbar">
+<header class="topbar">
+  <div class="topbar-left">
+    <img src="images/nhrc-logo.png" alt="NHRC Logo" class="topbar-logo" />
     <div>
       <h1 id="siteTitle">NHRC Projects Dashboard</h1>
       <div class="topbar-subtitle">
         Secure dashboard access by project, role, and privilege
       </div>
     </div>
+  </div>
 
-    <div class="topbar-right">
-      <span id="userEmailDisplay">Not signed in</span>
-      <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
-    </div>
-  </header>
+  <div class="topbar-right">
+    <span id="userEmailDisplay">Not signed in</span>
+    <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
+  </div>
+</header>
 
   <div id="systemInfoBar" class="info-bar">
     Secure access enabled. Please sign in.

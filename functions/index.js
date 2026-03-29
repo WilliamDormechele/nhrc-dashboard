@@ -16,6 +16,7 @@ const GMAIL_SMTP_PASS = defineSecret("GMAIL_SMTP_PASS");
 
 const APP_BASE_URL = "https://williamdormechele.github.io/nhrc-dashboard/";
 const LOGIN_URL = APP_BASE_URL;
+const LOGO_URL = `${APP_BASE_URL}images/nhrc-logo.png`;
 const SENDER_NAME = "NHRC Projects Dashboard";
 
 // const RESEND_SENDER_EMAIL = "onboarding@resend.dev";
@@ -198,10 +199,25 @@ function buildEmailShell({ title, greeting, introHtml, detailsHtml, actionsHtml,
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px;">
       <div style="max-width:700px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
-        <div style="background:#0f2744;color:#ffffff;padding:22px 24px;">
-          <div style="font-size:24px;font-weight:700;">NHRC Projects Dashboard</div>
-          <div style="font-size:14px;opacity:0.95;margin-top:4px;">Secure dashboard access by project, role, and privilege</div>
-        </div>
+      <div style="background:#0f2744;color:#ffffff;padding:22px 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
+          <tr>
+            <td style="width:72px;vertical-align:middle;">
+              <img
+                src="${LOGO_URL}"
+                alt="NHRC Logo"
+                style="display:block;width:58px;height:58px;object-fit:contain;border-radius:10px;background:#ffffff;padding:4px;"
+              />
+            </td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:24px;font-weight:700;">NHRC Projects Dashboard</div>
+              <div style="font-size:14px;opacity:0.95;margin-top:4px;">
+                Secure dashboard access by project, role, and privilege
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
 
         <div style="padding:24px;">
           <h2 style="margin:0 0 12px 0;color:#0f172a;">${escapeHtml(title)}</h2>
