@@ -765,3 +765,70 @@ exports.hardDeleteUser = onCall({ region: "us-central1" }, async (request) => {
     message: "User permanently deleted."
   };
 });
+
+exports.requestSelfServicePasswordReset = onCall(
+  {
+    region: "us-central1",
+    secrets: [RESEND_API_KEY, GMAIL_SMTP_USER, GMAIL_SMTP_PASS]
+  },
+  async (request) => {
+    try {
+      const email = String(request.data?.email || "").trim().toLowerCase();
+
+      if (!email) {
+        throw new HttpsError("invalid-argument", "Email is required.");
+      }
+
+      const userQuery = await db
+        .collection("users")
+        .where("email", "==", email)
+        .limit(1)
+        .get();
+
+      // For security, do not reveal too much
+      if (userQuery.empty) {
+        return {
+          ok: true,
+          message: "If an account exists for that email, a reset link has been sent."
+        };
+      }
+
+      const userDoc = userQuery.docs[0];
+      const user = {
+        id: userDoc.id,
+        ...userDoc.data()
+      };
+
+      const actor = {
+        uid: "self-service",
+        email: "",
+        fullName: "Self-service password reset"
+      };
+
+      const result = await sendLifecycleEmail({
+        resendApiKey: RESEND_API_KEY.value(),
+        gmailUser: GMAIL_SMTP_USER.value(),
+        gmailPass: GMAIL_SMTP_PASS.value(),
+        user,
+        eventType: "password_reset",
+        actor
+      });
+
+      return {
+        ok: true,
+        message: `If an account exists for that email, a reset link has been sent via ${result?.provider || "email"}.`
+      };
+    } catch (error) {
+      logger.error("Self-service password reset failed", error);
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        error?.message || "Failed to process password reset request."
+      );
+    }
+  }
+);

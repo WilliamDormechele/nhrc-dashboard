@@ -108,6 +108,24 @@ body {
 .reset-actions {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.reset-actions .btn-primary {
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.25);
+}
+
+.reset-actions .btn-secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #dbe3ef;
+  transition: all 0.2s ease;
+}
+
+.reset-actions .btn-secondary:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
 }
 
 @keyframes authMessageFlashSuccess {

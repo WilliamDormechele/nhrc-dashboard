@@ -1,5 +1,6 @@
 // js/auth.js
 const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
+const requestSelfServicePasswordResetCallable = functions.httpsCallable("requestSelfServicePasswordReset");
 
 // 🔒 Prevent persistent login (session only)
 auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
@@ -434,10 +435,7 @@ async function sendResetEmail() {
       });
     }
 
-    await auth.sendPasswordResetEmail(
-      email,
-      getPasswordResetActionCodeSettings(email)
-    );
+    await requestSelfServicePasswordResetCallable({ email });
 
     if (typeof Swal !== "undefined") {
       await Swal.fire({
@@ -541,10 +539,7 @@ async function requestFreshResetLinkFromResetPage() {
       });
     }
 
-    await auth.sendPasswordResetEmail(
-      email,
-      getPasswordResetActionCodeSettings(email)
-    );
+    await requestSelfServicePasswordResetCallable({ email });
 
     if (typeof Swal !== "undefined") {
       await Swal.fire({
