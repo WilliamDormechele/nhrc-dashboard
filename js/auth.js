@@ -248,7 +248,13 @@ function renderPasswordCriteria(password) {
     { key: "special", label: "At least 1 special character" }
   ];
 
-  const container = document.getElementById("passwordCriteria");
+  const resetSectionVisible =
+    document.getElementById("resetPasswordSection")?.style.display === "block";
+
+  const container = resetSectionVisible
+    ? document.getElementById("resetPasswordCriteria")
+    : document.getElementById("signInPasswordCriteria");
+
   if (!container) return;
 
   container.innerHTML = items
@@ -265,13 +271,20 @@ function renderPasswordCriteria(password) {
 }
 
 function updatePasswordStrengthUI() {
-  const activePasswordInput =
-    document.getElementById("newPasswordInput")?.offsetParent !== null
-      ? document.getElementById("newPasswordInput")
-      : document.getElementById("passwordInput");
+  const resetSectionVisible =
+    document.getElementById("resetPasswordSection")?.style.display === "block";
 
-  const strengthText = document.getElementById("passwordStrengthText");
-  const strengthFill = document.getElementById("passwordStrengthFill");
+  const activePasswordInput = resetSectionVisible
+    ? document.getElementById("newPasswordInput")
+    : document.getElementById("passwordInput");
+
+  const strengthText = resetSectionVisible
+    ? document.getElementById("resetPasswordStrengthText")
+    : document.getElementById("signInPasswordStrengthText");
+
+  const strengthFill = resetSectionVisible
+    ? document.getElementById("resetPasswordStrengthFill")
+    : document.getElementById("signInPasswordStrengthFill");
 
   if (!activePasswordInput || !strengthText || !strengthFill) return;
 
@@ -309,16 +322,21 @@ function applyAuthPageStateFromUrl() {
 
   const emailInput = document.getElementById("emailInput");
   const authMessage = document.getElementById("authMessage");
-  const signInActions = document.getElementById("signInActions");
+  const signInSection = document.getElementById("signInSection");
   const resetPasswordSection = document.getElementById("resetPasswordSection");
+  const authTitle = document.getElementById("authTitle");
+  const authIntro = document.getElementById("authIntro");
 
   if (emailInput && prefillEmail && !emailInput.value.trim()) {
     emailInput.value = prefillEmail;
   }
 
   if (mode === "resetPassword" && oobCode) {
-    if (signInActions) signInActions.style.display = "none";
+    if (signInSection) signInSection.style.display = "none";
     if (resetPasswordSection) resetPasswordSection.style.display = "block";
+
+    if (authTitle) authTitle.textContent = "Reset password";
+    if (authIntro) authIntro.textContent = "";
 
     if (authMessage) {
       authMessage.style.color = "#1d4ed8";
@@ -329,6 +347,9 @@ function applyAuthPageStateFromUrl() {
     updatePasswordStrengthUI();
     return;
   }
+
+  if (signInSection) signInSection.style.display = "block";
+  if (resetPasswordSection) resetPasswordSection.style.display = "none";
 
   if (authMessage && fromReset) {
     authMessage.style.color = "#047857";
@@ -462,11 +483,11 @@ async function confirmCustomPasswordReset() {
     authMessage.textContent =
       "Your password has been reset successfully. You can now sign in with your new password.";
 
-    const signInActions = document.getElementById("signInActions");
+    const signInSection = document.getElementById("signInSection");
     const resetPasswordSection = document.getElementById("resetPasswordSection");
     const emailInput = document.getElementById("emailInput");
 
-    if (signInActions) signInActions.style.display = "block";
+    if (signInSection) signInSection.style.display = "block";
     if (resetPasswordSection) resetPasswordSection.style.display = "none";
 
     if (emailInput && !emailInput.value.trim()) {

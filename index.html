@@ -41,33 +41,62 @@
         </ol>
       </div>
 
-      <h2>Sign in</h2>
-      <p>Enter your NHRC email and password.</p>
+<div id="signInSection">
+  <h2 id="authTitle">Sign in</h2>
+  <p id="authIntro">Enter your NHRC email and password.</p>
 
-      <div class="form-group">
-        <label for="emailInput">Email</label>
-        <input type="email" id="emailInput" placeholder="Enter your email (e.g. name@nhrc.org or name@gmail.com)" />
-      </div>
-
-<div class="form-group">
-  <label for="passwordInput">Password</label>
-  <div class="password-row">
-    <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password" />
-    <button type="button" id="togglePassword" class="btn btn-small">Show</button>
+  <div class="form-group">
+    <label for="emailInput">Email</label>
+    <input type="email" id="emailInput" placeholder="Enter your email (e.g. name@nhrc.org or name@gmail.com)" />
   </div>
 
-  <div class="hint">
-    Use your password. After a reset, you can sign in with any standard secure password.
-  </div>
-
-  <div class="password-strength-wrap">
-    <div class="password-strength-bar">
-      <div id="passwordStrengthFill" class="password-strength-fill"></div>
+  <div class="form-group">
+    <label for="passwordInput">Password</label>
+    <div class="password-row">
+      <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password" />
+      <button type="button" id="togglePassword" class="btn btn-small">Show</button>
     </div>
-    <div id="passwordStrengthText" class="password-strength-text">Password strength: not entered</div>
+
+    <div class="hint">
+      Use your password. After a reset, you can sign in with any standard secure password.
+    </div>
+
+    <div class="password-strength-wrap">
+      <div class="password-strength-bar">
+        <div id="signInPasswordStrengthFill" class="password-strength-fill"></div>
+      </div>
+      <div id="signInPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
+    </div>
+
+    <div id="signInPasswordCriteria" class="password-criteria">
+      <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
+      <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span>
+      </div>
+      <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase letter</span>
+      </div>
+      <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 number</span></div>
+      <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span>
+      </div>
+    </div>
   </div>
 
-  <div id="passwordCriteria" class="password-criteria">
+  <div id="signInActions">
+    <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+
+    <div class="forgot-line">
+      <a href="#" id="forgotPasswordLink">Forgot password?</a>
+    </div>
+  </div>
+</div>
+
+<div class="password-strength-wrap">
+  <div class="password-strength-bar">
+    <div id="resetPasswordStrengthFill" class="password-strength-fill"></div>
+  </div>
+  <div id="resetPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
+</div>
+
+  <div id="resetPasswordCriteria" class="password-criteria">
     <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
     <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span></div>
     <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase letter</span></div>
