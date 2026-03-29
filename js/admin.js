@@ -883,7 +883,9 @@ async function sendPasswordResetForUser(userId) {
       const confirmed = confirm(`Send a custom password reset email to ${fullName} (${email})?`);
       if (!confirmed) return;
     }
+
     setAdminLoading("adminUserMessage", "Sending password reset email...");
+
     await sendUserLifecycleEmailCallable({
       eventType: "password_reset",
       userId
@@ -899,6 +901,8 @@ async function sendPasswordResetForUser(userId) {
       `Custom password reset email sent successfully to ${fullName} (${email}).`
     );
 
+    hideAdminLoader();
+
     if (useSweetAlert) {
       await Swal.fire({
         icon: "success",
@@ -910,6 +914,8 @@ async function sendPasswordResetForUser(userId) {
     console.error(error);
     setAdminMessage("adminUserMessage", `Failed to send reset email: ${error.message}`, true);
 
+    hideAdminLoader();
+
     if (typeof Swal !== "undefined") {
       await Swal.fire({
         icon: "error",
@@ -918,7 +924,7 @@ async function sendPasswordResetForUser(userId) {
       });
     }
   } finally {
-    hideAdminLoader();
+    // Loader already handled before alerts
   }
 }
 
