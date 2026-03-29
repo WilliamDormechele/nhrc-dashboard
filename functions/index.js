@@ -18,7 +18,9 @@ const APP_BASE_URL = "https://williamdormechele.github.io/nhrc-dashboard/";
 const LOGIN_URL = APP_BASE_URL;
 const SENDER_NAME = "NHRC Projects Dashboard";
 
-const RESEND_SENDER_EMAIL = "onboarding@resend.dev";
+// const RESEND_SENDER_EMAIL = "onboarding@resend.dev";
+// const RESEND_SENDER_EMAIL = "dashboard@navrongo-hrc.org";
+const RESEND_SENDER_EMAIL = "noreply@navrongo-hrc.org";
 
 const SIGNATURE_HTML = `
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;color:#334155;font-size:14px;line-height:1.6;">
