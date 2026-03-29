@@ -3,18 +3,22 @@ const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
+
 const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
+const GMAIL_SMTP_USER = defineSecret("GMAIL_SMTP_USER");
+const GMAIL_SMTP_PASS = defineSecret("GMAIL_SMTP_PASS");
 
 const APP_BASE_URL = "https://williamdormechele.github.io/nhrc-dashboard/";
 const LOGIN_URL = APP_BASE_URL;
 const SENDER_NAME = "NHRC Projects Dashboard";
-// const SENDER_EMAIL = "william.dormechele@navrongo-hrc.org";
-const SENDER_EMAIL = "onboarding@resend.dev";
+
+const RESEND_SENDER_EMAIL = "onboarding@resend.dev";
 
 const SIGNATURE_HTML = `
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;color:#334155;font-size:14px;line-height:1.6;">
@@ -174,8 +178,88 @@ function buildEmailShell({ title, greeting, introHtml, detailsHtml, actionsHtml,
   `;
 }
 
+function getGmailTransport(gmailUser, gmailPass) {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: gmailUser,
+      pass: gmailPass
+    }
+  });
+}
+
+async function sendViaResend({ resendApiKey, toEmail, subject, html }) {
+  const resend = new Resend(resendApiKey);
+
+  const { data, error } = await resend.emails.send({
+    from: `${SENDER_NAME} <${RESEND_SENDER_EMAIL}>`,
+    to: [toEmail],
+    subject,
+    html
+  });
+
+  if (error) {
+    logger.error("Resend send failed", error);
+    throw new Error(error.message || "Failed to send email through Resend.");
+  }
+
+  return {
+    provider: "resend",
+    messageId: data?.id || ""
+  };
+}
+
+async function sendViaGmail({ gmailUser, gmailPass, toEmail, subject, html }) {
+  const transporter = getGmailTransport(gmailUser, gmailPass);
+
+  const info = await transporter.sendMail({
+    from: `${SENDER_NAME} <${gmailUser}>`,
+    to: toEmail,
+    subject,
+    html
+  });
+
+  return {
+    provider: "gmail_smtp",
+    messageId: info?.messageId || ""
+  };
+}
+
+async function sendViaResendWithGmailFallback({
+  resendApiKey,
+  gmailUser,
+  gmailPass,
+  toEmail,
+  subject,
+  html
+}) {
+  try {
+    return await sendViaResend({
+      resendApiKey,
+      toEmail,
+      subject,
+      html
+    });
+  } catch (resendError) {
+    logger.warn("Resend failed. Falling back to Gmail SMTP.", {
+      toEmail,
+      error: resendError?.message || String(resendError)
+    });
+
+    return await sendViaGmail({
+      gmailUser,
+      gmailPass,
+      toEmail,
+      subject,
+      html
+    });
+  }
+}
+
 async function sendLifecycleEmail({
   resendApiKey,
+  gmailUser,
+  gmailPass,
   user,
   eventType,
   actor,
@@ -184,7 +268,6 @@ async function sendLifecycleEmail({
   previousIsActive = null,
   previousSupervisorName = ""
 }) {
-  const resend = new Resend(resendApiKey);
   const projectNames = await getProjectDisplayNames(user.assignedProjects || []);
   const projectListHtml = buildProjectListHtml(projectNames);
   const loginButton = buildPrimaryButton("Open NHRC Dashboard", LOGIN_URL, "#0f766e");
@@ -221,7 +304,9 @@ async function sendLifecycleEmail({
         <div style="margin-top:10px;"><strong>Assigned projects:</strong>${projectListHtml}</div>
       </div>
     `;
-    actionsHtml = buildPrimaryButton("Set Your Password", resetLink, "#1d4ed8") + loginButton;
+    actionsHtml =
+      buildPrimaryButton("Set Your Password", resetLink, "#1d4ed8") +
+      loginButton;
     footerNoteHtml = `
       <p style="margin-top:18px;color:#475569;font-size:14px;">
         This account was created by ${escapeHtml(actor.fullName || actor.email || "the administrator")}.
@@ -243,7 +328,9 @@ async function sendLifecycleEmail({
         <div style="margin-top:10px;"><strong>Assigned projects:</strong>${projectListHtml}</div>
       </div>
     `;
-    actionsHtml = buildPrimaryButton("Reset Your Password", resetLink, "#1d4ed8") + loginButton;
+    actionsHtml =
+      buildPrimaryButton("Reset Your Password", resetLink, "#1d4ed8") +
+      loginButton;
     footerNoteHtml = `
       <p style="margin-top:18px;color:#475569;font-size:14px;">
         This reset email was sent by ${escapeHtml(actor.fullName || actor.email || "the administrator")}.
@@ -290,23 +377,21 @@ async function sendLifecycleEmail({
     footerNoteHtml
   });
 
-  const { data, error } = await resend.emails.send({
-    from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
-    to: [user.email],
+  return await sendViaResendWithGmailFallback({
+    resendApiKey,
+    gmailUser,
+    gmailPass,
+    toEmail: user.email,
     subject,
     html
   });
-
-  if (error) {
-    logger.error("Resend send failed", error);
-    throw new HttpsError("internal", error.message || "Failed to send email.");
-  }
-
-  return data;
 }
 
 exports.sendUserLifecycleEmail = onCall(
-  { region: "us-central1", secrets: [RESEND_API_KEY] },
+  {
+    region: "us-central1",
+    secrets: [RESEND_API_KEY, GMAIL_SMTP_USER, GMAIL_SMTP_PASS]
+  },
   async (request) => {
     try {
       const actor = await requireAdmin(request);
@@ -335,6 +420,8 @@ exports.sendUserLifecycleEmail = onCall(
 
       const result = await sendLifecycleEmail({
         resendApiKey: RESEND_API_KEY.value(),
+        gmailUser: GMAIL_SMTP_USER.value(),
+        gmailPass: GMAIL_SMTP_PASS.value(),
         user,
         eventType,
         actor,
@@ -356,8 +443,8 @@ exports.sendUserLifecycleEmail = onCall(
 
       return {
         ok: true,
-        message: `Email sent successfully for ${eventType}.`,
-        emailId: result?.id || ""
+        message: `Email sent successfully for ${eventType} via ${result?.provider || "unknown"}.`,
+        emailId: result?.messageId || ""
       };
     } catch (error) {
       logger.error("sendUserLifecycleEmail failed", error);

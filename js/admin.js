@@ -612,26 +612,17 @@ async function saveUserFromAdminForm() {
     let emailSent = false;
     let onboardingEmailWarning = "";
 
-    // Development-only rule:
-    // Resend can currently send only to your own email until the sender domain is verified.
-    const DEV_TEST_EMAIL = "williamdormechele@gmail.com";
-
-    if ((email || "").trim().toLowerCase() === DEV_TEST_EMAIL.toLowerCase()) {
-      setAdminLoading("adminUserMessage", "Sending onboarding email...");
-      try {
-        await sendUserLifecycleEmailCallable({
-          eventType: "created",
-          userId: newUid
-        });
-        emailSent = true;
-      } catch (emailError) {
-        console.error("Failed to send custom onboarding email:", emailError);
-        onboardingEmailWarning =
-          " User created successfully, but the test onboarding email could not be sent.";
-      }
-    } else {
+    setAdminLoading("adminUserMessage", "Sending onboarding email...");
+    try {
+      await sendUserLifecycleEmailCallable({
+        eventType: "created",
+        userId: newUid
+      });
+      emailSent = true;
+    } catch (emailError) {
+      console.error("Failed to send custom onboarding email:", emailError);
       onboardingEmailWarning =
-        " User created successfully. Onboarding email was skipped in development mode because Resend is not yet approved to send to other recipients.";
+        " User created successfully, but the onboarding email could not be sent.";
     }
 
     setAdminMessage(
