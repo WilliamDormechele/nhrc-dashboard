@@ -518,6 +518,105 @@ function focusAndHighlightAuthMessage(success = true) {
   }, 250);
 }
 
+async function requestFreshResetLinkFromResetPage() {
+  const authMessage = document.getElementById("authMessage");
+  const { prefillEmail } = getResetModeInfo();
+
+  let email = (prefillEmail || document.getElementById("emailInput")?.value || "").trim().toLowerCase();
+
+  if (authMessage) {
+    authMessage.textContent = "";
+    authMessage.style.color = "#b91c1c";
+  }
+
+  if (!email) {
+    if (typeof Swal !== "undefined") {
+      const result = await Swal.fire({
+        title: "Request new reset link",
+        input: "email",
+        inputLabel: "Enter your email address",
+        inputPlaceholder: "name@nhrc.org or name@gmail.com",
+        confirmButtonText: "Send new link",
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) return "Email is required";
+        }
+      });
+
+      if (!result.isConfirmed) return;
+      email = result.value.trim().toLowerCase();
+    } else {
+      if (authMessage) {
+        authMessage.textContent = "Please enter your email to request a new reset link.";
+      }
+      return;
+    }
+  }
+
+  try {
+    const userQuery = await db
+      .collection("users")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (userQuery.empty) {
+      throw new Error("No dashboard user account found for this email.");
+    }
+
+    const userDoc = userQuery.docs[0];
+    const userId = userDoc.id;
+
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        title: "Sending new reset link...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+    }
+
+    await sendUserLifecycleEmailCallable({
+      eventType: "password_reset",
+      userId
+    });
+
+    if (typeof Swal !== "undefined") {
+      await Swal.fire({
+        icon: "success",
+        title: "New reset link sent",
+        text: "Check your email for a fresh password reset link.",
+        confirmButtonText: "OK"
+      });
+    }
+
+    if (authMessage) {
+      authMessage.style.color = "#047857";
+      authMessage.textContent =
+        "A fresh password reset link has been sent to your email.";
+    }
+  } catch (error) {
+    console.error("Fresh reset link request failed:", error);
+
+    const message =
+      error?.message ||
+      error?.details ||
+      "Failed to send a new reset link.";
+
+    if (typeof Swal !== "undefined") {
+      await Swal.fire({
+        icon: "error",
+        title: "Request failed",
+        text: message
+      });
+    }
+
+    if (authMessage) {
+      authMessage.style.color = "#b91c1c";
+      authMessage.textContent = message;
+    }
+  }
+}
+
 async function confirmCustomPasswordReset() {
   const { oobCode } = getResetModeInfo();
   const newPasswordInput = document.getElementById("newPasswordInput");
@@ -601,11 +700,28 @@ async function confirmCustomPasswordReset() {
     setTimeout(() => {
       applyAuthPageStateFromUrl();
     }, 150);
-  } catch (error) {
-    console.error("Custom password reset failed:", error);
-    authMessage.textContent =
-      error?.message || "Failed to reset password. The link may be expired or invalid.";
+} catch (error) {
+  console.error("Custom password reset failed:", error);
+
+  const rawMessage = error?.message || "";
+  const friendlyMessage =
+    rawMessage.toLowerCase().includes("expired") ||
+    rawMessage.toLowerCase().includes("invalid")
+      ? "This reset link is expired or invalid. Use 'Reset link expired? Request a new one' below."
+      : (rawMessage || "Failed to reset password. The link may be expired or invalid.");
+
+  authMessage.style.color = "#b91c1c";
+  authMessage.textContent = friendlyMessage;
+
+  if (typeof Swal !== "undefined") {
+    await Swal.fire({
+      icon: "warning",
+      title: "Reset link issue",
+      text: friendlyMessage,
+      confirmButtonText: "OK"
+    });
   }
+}
 }
 
 function setupAuthUI() {
@@ -615,6 +731,8 @@ function setupAuthUI() {
   const passwordInput = document.getElementById("passwordInput");
 
   const confirmResetBtn = document.getElementById("confirmResetBtn");
+  const backToLoginBtn = document.getElementById("backToLoginBtn");
+  const requestNewResetLinkBtn = document.getElementById("requestNewResetLinkBtn");
   const newPasswordInput = document.getElementById("newPasswordInput");
   const confirmPasswordInput = document.getElementById("confirmPasswordInput");
   const toggleNewPassword = document.getElementById("toggleNewPassword");
@@ -681,6 +799,51 @@ function setupAuthUI() {
   if (confirmResetBtn) {
     confirmResetBtn.addEventListener("click", confirmCustomPasswordReset);
   }
+
+  if (backToLoginBtn) {
+  backToLoginBtn.addEventListener("click", function () {
+    const signInSection = document.getElementById("signInSection");
+    const resetPasswordSection = document.getElementById("resetPasswordSection");
+    const authMessage = document.getElementById("authMessage");
+    const passwordInput = document.getElementById("passwordInput");
+    const newPasswordInputEl = document.getElementById("newPasswordInput");
+    const confirmPasswordInputEl = document.getElementById("confirmPasswordInput");
+
+    if (signInSection) signInSection.style.display = "block";
+    if (resetPasswordSection) resetPasswordSection.style.display = "none";
+
+    if (newPasswordInputEl) newPasswordInputEl.value = "";
+    if (confirmPasswordInputEl) confirmPasswordInputEl.value = "";
+    if (passwordInput) passwordInput.value = "";
+
+    if (authMessage) {
+      authMessage.style.color = "#475569";
+      authMessage.textContent = "You can sign in below or request another reset link.";
+    }
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("mode");
+    cleanUrl.searchParams.delete("oobCode");
+    cleanUrl.searchParams.delete("apiKey");
+    cleanUrl.searchParams.delete("lang");
+    cleanUrl.searchParams.delete("fromReset");
+    window.history.replaceState({}, document.title, cleanUrl.toString());
+
+    updatePasswordStrengthUI();
+
+    const emailInput = document.getElementById("emailInput");
+    setTimeout(() => {
+      if (emailInput) emailInput.focus();
+    }, 150);
+  });
+}
+
+if (requestNewResetLinkBtn) {
+  requestNewResetLinkBtn.addEventListener("click", async function (e) {
+    e.preventDefault();
+    await requestFreshResetLinkFromResetPage();
+  });
+}
 
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     stopIdleTracking();

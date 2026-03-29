@@ -105,6 +105,11 @@ body {
   animation: authMessageFlashError 1.2s ease;
 }
 
+.reset-actions {
+  display: flex;
+  flex-direction: column;
+}
+
 @keyframes authMessageFlashSuccess {
   0% {
     background: rgba(16, 185, 129, 0.18);
