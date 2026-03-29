@@ -533,19 +533,6 @@ async function requestFreshResetLinkFromResetPage() {
   }
 
   try {
-    const userQuery = await db
-      .collection("users")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-
-    if (userQuery.empty) {
-      throw new Error("No dashboard user account found for this email.");
-    }
-
-    const userDoc = userQuery.docs[0];
-    const userId = userDoc.id;
-
     if (typeof Swal !== "undefined") {
       Swal.fire({
         title: "Sending new reset link...",
@@ -554,10 +541,10 @@ async function requestFreshResetLinkFromResetPage() {
       });
     }
 
-    await sendUserLifecycleEmailCallable({
-      eventType: "password_reset",
-      userId
-    });
+    await auth.sendPasswordResetEmail(
+      email,
+      getPasswordResetActionCodeSettings(email)
+    );
 
     if (typeof Swal !== "undefined") {
       await Swal.fire({
@@ -578,7 +565,6 @@ async function requestFreshResetLinkFromResetPage() {
 
     const message =
       error?.message ||
-      error?.details ||
       "Failed to send a new reset link.";
 
     if (typeof Swal !== "undefined") {
