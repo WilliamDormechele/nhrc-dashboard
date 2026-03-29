@@ -172,11 +172,12 @@ function getPasswordResetActionCodeSettings(email = "") {
     params.set("prefillEmail", email);
   }
 
+  params.set("mode", "resetPassword");
   params.set("fromReset", "1");
 
   return {
     url: `${baseUrl}?${params.toString()}`,
-    handleCodeInApp: false
+    handleCodeInApp: true
   };
 }
 
