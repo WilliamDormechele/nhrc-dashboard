@@ -14,7 +14,7 @@ const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 const GMAIL_SMTP_USER = defineSecret("GMAIL_SMTP_USER");
 const GMAIL_SMTP_PASS = defineSecret("GMAIL_SMTP_PASS");
 
-const APP_BASE_URL = "https://williamdormechele.github.io/nhrc-dashboard/";
+const APP_BASE_URL = "https://nhrc-dashboard.web.app/";
 const LOGIN_URL = APP_BASE_URL;
 const LOGO_URL = `${APP_BASE_URL}images/nhrc-logo.png`;
 const SENDER_NAME = "NHRC Projects Dashboard";

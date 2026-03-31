@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "hemab-9ffc7"
-  }
+    "default": "nhrc-dashboard"
+  },
+  "targets": {},
+  "etags": {}
 }

@@ -166,7 +166,7 @@ function stopIdleTracking() {
 }
 
 function getPasswordResetActionCodeSettings(email = "") {
-  const baseUrl = "https://williamdormechele.github.io/nhrc-dashboard/";
+  const baseUrl = "https://nhrc-dashboard.web.app/";
   const params = new URLSearchParams();
 
   if (email) {
