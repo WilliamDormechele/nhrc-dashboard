@@ -1,14 +1,14 @@
 [
   {
     "category": "Households Not Visited",
-    "updatedAt": "2026-04-02T16:20:27", 
+    "updatedAt": "2026-04-02T18:15:01", 
     "items": [
   {
     "title": "Households Not Visited - BUILSA NORTH DISTRICT", 
     "district": "BUILSA NORTH DISTRICT", 
     "supervisorName": "Sup-Francis", 
     "queryDate": "2026-04-02", 
-    "updatedAt": "2026-04-02T16:20:27", 
+    "updatedAt": "2026-04-02T18:15:01", 
     "hasData": "true", 
     "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbnd2026-04-02.pdf"
   }
@@ -18,7 +18,7 @@
     "district": "BUILSA SOUTH DISTRICT", 
     "supervisorName": "Sup-Joshua", 
     "queryDate": "2026-04-02", 
-    "updatedAt": "2026-04-02T16:20:27", 
+    "updatedAt": "2026-04-02T18:15:01", 
     "hasData": "true", 
     "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedbsd2026-04-02.pdf"
   }
@@ -28,7 +28,7 @@
     "district": "MANPURUGU MAGDORI DISTRICT", 
     "supervisorName": "Sup-Issah", 
     "queryDate": "2026-04-02", 
-    "updatedAt": "2026-04-02T16:20:27", 
+    "updatedAt": "2026-04-02T18:15:01", 
     "hasData": "true", 
     "file": "reports/HDSS/householdsnotvisited/householdsnotvisitedmpr2026-04-02.pdf"
   }
