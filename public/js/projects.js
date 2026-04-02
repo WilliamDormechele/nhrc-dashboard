@@ -1645,8 +1645,16 @@ async function loadProject(projectCode) {
   document.getElementById("dashboardTitle").textContent = `${project.name} Dashboard`;
   document.getElementById("dashboardDescription").textContent = project.description || "";
   document.getElementById("dashboardFrame").src = project.dashboardEmbedUrl || "";
-  document.getElementById("downloadPdfBtn").href = project.dashboardPdf || "#";
-  document.getElementById("downloadPptBtn").href = project.dashboardPpt || "#";
+  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+  const downloadPptBtn = document.getElementById("downloadPptBtn");
+
+  if (downloadPdfBtn) {
+    downloadPdfBtn.href = project.dashboardPdf || "#";
+  }
+
+  if (downloadPptBtn) {
+    downloadPptBtn.href = project.dashboardPpt || "#";
+  }
 
   await loadProjectUsersDirectory();
 

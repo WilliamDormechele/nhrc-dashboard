@@ -1633,3 +1633,12 @@ body.admin-loading {
     padding: 12px 16px 16px;
   }
 }
+
+#downloadPdfBtn,
+#downloadPptBtn {
+  display: none !important;
+}
+
+.download-actions {
+  display: none !important;
+}
