@@ -1,4 +1,5 @@
 // js/app.js
+// re_j5Kdk8Vh_D2y45R9BqCzbdwk6mze31gfi
 
 window.currentUserProfile = null;
 window.currentProjectCode = null;
@@ -288,7 +289,8 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     projectSelect.value = firstProject;
-    loadProject(firstProject);
+    window.currentProjectCode = firstProject;
+    await loadProject(firstProject);
 
     await logActivity("login", {
       page: "login"

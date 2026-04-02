@@ -1342,7 +1342,7 @@ const setUserActiveStateCallable = functions.httpsCallable("setUserActiveState")
 const softDeleteUserCallable = functions.httpsCallable("softDeleteUser");
 const restoreDeletedUserCallable = functions.httpsCallable("restoreDeletedUser");
 const hardDeleteUserCallable = functions.httpsCallable("hardDeleteUser");
-// const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
+const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
 
 function getAdminUserFilterValue() {
   return document.getElementById("adminUserStatusFilter")?.value || "all";
