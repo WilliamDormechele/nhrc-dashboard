@@ -1,0 +1,11 @@
+{
+  "name": "nhrc-dashboard-hosting",
+  "private": true,
+  "scripts": {
+    "build:version": "node update-version.js",
+    "deploy:hosting": "npm run build:version && firebase deploy --only hosting"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.7.0"
+  }
+}

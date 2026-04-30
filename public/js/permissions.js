@@ -31,6 +31,77 @@ const ROLE_PERMISSIONS = {
     canManageProjects: false
   },
 
+  // 🔹 New roles (same as field_headquarters / project_manager)
+  director: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  project_pi: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  local_principal_investigator: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  head_of_department: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  project_manager: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  project_coordinator: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
+  data_collector: {
+    canViewDashboard: true,
+    canViewReports: true,
+    canDownloadReports: true,
+    canViewQueries: true,
+    canMonitorUsers: true,
+    canManageUsers: false,
+    canManageProjects: false
+  },
+
   administrator: {
     canViewDashboard: true,
     canViewReports: true,
@@ -53,5 +124,9 @@ const ROLE_PERMISSIONS = {
 };
 
 function getPermissions(role) {
-  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.field_worker;
+  const base = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.field_worker;
+  return {
+    canViewChat: true,
+    ...base
+  };
 }

@@ -1,5 +1,4 @@
 // js/auth.js
-const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
 const requestSelfServicePasswordResetCallable = functions.httpsCallable("requestSelfServicePasswordReset");
 
 // 🔒 Prevent persistent login (session only)

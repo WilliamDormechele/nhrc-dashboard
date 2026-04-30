@@ -3,77 +3,138 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>NHRC Multi-Project Dashboard</title>
+  <title>NHRC Projects Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="css/styles.css?v=20260402a" />
+  <link rel="stylesheet" href="css/styles.css?v=20260408032439" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
-<header class="topbar">
-  <div class="topbar-left">
-    <img src="images/nhrc-logo.png" alt="NHRC Logo" class="topbar-logo" />
-    <div>
-      <h1 id="siteTitle">NHRC Projects Dashboard</h1>
-      <div class="topbar-subtitle">
-        Secure dashboard access by project, role, and privilege
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="images/nhrc-logo.png" alt="NHRC Logo" class="topbar-logo" />
+      <div>
+        <h1 id="siteTitle">NHRC Projects Dashboard</h1>
+        <div class="topbar-subtitle">
+          Secure access to research projects, data, and insights
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="topbar-right">
-    <span id="userEmailDisplay">Not signed in</span>
-    <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
-  </div>
-</header>
+    <div class="topbar-right">
+      <span id="userEmailDisplay">Not signed in</span>
+      <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
+    </div>
+  </header>
 
   <div id="systemInfoBar" class="info-bar">
     Secure access enabled. Please sign in.
   </div>
 
   <!-- LOGIN -->
-<!-- LOGIN -->
-<main id="auth-container" class="auth-container">
-  <div class="auth-card">
-    <div class="auth-banner">
-      <strong>How access works now</strong>
-      <ol>
-        <li>Accounts are created by the administrator.</li>
-        <li>Users can only see projects assigned to them.</li>
-        <li>Access is controlled by role and privilege level.</li>
-      </ol>
-    </div>
-
-    <div id="signInSection">
-      <h2 id="authTitle">Sign in</h2>
-      <p id="authIntro">Enter your NHRC email and password.</p>
-
-      <div class="form-group">
-        <label for="emailInput">Email</label>
-        <input type="email" id="emailInput" placeholder="Enter your email (e.g. name@nhrc.org or name@gmail.com)"
-          autocomplete="username" />
+  <!-- LOGIN -->
+  <main id="auth-container" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-banner">
+        <strong>Getting Started</strong>
+        <ol>
+          <li>Sign in using your assigned account</li>
+          <li>Access your allocated projects and reports</li>
+          <li>Your permissions are based on your assigned role</li>
+        </ol>
       </div>
 
-      <div class="form-group">
-        <label for="passwordInput">Password</label>
-        <div class="password-row">
-          <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password" />
-          <button type="button" id="togglePassword" class="btn btn-small">Show</button>
+      <div id="signInSection">
+        <h2 id="authTitle">Sign in</h2>
+        <!-- <p id="authIntro">Enter your NHRC email and password.</p> -->
+
+        <div class="form-group">
+          <label for="emailInput">Email (Enter your NHRC email and password)</label>
+          <input type="email" id="emailInput" placeholder="Enter your email (e.g. name@nhrc.org or name@gmail.com)"
+            autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="passwordInput">Password</label>
+          <div class="password-row">
+            <input type="password" id="passwordInput" placeholder="Enter your password"
+              autocomplete="current-password" />
+            <button type="button" id="togglePassword" class="btn btn-small">Show</button>
+          </div>
+
+          <div class="hint">
+            Use your password. After a reset, you can sign in with any standard secure password.
+          </div>
+
+          <div class="password-strength-wrap">
+            <div class="password-strength-bar">
+              <div id="signInPasswordStrengthFill" class="password-strength-fill"></div>
+            </div>
+            <div id="signInPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
+          </div>
+
+          <div id="signInPasswordCriteria" class="password-criteria">
+            <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span>
+            </div>
+            <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase
+                letter</span>
+            </div>
+            <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase
+                letter</span>
+            </div>
+            <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 number</span></div>
+            <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special
+                character</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="signInActions">
+          <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+
+          <div class="forgot-line">
+            <a href="#" id="forgotPasswordLink">Forgot password?</a>
+          </div>
+        </div>
+      </div>
+
+      <div id="resetPasswordSection" style="display:none; margin-top:18px;">
+        <h3 style="margin-bottom:10px;">Set a new password</h3>
+        <p style="margin-bottom:14px; color:#475569;">
+          Enter your new password below. It must meet the password requirements.
+        </p>
+
+        <div class="form-group">
+          <label for="newPasswordInput">New password</label>
+          <div class="password-row">
+            <input type="password" id="newPasswordInput" placeholder="Enter your new password"
+              autocomplete="new-password" />
+            <button type="button" id="toggleNewPassword" class="btn btn-small">Show</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPasswordInput">Confirm new password</label>
+          <div class="password-row">
+            <input type="password" id="confirmPasswordInput" placeholder="Re-enter your new password"
+              autocomplete="new-password" />
+            <button type="button" id="toggleConfirmPassword" class="btn btn-small">Show</button>
+          </div>
         </div>
 
         <div class="hint">
-          Use your password. After a reset, you can sign in with any standard secure password.
+          Your password must be strong before it can be saved.
         </div>
 
         <div class="password-strength-wrap">
           <div class="password-strength-bar">
-            <div id="signInPasswordStrengthFill" class="password-strength-fill"></div>
+            <div id="resetPasswordStrengthFill" class="password-strength-fill"></div>
           </div>
-          <div id="signInPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
+          <div id="resetPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
         </div>
 
-        <div id="signInPasswordCriteria" class="password-criteria">
+        <div id="resetPasswordCriteria" class="password-criteria">
           <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
           <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span>
           </div>
@@ -83,81 +144,25 @@
           <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span>
           </div>
         </div>
-      </div>
 
-      <div id="signInActions">
-        <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+        <div class="reset-actions" style="margin-top:16px;">
+          <button id="confirmResetBtn" class="btn btn-primary full-width">
+            Save new password
+          </button>
 
-        <div class="forgot-line">
-          <a href="#" id="forgotPasswordLink">Forgot password?</a>
+          <button type="button" id="backToLoginBtn" class="btn btn-secondary full-width">
+            Back to sign in
+          </button>
+        </div>
+
+        <div class="forgot-line" style="margin-top:12px; text-align:center;">
+          <a href="#" id="requestNewResetLinkBtn">Reset link expired? Request a new one</a>
         </div>
       </div>
+
+      <div id="authMessage" class="auth-message"></div>
     </div>
-
-    <div id="resetPasswordSection" style="display:none; margin-top:18px;">
-      <h3 style="margin-bottom:10px;">Set a new password</h3>
-      <p style="margin-bottom:14px; color:#475569;">
-        Enter your new password below. It must meet the password requirements.
-      </p>
-
-      <div class="form-group">
-        <label for="newPasswordInput">New password</label>
-        <div class="password-row">
-          <input type="password" id="newPasswordInput" placeholder="Enter your new password"
-            autocomplete="new-password" />
-          <button type="button" id="toggleNewPassword" class="btn btn-small">Show</button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="confirmPasswordInput">Confirm new password</label>
-        <div class="password-row">
-          <input type="password" id="confirmPasswordInput" placeholder="Re-enter your new password"
-            autocomplete="new-password" />
-          <button type="button" id="toggleConfirmPassword" class="btn btn-small">Show</button>
-        </div>
-      </div>
-
-      <div class="hint">
-        Your password must be strong before it can be saved.
-      </div>
-
-      <div class="password-strength-wrap">
-        <div class="password-strength-bar">
-          <div id="resetPasswordStrengthFill" class="password-strength-fill"></div>
-        </div>
-        <div id="resetPasswordStrengthText" class="password-strength-text">Password strength: not entered</div>
-      </div>
-
-      <div id="resetPasswordCriteria" class="password-criteria">
-        <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 8 characters</span></div>
-        <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 uppercase letter</span>
-        </div>
-        <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 lowercase letter</span>
-        </div>
-        <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 number</span></div>
-        <div class="password-criterion"><span class="criterion-icon">○</span><span>At least 1 special character</span>
-        </div>
-      </div>
-
-<div class="reset-actions" style="margin-top:16px;">
-  <button id="confirmResetBtn" class="btn btn-primary full-width">
-    Save new password
-  </button>
-
-  <button type="button" id="backToLoginBtn" class="btn btn-secondary full-width">
-    Back to sign in
-  </button>
-</div>
-
-<div class="forgot-line" style="margin-top:12px; text-align:center;">
-  <a href="#" id="requestNewResetLinkBtn">Reset link expired? Request a new one</a>
-</div>
-</div>
-
-    <div id="authMessage" class="auth-message"></div>
-  </div>
-</main>
+  </main>
 
   <!-- APP -->
   <main id="app-container" class="app-container" style="display:none;">
@@ -165,7 +170,7 @@
     <section class="panel">
       <div class="controls-grid">
         <div>
-          <label for="projectSelect">Project</label>
+          <label for="projectSelect">Project Name</label>
           <select id="projectSelect"></select>
         </div>
 
@@ -181,37 +186,43 @@
       </div>
     </section>
 
-<!-- Tabs -->
-<section class="panel">
-  <div class="tab-bar">
+    <!-- Tabs -->
+    <section class="panel">
+      <div class="tab-bar">
 
-    <button class="tab-button active" data-tab="tab-dashboard">
-      <i class="fas fa-home"></i>
-      <span>Dashboard</span>
-    </button>
+        <button class="tab-button active" data-tab="tab-dashboard">
+          <i class="fas fa-home"></i>
+          <span>Dashboard</span>
+        </button>
 
-    <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">
-      <i class="fas fa-file-alt"></i>
-      <span>Reports</span>
-    </button>
+        <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">
+          <i class="fas fa-file-alt"></i>
+          <span>Reports</span>
+        </button>
 
-    <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">
-      <i class="fas fa-question-circle"></i>
-      <span>Data Queries</span>
-    </button>
+        <button class="tab-button" data-tab="tab-chat" id="chatTabBtn">
+          <i class="fas fa-comments"></i>
+          <span>Live Chat</span>
+          <span id="chatTabUnreadBadge" class="assignment-count-badge hidden" style="margin-left:8px;">0</span>
+        </button>
 
-    <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">
-      <i class="fas fa-chart-line"></i>
-      <span>Strategic Oversight</span>
-    </button>
+        <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">
+          <i class="fas fa-question-circle"></i>
+          <span>Data Queries</span>
+        </button>
 
-    <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">
-      <i class="fas fa-user-shield"></i>
-      <span>Admin</span>
-    </button>
+        <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">
+          <i class="fas fa-chart-line"></i>
+          <span>Strategic Oversight</span>
+        </button>
 
-  </div>
-</section>
+        <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">
+          <i class="fas fa-user-shield"></i>
+          <span>Admin</span>
+        </button>
+
+      </div>
+    </section>
 
     <!-- Dashboard -->
     <section id="tab-dashboard" class="tab-content active panel">
@@ -220,18 +231,107 @@
         <p id="dashboardDescription">Select a project to view its dashboard.</p>
       </div>
 
-      <div class="download-actions">
-        <a id="downloadPdfBtn" class="action-btn pdf" href="#" target="_blank" rel="noopener">⬇ Download PDF</a>
-        <a id="downloadPptBtn" class="action-btn ppt" href="#" target="_blank" rel="noopener">⬇ Download PPT</a>
+<div class="download-actions">
+  <a id="downloadPdfBtn" class="action-btn pdf" href="#" target="_blank" rel="noopener">⬇ Download PDF</a>
+  <a id="downloadPptBtn" class="action-btn ppt" href="#" target="_blank" rel="noopener">⬇ Download PPT</a>
+</div>
+
+<div class="dashboard-instructions">
+  Use the project dropdown ABOVE to switch between projects you are assigned to.
+</div>
+
+<div id="dashboardHelpBar" class="panel inner-panel" style="margin-top:14px;">
+  <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+      <span class="assignment-tag"><i class="fas fa-map-signs"></i> Page navigation is inside the Power BI footer</span>
+      <span class="assignment-tag"><i class="fas fa-search-plus"></i> Use + and - inside Power BI for zoom</span>
+      <span class="assignment-tag"><i class="fas fa-expand"></i> Use Fit / Full screen inside Power BI for better
+        view</span>
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button type="button" id="startDashboardGuideBtn" class="btn btn-secondary">
+        <i class="fas fa-person-chalkboard"></i> Show Dashboard Guide
+      </button>
+    </div>
+  </div>
+</div>
+
+      <div id="assignmentOverviewPanel" class="panel inner-panel assignment-overview-panel assignment-collapsible-panel">
+        <div class="assignment-collapsible-header">
+          <div class="assignment-collapsible-title-wrap">
+            <h3 id="assignmentOverviewTitle">District, Supervisor and Field Worker Assignments</h3>
+            <p id="assignmentOverviewSubtitle" class="assignment-overview-subtitle">
+              Overview of district, supervisor and field worker assignments for the selected project.
+            </p>
+          </div>
+
+          <div class="assignment-collapsible-actions">
+            <div id="assignmentOverviewMeta" class="assignment-meta-pills"></div>
+
+            <button type="button" id="assignmentOverviewToggleBtn" class="btn btn-secondary assignment-toggle-btn"
+              aria-expanded="false" aria-controls="assignmentOverviewContent">
+              <span id="assignmentOverviewToggleText">Show Assignments</span>
+              <i id="assignmentOverviewToggleIcon" class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="assignmentOverviewContent" class="assignment-collapsible-content collapsed" aria-hidden="true">
+          <div id="assignmentOverviewFilters" class="assignment-filter-row">
+            <div id="assignmentDistrictFilterWrap">
+              <label for="assignmentDistrictFilter">District</label>
+              <select id="assignmentDistrictFilter">
+                <option value="">All districts</option>
+              </select>
+            </div>
+
+            <div id="assignmentSupervisorFilterWrap">
+              <label for="assignmentSupervisorFilter">Supervisor</label>
+              <select id="assignmentSupervisorFilter">
+                <option value="">All supervisors</option>
+              </select>
+            </div>
+
+            <div id="assignmentWorkerSearchWrap">
+              <label for="assignmentWorkerSearch">Field worker search</label>
+              <input type="text" id="assignmentWorkerSearch" placeholder="Search by field worker name or email" />
+            </div>
+
+            <div class="assignment-filter-actions">
+              <label>&nbsp;</label>
+              <button type="button" id="clearAssignmentFiltersBtn" class="btn btn-secondary">
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          <div id="assignmentOverviewBody" class="assignment-overview-body">
+            <div class="placeholder-box">Assignment overview will load after sign in.</div>
+          </div>
+        </div>
       </div>
 
-      <div class="dashboard-instructions">
-        Use the project dropdown to switch between projects you are assigned to.
-      </div>
+<div id="dashboardFrameWrap" class="powerbi-container" style="position:relative;">
+  <iframe id="dashboardFrame" title="Project Dashboard" allowfullscreen></iframe>
 
-      <div class="powerbi-container">
-        <iframe id="dashboardFrame" title="Project Dashboard" allowfullscreen></iframe>
-      </div>
+  <div id="powerBiHintFooter"
+    style="position:absolute; left:18px; right:18px; bottom:12px; pointer-events:none; display:none;">
+    <div style="
+      background:rgba(15, 23, 42, 0.82);
+      color:#fff;
+      border-radius:12px;
+      padding:10px 14px;
+      font-size:13px;
+      line-height:1.45;
+      box-shadow:0 10px 24px rgba(0,0,0,0.18);
+      max-width:420px;
+    ">
+      <strong>Power BI controls are here</strong><br>
+      Use the footer area for page navigation, zoom in and out, and fit to page or full screen.
+    </div>
+  </div>
+</div>
     </section>
 
     <!-- Reports -->
@@ -244,10 +344,113 @@
       <div id="reportsContainer" class="reports-layout"></div>
     </section>
 
+<section id="tab-chat" class="tab-content panel chat-tab-panel">
+  <div class="chat-mobile-shell" id="chatRoot">
+    <div class="chat-mobile-sidebar">
+      <div class="chat-mobile-topbar">
+        <div>
+          <div class="chat-mobile-title">Chats</div>
+          <div class="chat-mobile-subtitle">Project rooms and direct messages</div>
+        </div>
+
+        <div class="chat-mobile-top-actions">
+          <button type="button" id="chatSidebarProjectBtn" class="chat-icon-circle" title="Open project room">
+            <i class="fas fa-comments"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-search-wrap">
+        <i class="fas fa-search"></i>
+        <input id="chatSearchInput" type="text" placeholder="Search chats or users" />
+      </div>
+
+      <div class="chat-filter-chips">
+        <button type="button" class="chat-filter-chip active" data-chat-filter="all">All</button>
+        <button type="button" class="chat-filter-chip" data-chat-filter="unread">Unread</button>
+        <button type="button" class="chat-filter-chip" data-chat-filter="project">Project Room</button>
+        <button type="button" class="chat-filter-chip" data-chat-filter="direct">Direct</button>
+      </div>
+
+      <div class="chat-sidebar-card">
+        <div class="chat-sidebar-card-head">
+          <span>Current project</span>
+          <span id="chatUnreadSummary" class="chat-sidebar-meta">0 unread</span>
+        </div>
+
+        <div id="chatProjectPill" class="chat-project-pill">
+          <i class="fas fa-folder-open"></i>
+          No project selected
+        </div>
+
+        <button id="openProjectRoomBtn" class="btn btn-primary chat-project-open-btn" type="button">
+          <i class="fas fa-comments"></i> Open Project Room
+        </button>
+      </div>
+
+      <div id="chatThreadList" class="chat-thread-list chat-thread-list-modern"></div>
+
+      <div class="chat-sidebar-section-label">Assigned users</div>
+      <div id="chatContactsList" class="chat-contacts-list chat-contacts-list-modern"></div>
+    </div>
+
+    <section class="chat-mobile-main">
+      <div class="chat-mobile-header">
+        <div class="chat-mobile-header-main">
+          <div class="chat-mobile-avatar" id="chatHeaderAvatar">
+            <i class="fas fa-comments"></i>
+          </div>
+
+          <div class="chat-mobile-header-text">
+            <h3 id="chatActiveTitle">Select a conversation</h3>
+            <div id="chatActiveMeta">Choose a project room or direct message</div>
+          </div>
+        </div>
+
+        <div class="chat-mobile-header-actions">
+          <div id="chatTypingNotice" class="chat-typing-pill hidden">
+            <i class="fas fa-keyboard"></i>
+            Someone is typing...
+          </div>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="chat-messages chat-messages-modern">
+        <div class="chat-empty-state">
+          <div class="chat-empty-icon"><i class="fas fa-comments"></i></div>
+          <div class="chat-empty-title">Open a chat to start messaging</div>
+          <div class="chat-empty-text">Select the project room or a direct message from the left side.</div>
+        </div>
+      </div>
+
+      <div class="chat-compose chat-compose-modern">
+        <div class="chat-compose-input-wrap">
+          <textarea id="chatTextInput" rows="2" placeholder="Type a message"></textarea>
+        </div>
+
+        <div class="chat-compose-row chat-compose-actions">
+          <div class="chat-file-wrap">
+            <input id="chatFileInput" type="file" />
+            <small class="monitoring-meta-text">Attachments supported. Recommended max 10 MB.</small>
+          </div>
+
+          <div class="chat-send-side">
+            <span id="chatAttachmentName" class="monitoring-meta-text"></span>
+            <button id="chatSendBtn" class="btn btn-primary chat-send-btn" type="button">
+              <i class="fas fa-paper-plane"></i>
+              <span>Send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+    
     <!-- Queries -->
     <section id="tab-queries" class="tab-content panel">
       <div class="section-header">
-        <h2>Outstanding Compounds, Households and Data Queries</h2>
+        <h2>Data Queries</h2>
         <p>This area is available only to users with query access.</p>
       </div>
 
@@ -255,69 +458,96 @@
     </section>
 
     <!-- Monitoring -->
-<!-- Monitoring -->
-<section id="tab-monitoring" class="tab-content panel">
-  <div class="section-header">
-    <h2>Strategic Oversight</h2>
-    <p>Track logins, downloads, user engagement, and operational activity across projects.</p>
+    <section id="tab-monitoring" class="tab-content panel">
+      <div class="section-header">
+        <h2>Strategic Oversight</h2>
+        <p>Track logins, downloads, user engagement, and operational activity across projects.</p>
+      </div>
+
+      <div class="toolbar-row monitoring-filters-row">
+        <div>
+          <label for="monitoringDays">Time window</label>
+          <select id="monitoringDays">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="monitoringProjectFilter">Project</label>
+          <select id="monitoringProjectFilter">
+            <option value="">All projects</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="monitoringSupervisorFilter">Supervisor</label>
+          <select id="monitoringSupervisorFilter">
+            <option value="">All supervisors</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="monitoringFieldworkerFilter">Fieldworker</label>
+          <select id="monitoringFieldworkerFilter">
+            <option value="">All fieldworkers</option>
+          </select>
+        </div>
+
+        <div class="toolbar-end monitoring-actions">
+          <button id="clearMonitoringFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+          <button id="refreshMonitoringBtn" class="btn btn-primary">Refresh Monitoring</button>
+        </div>
+      </div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Logins</div>
+    <div class="stat-value" id="statLogins">0</div>
   </div>
 
-  <div class="toolbar-row monitoring-filters-row">
-    <div>
-      <label for="monitoringDays">Time window</label>
-      <select id="monitoringDays">
-        <option value="7">Last 7 days</option>
-        <option value="14">Last 14 days</option>
-        <option value="30" selected>Last 30 days</option>
-        <option value="90">Last 90 days</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="monitoringProjectFilter">Project</label>
-      <select id="monitoringProjectFilter">
-        <option value="">All projects</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="monitoringSupervisorFilter">Supervisor</label>
-      <select id="monitoringSupervisorFilter">
-        <option value="">All supervisors</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="monitoringFieldworkerFilter">Fieldworker</label>
-      <select id="monitoringFieldworkerFilter">
-        <option value="">All fieldworkers</option>
-      </select>
-    </div>
-
-    <div class="toolbar-end monitoring-actions">
-      <button id="clearMonitoringFiltersBtn" class="btn btn-secondary">Clear Filters</button>
-      <button id="refreshMonitoringBtn" class="btn btn-primary">Refresh Monitoring</button>
-    </div>
+  <div class="stat-card">
+    <div class="stat-label">Downloads</div>
+    <div class="stat-value" id="statDownloads">0</div>
   </div>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-label">Logins</div>
-      <div class="stat-value" id="statLogins">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Downloads</div>
-      <div class="stat-value" id="statDownloads">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Unique Users</div>
-      <div class="stat-value" id="statUsers">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Tracked Minutes</div>
-      <div class="stat-value" id="statMinutes">0</div>
-    </div>
+  <div class="stat-card">
+    <div class="stat-label">Unique Users</div>
+    <div class="stat-value" id="statUsers">0</div>
   </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Tracked Minutes</div>
+    <div class="stat-value" id="statMinutes">0</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Total Actions</div>
+    <div class="stat-value" id="statActions">0</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Active Fieldworkers</div>
+    <div class="stat-value" id="statActiveFieldworkers">0</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Fieldworker Coverage</div>
+    <div class="stat-value" id="statFieldworkerCoverage">0%</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Avg Minutes / User</div>
+    <div class="stat-value" id="statAvgMinutesPerUser">0</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">Admin Activity Share</div>
+    <div class="stat-value" id="statAdminShare">0%</div>
+  </div>
+</div>
 
 <div class="charts-grid monitoring-charts-grid">
   <div class="chart-card chart-card-compact">
@@ -331,7 +561,7 @@
   </div>
 
   <div class="chart-card">
-    <h3>Top Active Users</h3>
+    <h3>Top Users by Logged Events</h3>
     <canvas id="usersChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
@@ -349,82 +579,96 @@
     <h3>Most Visited Pages</h3>
     <canvas id="pagesChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
-</div>
 
-<div class="panel inner-panel">
-  <div class="section-row monitoring-log-header">
-    <h3>Recent Activity Logs</h3>
-    <div id="monitoringLogsCount" class="monitoring-meta-text">0 records</div>
+  <div class="chart-card">
+    <h3>Top Engaged Users by Minutes</h3>
+    <canvas id="engagedUsersChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
-  <div class="toolbar-row monitoring-log-filters-row">
-    <div>
-      <label for="monitoringActionFilter">Action</label>
-      <select id="monitoringActionFilter">
-        <option value="">All actions</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="monitoringPageFilter">Page</label>
-      <select id="monitoringPageFilter">
-        <option value="">All pages</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="monitoringStartDate">Start date</label>
-      <input type="date" id="monitoringStartDate" />
-    </div>
-
-    <div>
-      <label for="monitoringEndDate">End date</label>
-      <input type="date" id="monitoringEndDate" />
-    </div>
-
-    <div>
-      <label for="monitoringSearchText">Search</label>
-      <input type="text" id="monitoringSearchText" placeholder="user, target, email, action..." />
-    </div>
-
-    <div>
-      <label for="monitoringPageSize">Rows per page</label>
-      <select id="monitoringPageSize">
-        <option value="10">10</option>
-        <option value="25" selected>25</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
-    </div>
+  <div class="chart-card">
+    <h3>Daily Active Users</h3>
+    <canvas id="dailyUsersChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Date/Time</th>
-          <th>User</th>
-          <th>Role</th>
-          <th>Project</th>
-          <th>Action</th>
-          <th>Page</th>
-          <th>Target</th>
-          <th>Duration</th>
-        </tr>
-      </thead>
-      <tbody id="monitoringTableBody"></tbody>
-    </table>
-  </div>
-
-  <div class="monitoring-pagination">
-    <div id="monitoringPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
-    <div class="monitoring-pagination-actions">
-      <button id="monitoringPrevPageBtn" class="btn btn-secondary">Previous</button>
-      <button id="monitoringNextPageBtn" class="btn btn-secondary">Next</button>
-    </div>
+  <div class="chart-card">
+    <h3>Project Engagement Minutes</h3>
+    <canvas id="projectMinutesChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 </div>
-</section>
+      <div class="panel inner-panel">
+        <div class="section-row monitoring-log-header">
+          <h3>Recent Activity Logs</h3>
+          <div id="monitoringLogsCount" class="monitoring-meta-text">0 records</div>
+        </div>
+
+        <div class="toolbar-row monitoring-log-filters-row">
+          <div>
+            <label for="monitoringActionFilter">Action</label>
+            <select id="monitoringActionFilter">
+              <option value="">All actions</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="monitoringPageFilter">Page</label>
+            <select id="monitoringPageFilter">
+              <option value="">All pages</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="monitoringStartDate">Start date</label>
+            <input type="date" id="monitoringStartDate" />
+          </div>
+
+          <div>
+            <label for="monitoringEndDate">End date</label>
+            <input type="date" id="monitoringEndDate" />
+          </div>
+
+          <div>
+            <label for="monitoringSearchText">Search</label>
+            <input type="text" id="monitoringSearchText" placeholder="user, target, email, action..." />
+          </div>
+
+          <div>
+            <label for="monitoringPageSize">Rows per page</label>
+            <select id="monitoringPageSize">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date/Time</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Project</th>
+                <th>Action</th>
+                <th>Page</th>
+                <th>Target</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="monitoringTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="monitoring-pagination">
+          <div id="monitoringPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
+          <div class="monitoring-pagination-actions">
+            <button id="monitoringPrevPageBtn" class="btn btn-secondary">Previous</button>
+            <button id="monitoringNextPageBtn" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Admin -->
     <section id="tab-admin" class="tab-content panel">
@@ -433,300 +677,526 @@
         <p>Create users, assign projects, manage privileges, and manage projects.</p>
       </div>
 
-      <!-- User management -->
-      <div class="panel inner-panel" id="adminUserFormCard">
-        <h3>Create / Edit User</h3>
+      <!-- Create / Edit User -->
+      <div class="panel inner-panel assignment-collapsible-panel" id="adminUserFormCard">
+        <div class="assignment-collapsible-header">
+          <div class="assignment-collapsible-title-wrap">
+            <h3>Create / Edit User</h3>
+            <p class="assignment-overview-subtitle">
+              Add a new user or load an existing user into the form for editing.
+            </p>
+          </div>
 
-        <!-- Hidden field stores the UID when editing an existing user -->
-        <input type="hidden" id="editingUserId" />
-
-<div class="form-grid-2">
-  <div class="form-group">
-    <label for="adminUserFullName">Full name</label>
-    <input type="text" id="adminUserFullName" />
-  </div>
-
-  <div class="form-group">
-    <label for="adminUserEmail">Email</label>
-    <input type="email" id="adminUserEmail" />
-  </div>
-
-  <div class="form-group">
-    <label for="adminUserPassword">Temporary PIN / Password</label>
-    <input type="text" id="adminUserPassword" placeholder="For new users only" />
-  </div>
-
-  <div class="form-group">
-    <label for="adminUserRole">Role</label>
-    <select id="adminUserRole">
-      <option value="field_worker">Field Worker</option>
-      <option value="field_supervisor">Field Supervisor</option>
-      <option value="field_headquarters">Field Headquarters</option>
-      <option value="administrator">Administrator</option>
-      <option value="developer">Developer</option>
-    </select>
-  </div>
-
-  <div class="form-group">
-    <label for="adminUserIsActive">Is Active?</label>
-    <select id="adminUserIsActive">
-      <option value="true">Yes</option>
-      <option value="false">No</option>
-    </select>
-  </div>
-
-  <div class="form-group" id="adminSupervisorGroup">
-    <label for="adminUserSupervisor">Supervisor</label>
-    <select id="adminUserSupervisor">
-      <option value="">Select supervisor</option>
-    </select>
-    <small id="adminSupervisorHelp" style="display:block; margin-top:6px; color:#64748b;">
-      Required for Field Worker only.
-    </small>
-  </div>
-</div>
-
-<div class="form-group">
-  <label>Assigned Projects</label>
-  <div id="adminUserProjectsBox" class="checkbox-grid"></div>
-</div>
-        <div class="button-row">
-          <button id="saveUserBtn" class="btn btn-primary">Save User</button>
-          <button id="clearUserFormBtn" class="btn btn-secondary">Clear Form</button>
+          <div class="assignment-collapsible-actions">
+            <button type="button" id="adminUserFormToggleBtn" class="btn btn-secondary assignment-toggle-btn"
+              aria-expanded="false" aria-controls="adminUserFormContent">
+              <span id="adminUserFormToggleText">Open Form</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
         </div>
 
-        <div id="adminUserMessage" class="admin-message"></div>
-      </div>
+        <div id="adminUserFormContent" class="assignment-collapsible-content collapsed" aria-hidden="true">
+          <input type="hidden" id="editingUserId" />
 
-<div class="panel inner-panel">
-  <div class="section-row">
-    <h3>User List</h3>
-    <div>
-      <div class="button-row">
-        <button id="backfillMissingMonitoringBtn" class="btn btn-secondary">Backfill Missing</button>
-        <button id="forceRebuildMonitoringBtn" class="btn btn-secondary">Force Rebuild Directory</button>
-        <button id="refreshUsersBtn" class="btn btn-secondary">Refresh Users</button>
-      </div>
-      <div id="monitoringDirectorySyncBadge" class="sync-status-badge sync-status-idle">
-        Last sync: Not run yet
-      </div>
-    </div>
-  </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="adminUserFullName">Full name</label>
+              <input type="text" id="adminUserFullName" />
+            </div>
 
-  <div class="stats-grid" style="margin:16px 0 20px;">
-    <div class="stat-card">
-      <div class="stat-label">Total Users</div>
-      <div class="stat-value" id="adminUserTotalCount">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Active Users</div>
-      <div class="stat-value" id="adminUserActiveCount">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Inactive Users</div>
-      <div class="stat-value" id="adminUserInactiveCount">0</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Deleted Users</div>
-      <div class="stat-value" id="adminUserDeletedCount">0</div>
-    </div>
-  </div>
+            <div class="form-group">
+              <label for="adminUserEmail">Email</label>
+              <input type="email" id="adminUserEmail" />
+            </div>
 
-  <div class="toolbar-row" style="margin-bottom:14px;">
-    <div>
-      <label for="adminUserStatusFilter">Show</label>
-      <select id="adminUserStatusFilter">
-        <option value="active">Active only</option>
-        <option value="inactive">Inactive only</option>
-        <option value="deleted">Deleted only</option>
-        <option value="all" selected>All users</option>
-      </select>
-    </div>
-  </div>
+            <div class="form-group">
+              <label for="adminUserPassword">Temporary PIN / Password</label>
+              <input type="text" id="adminUserPassword" placeholder="For new users only" />
+            </div>
 
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Full Name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Supervisor</th>
-          <th>Status</th>
-          <th>Assigned Projects</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="usersTableBody"></tbody>
-    </table>
-  </div>
-</div>
+            <div class="form-group">
+              <label for="adminUserRole">Role</label>
+              <select id="adminUserRole">
+                <option value="field_worker">Field Worker</option>
+                <option value="field_supervisor">Field Supervisor</option>
+                <option value="field_headquarters">Field Headquarters</option>
 
-<div class="panel inner-panel">
-  <div class="section-row">
-    <h3>Recent Admin Audit Trail</h3>
-    <button id="refreshAdminAuditBtn" class="btn btn-secondary">Refresh Audit</button>
-  </div>
+                <!-- NEW ROLES -->
+                <option value="director">Director</option>
+                <option value="project_pi">Project PI</option>
+                <option value="local_principal_investigator">Local Principal Investigator</option>
+                <option value="head_of_department">Head of Department</option>
+                <option value="project_manager">Project Manager</option>
+                <option value="project_coordinator">Project Coordinator</option>
+                <option value="data_collector">Data Collector</option>
 
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Date/Time</th>
-          <th>Action</th>
-          <th>Target User</th>
-          <th>Admin</th>
-          <th>Note</th>
-        </tr>
-      </thead>
-      <tbody id="adminAuditTableBody"></tbody>
-    </table>
-  </div>
-</div>
+                <option value="administrator">Administrator</option>
+                <option value="developer">Developer</option>
+              </select>
+            </div>
 
-      <!-- Project management -->
-      <div class="panel inner-panel" id="adminProjectFormCard">
-        <h3>Create / Edit Project</h3>
+            <div class="form-group">
+              <label for="adminUserIsActive">Is Active?</label>
+              <select id="adminUserIsActive">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
 
-        <input type="hidden" id="editingProjectCode" />
+            <div class="form-group" id="adminSupervisorGroup">
+              <label for="adminUserSupervisor">Supervisor</label>
+              <select id="adminUserSupervisor">
+                <option value="">Select supervisor</option>
+              </select>
+              <small id="adminSupervisorHelp" style="display:block; margin-top:6px; color:#64748b;">
+                Required for Field Worker only.
+              </small>
+            </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label for="projectCodeInput">Project Code</label>
-            <input type="text" id="projectCodeInput" placeholder="e.g. brave" />
+                        <div class="form-group" id="adminDistrictGroup">
+                          <label for="adminUserDistrict">District</label>
+                          <select id="adminUserDistrict">
+                            <option value="">Select district</option>
+                            <option value="KASSENA-NANKANA DISTRICT">KASSENA-NANKANA DISTRICT</option>
+                            <option value="BUILSA NORTH DISTRICT">BUILSA NORTH DISTRICT</option>
+                            <option value="BUILSA SOUTH DISTRICT">BUILSA SOUTH DISTRICT</option>
+                            <option value="MANPURUGU MAGDORI DISTRICT">MANPURUGU MAGDORI DISTRICT</option>
+                          </select>
+                          <small id="adminDistrictHelp" style="display:block; margin-top:6px; color:#64748b;">
+                            Required for Field Worker only.
+                          </small>
+                        </div>
           </div>
 
           <div class="form-group">
-            <label for="projectNameInput">Project Name</label>
-            <input type="text" id="projectNameInput" placeholder="e.g. BRAVE" />
+            <label>Assigned Projects</label>
+            <div id="adminUserProjectsBox" class="checkbox-grid"></div>
           </div>
 
-          <div class="form-group">
-            <label for="projectDescriptionInput">Description</label>
-            <input type="text" id="projectDescriptionInput" />
+          <div class="button-row">
+            <button id="saveUserBtn" class="btn btn-primary">Save User</button>
+            <button id="clearUserFormBtn" class="btn btn-secondary">Clear Form</button>
           </div>
 
-          <div class="form-group">
-            <label for="projectEnabledInput">Enabled?</label>
-            <select id="projectEnabledInput">
-              <option value="true">Yes</option>
-              <option value="false">No</option>
+          <div id="adminUserMessage" class="admin-message"></div>
+        </div>
+      </div>
+
+      <!-- User List -->
+      <div class="panel inner-panel">
+        <div class="section-row">
+          <h3>User List</h3>
+          <div>
+            <div class="button-row">
+              <button id="backfillMissingMonitoringBtn" class="btn btn-secondary">Backfill Missing</button>
+              <button id="forceRebuildMonitoringBtn" class="btn btn-secondary">Force Rebuild Directory</button>
+              <button id="refreshUsersBtn" class="btn btn-secondary">Refresh Users</button>
+            </div>
+            <div id="monitoringDirectorySyncBadge" class="sync-status-badge sync-status-idle">
+              Last sync: Not run yet
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid" style="margin:16px 0 20px;">
+          <div class="stat-card">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value" id="adminUserTotalCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Users</div>
+            <div class="stat-value" id="adminUserActiveCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Inactive Users</div>
+            <div class="stat-value" id="adminUserInactiveCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Deleted Users</div>
+            <div class="stat-value" id="adminUserDeletedCount">0</div>
+          </div>
+        </div>
+
+        <div class="toolbar-row" style="margin-bottom:14px; gap:12px; flex-wrap:wrap;">
+          <div>
+            <label for="adminUserStatusFilter">Show</label>
+            <select id="adminUserStatusFilter">
+              <option value="active">Active only</option>
+              <option value="inactive">Inactive only</option>
+              <option value="deleted">Deleted only</option>
+              <option value="all" selected>All users</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="projectDashboardUrlInput">Dashboard Embed URL</label>
-            <input type="text" id="projectDashboardUrlInput" />
+          <div>
+            <label for="adminUserFullNameFilter">Full Name</label>
+            <input type="text" id="adminUserFullNameFilter" placeholder="Filter full name" />
           </div>
 
-          <div class="form-group">
-            <label for="projectPdfInput">Dashboard PDF Path</label>
-            <input type="text" id="projectPdfInput" />
+          <div>
+            <label for="adminUserEmailFilter">Email</label>
+            <input type="text" id="adminUserEmailFilter" placeholder="Filter email" />
           </div>
 
-          <div class="form-group full-span">
-            <label for="projectPptInput">Dashboard PPT Path</label>
-            <input type="text" id="projectPptInput" />
+          <div>
+            <label for="adminUserSupervisorFilter">Supervisor</label>
+            <input type="text" id="adminUserSupervisorFilter" placeholder="Filter supervisor" />
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="projectReportsJsonInput">Reports JSON</label>
-          <textarea id="projectReportsJsonInput" rows="8" class="code-textarea"></textarea>
-        </div>
+          <div>
+            <label for="adminUserProjectFilter">Assigned Project</label>
+            <input type="text" id="adminUserProjectFilter" placeholder="Filter project code" />
+          </div>
 
-        <div class="form-group">
-          <label for="projectQueriesJsonInput">Queries JSON</label>
-          <textarea id="projectQueriesJsonInput" rows="5" class="code-textarea"></textarea>
-        </div>
+          <div>
+            <label for="adminUserSearchText">Search</label>
+            <input type="text" id="adminUserSearchText" placeholder="Search any user field..." />
+          </div>
 
-        <div class="button-row">
-          <button id="saveProjectBtn" class="btn btn-primary">Save Project</button>
-          <button id="clearProjectFormBtn" class="btn btn-secondary">Clear Project Form</button>
-          <button id="seedProjectsBtn" class="btn btn-secondary">Seed Fallback Projects to Firestore</button>
-        </div>
+          <div>
+            <label for="adminUserPageSize">Rows per page</label>
+            <select id="adminUserPageSize">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
 
-        <div id="adminProjectMessage" class="admin-message"></div>
-      </div>
-
-      <div class="panel inner-panel">
-        <div class="section-row">
-          <h3>Project List</h3>
-          <button id="refreshProjectsBtn" class="btn btn-secondary">Refresh Projects</button>
+          <div class="toolbar-end">
+            <button id="clearAdminUserFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+          </div>
         </div>
 
         <div class="table-wrap">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Name</th>
-                <th>Enabled</th>
-                <th>Dashboard</th>
+                <th class="admin-sortable" data-table="users" data-sort="fullName">Full Name</th>
+                <th class="admin-sortable" data-table="users" data-sort="email">Email</th>
+                <th class="admin-sortable" data-table="users" data-sort="role">Role</th>
+                <th class="admin-sortable" data-table="users" data-sort="supervisor">Supervisor</th>
+                <th class="admin-sortable" data-table="users" data-sort="status">Status</th>
+                <th class="admin-sortable" data-table="users" data-sort="assignedProjects">Assigned Projects</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="monitoring-pagination" style="margin-top:14px;">
+          <div id="adminUsersPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
+          <div class="monitoring-pagination-actions">
+            <button id="adminUsersPrevPageBtn" class="btn btn-secondary">Previous</button>
+            <button id="adminUsersNextPageBtn" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Admin Audit Trail -->
+      <div class="panel inner-panel assignment-collapsible-panel">
+        <div class="assignment-collapsible-header">
+          <div class="assignment-collapsible-title-wrap">
+            <h3>Recent Admin Audit Trail</h3>
+            <p class="assignment-overview-subtitle">
+              Review user administration actions, email lifecycle events, and change history.
+            </p>
+          </div>
+
+          <div class="assignment-collapsible-actions">
+            <button id="refreshAdminAuditBtn" class="btn btn-secondary">Refresh Audit</button>
+            <button type="button" id="adminAuditToggleBtn" class="btn btn-secondary assignment-toggle-btn"
+              aria-expanded="false" aria-controls="adminAuditContent">
+              <span id="adminAuditToggleText">Show Audit Trail</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="adminAuditContent" class="assignment-collapsible-content collapsed" aria-hidden="true">
+          <div class="toolbar-row" style="margin-bottom:14px; gap:12px; flex-wrap:wrap;">
+            <div>
+              <label for="adminAuditActionFilter">Action</label>
+              <input type="text" id="adminAuditActionFilter" placeholder="Filter action" />
+            </div>
+
+            <div>
+              <label for="adminAuditTargetFilter">Target User</label>
+              <input type="text" id="adminAuditTargetFilter" placeholder="Filter target user" />
+            </div>
+
+            <div>
+              <label for="adminAuditAdminFilter">Admin</label>
+              <input type="text" id="adminAuditAdminFilter" placeholder="Filter admin" />
+            </div>
+
+            <div>
+              <label for="adminAuditNoteFilter">Note</label>
+              <input type="text" id="adminAuditNoteFilter" placeholder="Filter note" />
+            </div>
+
+            <div>
+              <label for="adminAuditStartDate">Start date</label>
+              <input type="date" id="adminAuditStartDate" />
+            </div>
+
+            <div>
+              <label for="adminAuditEndDate">End date</label>
+              <input type="date" id="adminAuditEndDate" />
+            </div>
+
+            <div>
+              <label for="adminAuditSearchText">Search</label>
+              <input type="text" id="adminAuditSearchText" placeholder="Search any audit field..." />
+            </div>
+
+            <div>
+              <label for="adminAuditPageSize">Rows per page</label>
+              <select id="adminAuditPageSize">
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+
+            <div class="toolbar-end">
+              <button id="clearAdminAuditFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="admin-sortable" data-table="audit" data-sort="createdAt">Date/Time</th>
+                  <th class="admin-sortable" data-table="audit" data-sort="action">Action</th>
+                  <th class="admin-sortable" data-table="audit" data-sort="target">Target User</th>
+                  <th class="admin-sortable" data-table="audit" data-sort="admin">Admin</th>
+                  <th class="admin-sortable" data-table="audit" data-sort="note">Note</th>
+                </tr>
+              </thead>
+              <tbody id="adminAuditTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="monitoring-pagination" style="margin-top:14px;">
+            <div id="adminAuditPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
+            <div class="monitoring-pagination-actions">
+              <button id="adminAuditPrevPageBtn" class="btn btn-secondary">Previous</button>
+              <button id="adminAuditNextPageBtn" class="btn btn-secondary">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create / Edit Project -->
+      <div class="panel inner-panel assignment-collapsible-panel" id="adminProjectFormCard">
+        <div class="assignment-collapsible-header">
+          <div class="assignment-collapsible-title-wrap">
+            <h3>Create / Edit Project</h3>
+            <p class="assignment-overview-subtitle">
+              Add new projects or update Firestore project configuration.
+            </p>
+          </div>
+
+          <div class="assignment-collapsible-actions">
+            <button type="button" id="adminProjectFormToggleBtn" class="btn btn-secondary assignment-toggle-btn"
+              aria-expanded="false" aria-controls="adminProjectFormContent">
+              <span id="adminProjectFormToggleText">Open Project Form</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="adminProjectFormContent" class="assignment-collapsible-content collapsed" aria-hidden="true">
+          <input type="hidden" id="editingProjectCode" />
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="projectCodeInput">Project Code</label>
+              <input type="text" id="projectCodeInput" placeholder="e.g. brave" />
+            </div>
+
+            <div class="form-group">
+              <label for="projectNameInput">Project Name</label>
+              <input type="text" id="projectNameInput" placeholder="e.g. BRAVE" />
+            </div>
+
+            <div class="form-group">
+              <label for="projectDescriptionInput">Description</label>
+              <input type="text" id="projectDescriptionInput" />
+            </div>
+
+            <div class="form-group">
+              <label for="projectEnabledInput">Enabled?</label>
+              <select id="projectEnabledInput">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="projectDashboardUrlInput">Dashboard Embed URL</label>
+              <input type="text" id="projectDashboardUrlInput" />
+            </div>
+
+            <div class="form-group">
+              <label for="projectPdfInput">Dashboard PDF Path</label>
+              <input type="text" id="projectPdfInput" />
+            </div>
+
+            <div class="form-group full-span">
+              <label for="projectPptInput">Dashboard PPT Path</label>
+              <input type="text" id="projectPptInput" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="projectReportsJsonInput">Reports JSON</label>
+            <textarea id="projectReportsJsonInput" rows="8" class="code-textarea"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="projectQueriesJsonInput">Queries JSON</label>
+            <textarea id="projectQueriesJsonInput" rows="5" class="code-textarea"></textarea>
+          </div>
+
+          <div class="button-row">
+            <button id="saveProjectBtn" class="btn btn-primary">Save Project</button>
+            <button id="clearProjectFormBtn" class="btn btn-secondary">Clear Project Form</button>
+            <button id="seedProjectsBtn" class="btn btn-secondary">Seed Fallback Projects to Firestore</button>
+          </div>
+
+          <div id="adminProjectMessage" class="admin-message"></div>
+        </div>
+      </div>
+
+      <!-- Project List -->
+      <div class="panel inner-panel">
+        <div class="section-row">
+          <h3>Project List</h3>
+          <button id="refreshProjectsBtn" class="btn btn-secondary">Refresh Projects</button>
+        </div>
+
+        <div class="toolbar-row" style="margin-bottom:14px; gap:12px; flex-wrap:wrap;">
+          <div>
+            <label for="adminProjectCodeFilter">Project Code</label>
+            <input type="text" id="adminProjectCodeFilter" placeholder="Filter code" />
+          </div>
+
+          <div>
+            <label for="adminProjectNameFilter">Project Name</label>
+            <input type="text" id="adminProjectNameFilter" placeholder="Filter name" />
+          </div>
+
+          <div>
+            <label for="adminProjectSearchText">Search</label>
+            <input type="text" id="adminProjectSearchText" placeholder="Search any project field..." />
+          </div>
+
+          <div>
+            <label for="adminProjectPageSize">Rows per page</label>
+            <select id="adminProjectPageSize">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+
+          <div class="toolbar-end">
+            <button id="clearAdminProjectFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="admin-sortable" data-table="projects" data-sort="code">Code</th>
+                <th class="admin-sortable" data-table="projects" data-sort="name">Name</th>
+                <th class="admin-sortable" data-table="projects" data-sort="enabled">Enabled</th>
+                <th class="admin-sortable" data-table="projects" data-sort="dashboard">Dashboard</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody id="projectsTableBody"></tbody>
           </table>
         </div>
+
+        <div class="monitoring-pagination" style="margin-top:14px;">
+          <div id="adminProjectsPageInfo" class="monitoring-meta-text">Page 1 of 1</div>
+          <div class="monitoring-pagination-actions">
+            <button id="adminProjectsPrevPageBtn" class="btn btn-secondary">Previous</button>
+            <button id="adminProjectsNextPageBtn" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-<footer class="footer">
-  <div class="footer-grid">
-    <div class="footer-col">
-      <h3 class="footer-title">Platform</h3>
-      <p class="footer-text">NHRC Projects Dashboard Platform</p>
-      <!-- <p class="footer-text">Secure multi-project access for monitoring, reports, queries, and administration.</p> -->
-    </div>
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h3 class="footer-title">Platform</h3>
+        <p class="footer-text">NHRC Projects Dashboard Platform</p>
+        <!-- <p class="footer-text">Secure multi-project access for monitoring, reports, queries, and administration.</p> -->
+      </div>
 
-    <div class="footer-col">
-      <h3 class="footer-title">Contact</h3>
-      <p class="footer-text">
-        <a href="mailto:william.dormechele@navrongo-hrc.org" class="footer-link">
-          Contact Administrator
-        </a>
-      </p>
-      <!-- <p class="footer-text">William Dormechele</p>
+      <div class="footer-col">
+        <h3 class="footer-title">Contact</h3>
+        <p class="footer-text">
+          <a href="mailto:william.dormechele@navrongo-hrc.org" class="footer-link">
+            Contact Administrator
+          </a>
+        </p>
+        <!-- <p class="footer-text">William Dormechele</p>
       <p class="footer-text">Data Manager / Analyst / SysDev</p> -->
+      </div>
+
+      <div class="footer-col">
+        <h3 class="footer-title">Website</h3>
+        <p class="footer-text">
+          <a href="https://navrongo-hrc.org" target="_blank" rel="noopener" class="footer-link">
+            navrongo-hrc.org
+          </a>
+        </p>
+        <!-- <p class="footer-text">Navrongo Health Research Centre</p> -->
+      </div>
     </div>
 
-    <div class="footer-col">
-      <h3 class="footer-title">Website</h3>
-      <p class="footer-text">
-        <a href="https://navrongo-hrc.org" target="_blank" rel="noopener" class="footer-link">
-          navrongo-hrc.org
-        </a>
-      </p>
-      <!-- <p class="footer-text">Navrongo Health Research Centre</p> -->
+    <div class="footer-bottom">
+      <span>&copy; 2026 Navrongo Health Research Centre. All rights reserved.</span>
     </div>
-  </div>
-
-  <div class="footer-bottom">
-    <span>&copy; 2026 Navrongo Health Research Centre. All rights reserved.</span>
-  </div>
-</footer>
+  </footer>
 
   <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
   <!-- Chart.js for monitoring charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- App scripts -->
-<script src="js/firebase-config.js?v=20260402a"></script>
-<script src="data/project-config.js?v=20260402a"></script>
-<script src="js/permissions.js?v=20260402a"></script>
-<script src="js/tracker.js?v=20260402a"></script>
-<script src="js/projects.js?v=20260402a"></script>
-<script src="js/auth.js?v=20260402a"></script>
-<script src="js/admin.js?v=20260402a"></script>
-<script src="js/monitoring.js?v=20260402a"></script>
-<script src="js/app.js?v=20260402a"></script>
+<script src="js/firebase-config.js?v=20260408032439"></script>
+<script src="data/project-config.js?v=20260408032439"></script>
+<script src="js/permissions.js?v=20260408032439"></script>
+<script src="js/tracker.js?v=20260408032439"></script>
+<script src="js/projects.js?v=20260408032439"></script>
+<script src="js/auth.js?v=20260408032439"></script>
+<script src="js/admin.js?v=20260408032439"></script>
+<script src="js/monitoring.js?v=20260408032439"></script>
+<script src="js/chat.js?v=20260408032439"></script>
+<script src="js/app.js?v=20260408032439"></script>
 </body>
 
 </html>

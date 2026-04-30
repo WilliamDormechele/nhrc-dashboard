@@ -6,6 +6,9 @@ let usersChartInstance = null;
 let dailyChartInstance = null;
 let rolesChartInstance = null;
 let pagesChartInstance = null;
+let engagedUsersChartInstance = null;
+let dailyUsersChartInstance = null;
+let projectMinutesChartInstance = null;
 
 let monitoringAllLogs = [];
 let monitoringUsersByEmail = {};
@@ -533,21 +536,59 @@ function renderMonitoringSummary(logs) {
 
   const uniqueUsers = new Set(logs.map((x) => x.email).filter(Boolean)).size;
 
-  const totalDurationSeconds = logs
-    .filter((x) => x.action === "tab_duration" && typeof x.durationSeconds === "number")
-    .reduce((sum, item) => sum + item.durationSeconds, 0);
+  const durationLogs = getDurationLogs(logs);
 
+  const totalDurationSeconds = durationLogs.reduce((sum, item) => sum + item.durationSeconds, 0);
   const totalMinutes = Math.round(totalDurationSeconds / 60);
+
+  const totalActions = logs.length;
+
+  const activeFieldworkerEmails = new Set(
+    logs
+      .filter((x) => {
+        const email = (x.email || "").toLowerCase();
+        const user = monitoringUsersByEmail[email] || {};
+        return user.role === "field_worker";
+      })
+      .map((x) => (x.email || "").toLowerCase())
+      .filter(Boolean)
+  );
+
+  const totalFieldworkersInScope = monitoringFieldworkers.filter((worker) => {
+    const workerProjects = Array.isArray(worker.assignedProjects) ? worker.assignedProjects : [];
+    const allowedProjects = getAllowedMonitoringProjectCodes();
+    return workerProjects.some((code) => allowedProjects.includes(code));
+  }).length;
+
+  const activeFieldworkers = activeFieldworkerEmails.size;
+  const fieldworkerCoverage = safePercent(activeFieldworkers, totalFieldworkersInScope);
+
+  const avgMinutesPerUser = uniqueUsers > 0 ? (totalMinutes / uniqueUsers).toFixed(1) : "0";
+
+  const adminActionCount = logs.filter((x) =>
+    ["administrator", "developer"].includes(String(x.role || "").toLowerCase())
+  ).length;
+  const adminShare = safePercent(adminActionCount, totalActions);
 
   const statLogins = document.getElementById("statLogins");
   const statDownloads = document.getElementById("statDownloads");
   const statUsers = document.getElementById("statUsers");
   const statMinutes = document.getElementById("statMinutes");
+  const statActions = document.getElementById("statActions");
+  const statActiveFieldworkers = document.getElementById("statActiveFieldworkers");
+  const statFieldworkerCoverage = document.getElementById("statFieldworkerCoverage");
+  const statAvgMinutesPerUser = document.getElementById("statAvgMinutesPerUser");
+  const statAdminShare = document.getElementById("statAdminShare");
 
   if (statLogins) statLogins.textContent = loginCount;
   if (statDownloads) statDownloads.textContent = downloadCount;
   if (statUsers) statUsers.textContent = uniqueUsers;
   if (statMinutes) statMinutes.textContent = totalMinutes;
+  if (statActions) statActions.textContent = totalActions;
+  if (statActiveFieldworkers) statActiveFieldworkers.textContent = activeFieldworkers;
+  if (statFieldworkerCoverage) statFieldworkerCoverage.textContent = `${fieldworkerCoverage}%`;
+  if (statAvgMinutesPerUser) statAvgMinutesPerUser.textContent = avgMinutesPerUser;
+  if (statAdminShare) statAdminShare.textContent = `${adminShare}%`;
 }
 
 /**
@@ -678,6 +719,27 @@ function topEntriesFromCounts(counts, limit = 10) {
     .slice(0, limit);
 }
 
+function sumBy(logs, keyAccessor, valueAccessor) {
+  const totals = {};
+  logs.forEach((item) => {
+    const key = keyAccessor(item) || "Unknown";
+    const value = Number(valueAccessor(item) || 0);
+    totals[key] = (totals[key] || 0) + value;
+  });
+  return totals;
+}
+
+function getDurationLogs(logs) {
+  return logs.filter(
+    (x) => x.action === "tab_duration" && typeof x.durationSeconds === "number" && x.durationSeconds > 0
+  );
+}
+
+function safePercent(numerator, denominator) {
+  if (!denominator) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
 /**
  * Render all monitoring charts.
  */
@@ -693,6 +755,18 @@ function renderMonitoringCharts(logs) {
 
   if (document.getElementById("pagesChart")) {
     renderPagesChart(logs);
+  }
+
+  if (document.getElementById("engagedUsersChart")) {
+    renderEngagedUsersChart(logs);
+  }
+
+  if (document.getElementById("dailyUsersChart")) {
+    renderDailyUsersChart(logs);
+  }
+
+  if (document.getElementById("projectMinutesChart")) {
+    renderProjectMinutesChart(logs);
   }
 }
 
@@ -809,6 +883,137 @@ function renderDailyChart(logs) {
     options: {
       responsive: true,
       maintainAspectRatio: false
+    }
+  });
+}
+
+function renderEngagedUsersChart(logs) {
+  const canvas = document.getElementById("engagedUsersChart");
+  if (!canvas) return;
+
+  const durationLogs = getDurationLogs(logs);
+
+  const totals = sumBy(
+    durationLogs,
+    (x) => x.fullName || x.email || "Unknown",
+    (x) => Math.round((x.durationSeconds || 0) / 60)
+  );
+
+  const entries = topEntriesFromCounts(totals, 10);
+  const labels = entries.map((x) => x[0]);
+  const values = entries.map((x) => x[1]);
+
+  destroyChart(engagedUsersChartInstance);
+  engagedUsersChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Minutes", data: values }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+function renderDailyUsersChart(logs) {
+  const canvas = document.getElementById("dailyUsersChart");
+  if (!canvas) return;
+
+  // Build data structure: user -> day -> count
+  const userDailyData = {};
+
+  logs.forEach((log) => {
+    if (!log.createdAt || !log.createdAt.toDate) return;
+    const day = log.createdAt.toDate().toISOString().slice(0, 10);
+    const email = (log.email || "").toLowerCase();
+    if (!email) return;
+
+    if (!userDailyData[email]) userDailyData[email] = {};
+    userDailyData[email][day] = (userDailyData[email][day] || 0) + 1;
+  });
+
+  // Get all unique days and users
+  const allDays = new Set();
+  Object.values(userDailyData).forEach((days) => {
+    Object.keys(days).forEach((day) => allDays.add(day));
+  });
+
+  const labels = Array.from(allDays).sort();
+  const users = Object.keys(userDailyData).sort();
+
+  // Create a dataset for each user
+  const datasets = users.map((user, index) => {
+    const data = labels.map((day) => userDailyData[user][day] || 0);
+    return {
+      label: user,
+      data: data,
+      tension: 0.25,
+      borderColor: `hsl(${(index * 360) / users.length}, 70%, 50%)`,
+      backgroundColor: `hsla(${(index * 360) / users.length}, 70%, 50%, 0.1)`
+    };
+  });
+
+  destroyChart(dailyUsersChartInstance);
+  dailyUsersChartInstance = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: "top",
+          maxHeight: 150,
+          labels: {
+            font: { size: 11 }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function renderProjectMinutesChart(logs) {
+  const canvas = document.getElementById("projectMinutesChart");
+  if (!canvas) return;
+
+  const durationLogs = getDurationLogs(logs);
+
+  const totals = sumBy(
+    durationLogs,
+    (x) => x.currentProject || "No Project",
+    (x) => Math.round((x.durationSeconds || 0) / 60)
+  );
+
+  const entries = topEntriesFromCounts(totals, 10);
+  const labels = entries.map((x) => x[0]);
+  const values = entries.map((x) => x[1]);
+
+  destroyChart(projectMinutesChartInstance);
+  projectMinutesChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Minutes", data: values }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
     }
   });
 }

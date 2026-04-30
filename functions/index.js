@@ -848,3 +848,156 @@ exports.requestSelfServicePasswordReset = onCall(
     }
   }
 );
+
+function normalizeProjectCodes(values = []) {
+  return Array.isArray(values)
+    ? values.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+}
+
+function userDistrictLabel(user = {}) {
+  return (
+    user.district ||
+    user.districtName ||
+    user.locationDistrict ||
+    user.location ||
+    user.workDistrict ||
+    "Not assigned"
+  );
+}
+
+function hasSharedProject(left = [], right = []) {
+  const leftSet = new Set(normalizeProjectCodes(left));
+  return normalizeProjectCodes(right).some((code) => leftSet.has(code));
+}
+
+function toAssignmentUser(userDoc = {}, docId = "") {
+  return {
+    uid: docId,
+    fullName: userDoc.fullName || "",
+    email: userDoc.email || "",
+    role: userDoc.role || "",
+    district: userDistrictLabel(userDoc),
+    assignedProjects: normalizeProjectCodes(userDoc.assignedProjects),
+    supervisorId: userDoc.supervisorId || "",
+    supervisorEmail: userDoc.supervisorEmail || "",
+    supervisorName: userDoc.supervisorName || ""
+  };
+}
+
+exports.getAssignmentOverview = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const actorUid = request.auth.uid;
+  const actorSnap = await db.collection("users").doc(actorUid).get();
+
+  if (!actorSnap.exists) {
+    throw new HttpsError("permission-denied", "User profile not found.");
+  }
+
+  const actor = actorSnap.data() || {};
+  const actorEmail = String(actor.email || request.auth.token.email || "").toLowerCase();
+  const actorRole = String(actor.role || "").trim();
+  const actorProjects = normalizeProjectCodes(actor.assignedProjects);
+
+  const allUsersSnap = await db.collection("users").get();
+
+  const allUsers = [];
+  allUsersSnap.forEach((doc) => {
+    const data = doc.data() || {};
+    if (data.isDeleted === true) return;
+    if (data.isActive === false) return;
+
+    allUsers.push({
+      id: doc.id,
+      ...data
+    });
+  });
+
+  const allSupervisors = allUsers
+    .filter((user) => user.role === "field_supervisor")
+    .map((user) => toAssignmentUser(user, user.id));
+
+  const allWorkers = allUsers
+    .filter((user) => user.role === "field_worker")
+    .map((user) => toAssignmentUser(user, user.id));
+
+  if (actorRole === "field_worker") {
+    const supervisor =
+      allSupervisors.find((item) => item.uid === actor.supervisorId) ||
+      allSupervisors.find((item) => String(item.email || "").toLowerCase() === String(actor.supervisorEmail || "").toLowerCase()) ||
+      null;
+
+    return {
+      roleView: "field_worker",
+      actor: toAssignmentUser(actor, actorUid),
+      supervisor
+    };
+  }
+
+  if (actorRole === "field_supervisor") {
+    const myWorkers = allWorkers.filter((worker) => {
+      const matchById = worker.supervisorId && worker.supervisorId === actorUid;
+      const matchByEmail =
+        worker.supervisorEmail &&
+        String(worker.supervisorEmail).toLowerCase() === actorEmail;
+
+      return matchById || matchByEmail;
+    });
+
+    return {
+      roleView: "field_supervisor",
+      actor: toAssignmentUser(actor, actorUid),
+      workers: myWorkers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || "")),
+      supervisors: [
+        {
+          ...toAssignmentUser(actor, actorUid)
+        }
+      ]
+    };
+  }
+
+  if (["field_headquarters", "administrator", "developer"].includes(actorRole)) {
+    let visibleSupervisors = allSupervisors;
+    let visibleWorkers = allWorkers;
+
+    if (actorRole === "field_headquarters") {
+      visibleSupervisors = allSupervisors.filter((supervisor) =>
+        hasSharedProject(actorProjects, supervisor.assignedProjects)
+      );
+
+      const allowedSupervisorIds = new Set(visibleSupervisors.map((item) => item.uid));
+      const allowedSupervisorEmails = new Set(
+        visibleSupervisors.map((item) => String(item.email || "").toLowerCase())
+      );
+
+      visibleWorkers = allWorkers.filter((worker) => {
+        const projectMatch = hasSharedProject(actorProjects, worker.assignedProjects);
+        const supervisorMatch =
+          allowedSupervisorIds.has(worker.supervisorId) ||
+          allowedSupervisorEmails.has(String(worker.supervisorEmail || "").toLowerCase());
+
+        return projectMatch || supervisorMatch;
+      });
+    }
+
+    visibleSupervisors = visibleSupervisors.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+    visibleWorkers = visibleWorkers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+
+    return {
+      roleView: "leadership",
+      actor: toAssignmentUser(actor, actorUid),
+      supervisors: visibleSupervisors,
+      workers: visibleWorkers
+    };
+  }
+
+  return {
+    roleView: "basic",
+    actor: toAssignmentUser(actor, actorUid),
+    supervisors: [],
+    workers: []
+  };
+});

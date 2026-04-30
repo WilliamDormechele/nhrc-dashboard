@@ -68,22 +68,22 @@ const PROJECTS = {
     code: "brave",
     name: "BRAVE",
     description: "BRAVE AESI surveillance dashboard and reports.",
-    dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiNzAyOGRjY2QtYjJkMS00MjNkLTg0OWEtYzZkYTk4ZmUxZThmIiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9&pageName=9c0e0090daad13b8cc2e",
+    dashboardEmbedUrl: "https://app.powerbi.com/view?r=eyJrIjoiMDdjNGUxMzgtODNiNC00MjRkLWJmMGUtNmI0NmJhMWNmYzI4IiwidCI6IjE3NDMwMTNlLTUyNDMtNDQ0ZS1hNGRjLWExYzNkNzZhMzRmNCJ9&pageName=9317f500ce0c8ae9d753",
     dashboardPdf: "reports/brave/BRAVE_Dashboard_Latest.pdf",
     dashboardPpt: "reports/brave/BRAVE_Dashboard_Latest.pptx",
 
     reports: [
-      {
-        category: "BRAVE Reports",
-        items: [
-          { title: "BRAVE Summary Report", file: "reports/brave/brave_summary_report.pdf" },
-          { title: "BRAVE Error Log", file: "reports/brave/brave_error_log.pdf" }
-        ]
-      }
+      // {
+      //   category: "BRAVE Reports",
+      //   items: [
+      //     { title: "BRAVE Summary Report", file: "reports/brave/brave_summary_report.pdf" },
+      //     { title: "BRAVE Error Log", file: "reports/brave/brave_error_log.pdf" }
+      //   ]
+      // }
     ],
 
     queries: [
-      { title: "BRAVE Query Tracker", file: "queries/brave/brave_query_tracker.xlsx" }
+      // { title: "BRAVE Query Tracker", file: "queries/brave/brave_query_tracker.xlsx" }
     ]
   }
 };
