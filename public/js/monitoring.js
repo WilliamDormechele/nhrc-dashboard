@@ -862,27 +862,75 @@ function renderDailyChart(logs) {
   const canvas = document.getElementById("dailyChart");
   if (!canvas) return;
 
-  const counts = {};
+  const dailyUserCounts = {};
 
   logs.forEach((log) => {
     if (!log.createdAt || !log.createdAt.toDate) return;
     const day = log.createdAt.toDate().toISOString().slice(0, 10);
-    counts[day] = (counts[day] || 0) + 1;
+    
+    if (!dailyUserCounts[day]) dailyUserCounts[day] = {};
+    
+    const email = (log.email || "").toLowerCase();
+    if (email) {
+      dailyUserCounts[day][email] = (dailyUserCounts[day][email] || 0) + 1;
+    }
   });
 
-  const labels = Object.keys(counts).sort();
-  const values = labels.map((label) => counts[label]);
+  const labels = Object.keys(dailyUserCounts).sort();
+
+  const uniqueUsersArray = Object.values(monitoringUsersByEmail)
+    .map((user) => ({
+      email: (user.email || "").toLowerCase(),
+      fullName: user.fullName || user.email || "Unknown"
+    }))
+    .sort((a, b) => (a.fullName || a.email).localeCompare(b.fullName || b.email));
+
+  const datasets = uniqueUsersArray.map((user, index) => {
+    const userEmail = user.email;
+    const userLabel = user.fullName || user.email;
+    const hue = (index * 360) / Math.max(1, uniqueUsersArray.length);
+    const color = `hsl(${hue}, 70%, 50%)`;
+    
+    const data = labels.map((day) => {
+      return (dailyUserCounts[day] && dailyUserCounts[day][userEmail]) || 0;
+    });
+    
+    return {
+      label: userLabel,
+      data: data,
+      tension: 0.25,
+      borderColor: color,
+      backgroundColor: color + "20",
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      borderWidth: 2
+    };
+  });
 
   destroyChart(dailyChartInstance);
   dailyChartInstance = new Chart(canvas, {
     type: "line",
     data: {
       labels,
-      datasets: [{ label: "Daily Activity", data: values, tension: 0.25 }]
+      datasets: datasets
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: "top",
+          align: "center",
+          labels: {
+            boxWidth: 12,
+            usePointStyle: true,
+            padding: 15,
+            font: { size: 11 }
+          }
+        }
+      }
     }
   });
 }

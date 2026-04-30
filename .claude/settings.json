@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "MultiEdit",
+      "Grep",
+      "Glob",
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git diff --staged)",
+      "Bash(git log --oneline -10)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(npm test)",
+      "Bash(dir)",
+      "Bash(ls)"
+    ],
+    "deny": [
+      "Bash(git push)",
+      "Bash(git push --force)",
+      "Bash(git reset --hard)",
+      "Bash(rm -rf)",
+      "Bash(del /s)",
+      "Bash(Remove-Item -Recurse -Force)"
+    ]
+  }
+}
