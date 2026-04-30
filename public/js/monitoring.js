@@ -922,40 +922,39 @@ function renderDailyUsersChart(logs) {
   const canvas = document.getElementById("dailyUsersChart");
   if (!canvas) return;
 
-  const dailyUsers = {};
-  const allUsers = new Set();
 
+  // Build dailyUsers: { [day]: Set of emails active that day }
+  const dailyUsers = {};
   logs.forEach((log) => {
     if (!log.createdAt || !log.createdAt.toDate) return;
     const day = log.createdAt.toDate().toISOString().slice(0, 10);
     const email = (log.email || "").toLowerCase();
-    const fullName = log.fullName || email;
     if (!email) return;
-
     if (!dailyUsers[day]) dailyUsers[day] = new Set();
     dailyUsers[day].add(email);
-    allUsers.add(JSON.stringify({ email, fullName }));
   });
 
+  // Get all days in range
   const labels = Object.keys(dailyUsers).sort();
-  const uniqueUsersArray = Array.from(allUsers)
-    .map((user) => JSON.parse(user))
+  // Get all users from monitoringUsersByEmail
+  const uniqueUsersArray = Object.values(monitoringUsersByEmail)
+    .map((user) => ({
+      email: (user.email || "").toLowerCase(),
+      fullName: user.fullName || user.email || "Unknown"
+    }))
     .sort((a, b) => (a.fullName || a.email).localeCompare(b.fullName || b.email));
 
-  // Create datasets for each user
+  // Create datasets for each user (all users, even if not active)
   const datasets = uniqueUsersArray.map((user, index) => {
     const userEmail = user.email;
     const userLabel = user.fullName || user.email;
-    
     // Generate a color for this user
     const hue = (index * 360) / uniqueUsersArray.length;
     const color = `hsl(${hue}, 70%, 50%)`;
-    
     // For each day, show 1 if user was active, 0 if not
     const data = labels.map((day) => {
-      return dailyUsers[day].has(userEmail) ? 1 : 0;
+      return dailyUsers[day] && dailyUsers[day].has(userEmail) ? 1 : 0;
     });
-
     return {
       label: userLabel,
       data: data,
