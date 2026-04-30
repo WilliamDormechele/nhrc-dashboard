@@ -64,6 +64,8 @@ node_modules/
 
 # dotenv environment variables file
 .env
+serviceAccountKey.json
+*.json.json
 
 # dataconnect generated files
 .dataconnect

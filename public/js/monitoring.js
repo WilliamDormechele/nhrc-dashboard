@@ -922,37 +922,50 @@ function renderDailyUsersChart(logs) {
   const canvas = document.getElementById("dailyUsersChart");
   if (!canvas) return;
 
-  // Build data structure: user -> day -> count
-  const userDailyData = {};
+  const dailyUsers = {};
+  const allUsers = new Set();
 
   logs.forEach((log) => {
     if (!log.createdAt || !log.createdAt.toDate) return;
     const day = log.createdAt.toDate().toISOString().slice(0, 10);
     const email = (log.email || "").toLowerCase();
+    const fullName = log.fullName || email;
     if (!email) return;
 
-    if (!userDailyData[email]) userDailyData[email] = {};
-    userDailyData[email][day] = (userDailyData[email][day] || 0) + 1;
+    if (!dailyUsers[day]) dailyUsers[day] = new Set();
+    dailyUsers[day].add(email);
+    allUsers.add(JSON.stringify({ email, fullName }));
   });
 
-  // Get all unique days and users
-  const allDays = new Set();
-  Object.values(userDailyData).forEach((days) => {
-    Object.keys(days).forEach((day) => allDays.add(day));
-  });
+  const labels = Object.keys(dailyUsers).sort();
+  const uniqueUsersArray = Array.from(allUsers)
+    .map((user) => JSON.parse(user))
+    .sort((a, b) => (a.fullName || a.email).localeCompare(b.fullName || b.email));
 
-  const labels = Array.from(allDays).sort();
-  const users = Object.keys(userDailyData).sort();
+  // Create datasets for each user
+  const datasets = uniqueUsersArray.map((user, index) => {
+    const userEmail = user.email;
+    const userLabel = user.fullName || user.email;
+    
+    // Generate a color for this user
+    const hue = (index * 360) / uniqueUsersArray.length;
+    const color = `hsl(${hue}, 70%, 50%)`;
+    
+    // For each day, show 1 if user was active, 0 if not
+    const data = labels.map((day) => {
+      return dailyUsers[day].has(userEmail) ? 1 : 0;
+    });
 
-  // Create a dataset for each user
-  const datasets = users.map((user, index) => {
-    const data = labels.map((day) => userDailyData[user][day] || 0);
     return {
-      label: user,
+      label: userLabel,
       data: data,
       tension: 0.25,
-      borderColor: `hsl(${(index * 360) / users.length}, 70%, 50%)`,
-      backgroundColor: `hsla(${(index * 360) / users.length}, 70%, 50%, 0.1)`
+      borderColor: color,
+      backgroundColor: color + "20", // Add transparency
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      borderWidth: 2
     };
   });
 
@@ -961,7 +974,7 @@ function renderDailyUsersChart(logs) {
     type: "line",
     data: {
       labels,
-      datasets
+      datasets: datasets
     },
     options: {
       responsive: true,
@@ -969,16 +982,29 @@ function renderDailyUsersChart(logs) {
       plugins: {
         legend: {
           display: true,
-          position: "top",
-          maxHeight: 150,
+          position: "bottom",
           labels: {
+            boxWidth: 12,
+            usePointStyle: true,
+            padding: 15,
             font: { size: 11 }
           }
         }
       },
       scales: {
         y: {
-          beginAtZero: true
+          min: 0,
+          max: 1,
+          ticks: {
+            stepSize: 1,
+            callback: function(value) {
+              return value === 1 ? "Active" : "";
+            }
+          },
+          title: {
+            display: true,
+            text: "User Activity"
+          }
         }
       }
     }
