@@ -348,59 +348,58 @@ function normalizeText(value) {
 /**
  * Format date safely.
  */
-function formatFriendlyDate(value) {
-  if (!value) return "Not available";
-
-  if (typeof value === "string") {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleString();
-    }
-    return value;
-  }
+function toValidDate(value) {
+  if (!value) return null;
 
   if (value?.toDate) {
-    return value.toDate().toLocaleString();
+    const date = value.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   if (value instanceof Date) {
-    return value.toLocaleString();
+    return Number.isNaN(value.getTime()) ? null : value;
   }
 
-  return String(value);
+  const parsed = new Date(String(value).trim());
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatFriendlyDate(value) {
+  if (!value) return "Not available";
+
+  const date = toValidDate(value);
+  return date ? date.toLocaleString() : String(value);
 }
 
 function extractLatestTimestampFromItems(items = [], section = null) {
   let latestDate = null;
 
-  // 🔹 FIRST: check section-level timestamp
-  if (section?.updatedAt) {
-    const d = new Date(section.updatedAt);
-    if (!isNaN(d)) {
-      latestDate = d;
+  const considerDate = (value) => {
+    const parsed = toValidDate(value);
+    if (parsed && (!latestDate || parsed > latestDate)) {
+      latestDate = parsed;
     }
-  }
+  };
 
-  // 🔹 THEN: check items
+  [
+    section?.updatedAt,
+    section?.lastUpdated,
+    section?.updated_at,
+    section?.last_updated,
+    section?.generatedAt,
+    section?.generated_at
+  ].forEach(considerDate);
+
   (items || []).forEach((item) => {
-    const candidates = [
+    [
       item?.updatedAt,
       item?.lastUpdated,
       item?.updated_at,
       item?.last_updated,
-      item?.date,
-      item?.reportDate,
-      item?.queryDate
-    ];
-
-    candidates.forEach((value) => {
-      if (!value) return;
-
-      const parsed = new Date(value);
-      if (!isNaN(parsed) && (!latestDate || parsed > latestDate)) {
-        latestDate = parsed;
-      }
-    });
+      item?.sectionUpdatedAt,
+      item?.generatedAt,
+      item?.generated_at
+    ].forEach(considerDate);
   });
 
   return latestDate;
@@ -842,9 +841,20 @@ function normalizeQueryItems(rawItems = []) {
       resolveUserNameByEmail(item.fieldworkerEmail, item.title || "");
 
     const reportDate = item.date || item.queryDate || "";
+
+    const updatedAt =
+      item.updatedAt ||
+      item.lastUpdated ||
+      item.updated_at ||
+      item.last_updated ||
+      item.sectionUpdatedAt ||
+      item.generatedAt ||
+      item.generated_at ||
+      "";
+
     const updatedAtLabel =
       item.updatedAtLabel ||
-      formatFriendlyDate(item.updatedAt || item.lastUpdated || "");
+      formatFriendlyDate(updatedAt);
 
     return {
       title: item.title || fieldworkerName || "Data Query",
@@ -857,6 +867,10 @@ function normalizeQueryItems(rawItems = []) {
       fieldworkerEmail: item.fieldworkerEmail || "",
       fieldworkerName,
       reportDate,
+      queryDate: item.queryDate || item.date || "",
+      updatedAt,
+      lastUpdated: updatedAt,
+      sectionUpdatedAt: item.sectionUpdatedAt || "",
       updatedAtLabel,
       queryType: item.queryType || item.category || item.sectionCategory || ""
     };
@@ -989,16 +1003,27 @@ function renderAdvancedQueries(project) {
   // This is especially for BRAVE, where the page should show one toolbar
   // and one combined results area, not separate tool sections.
   const flattenedQueries = rawQueries.flatMap((entry) => {
+    const sectionUpdatedAt =
+      entry?.updatedAt ||
+      entry?.lastUpdated ||
+      entry?.updated_at ||
+      entry?.last_updated ||
+      entry?.generatedAt ||
+      entry?.generated_at ||
+      "";
+
     if (entry && typeof entry === "object" && Array.isArray(entry.items)) {
       return entry.items.map((item) => ({
         ...item,
-        queryType: item.queryType || entry.category || ""
+        queryType: item.queryType || entry.category || "",
+        sectionUpdatedAt: item.sectionUpdatedAt || sectionUpdatedAt
       }));
     }
 
     return [{
       ...entry,
-      queryType: entry?.queryType || entry?.category || ""
+      queryType: entry?.queryType || entry?.category || "",
+      sectionUpdatedAt
     }];
   });
 
@@ -1027,14 +1052,17 @@ const allQueryTypes = uniqueSorted(normalizedItems.map((item) => item.queryType)
   const shell = document.createElement("div");
   shell.className = "advanced-library-shell";
 
+  const queryFreshness = getFreshnessStatus(
+  extractLatestTimestampFromItems(normalizedItems)
+  );
   const header = document.createElement("div");
   header.className = "advanced-library-header";
   header.innerHTML = `
 <div>
   <div class="section-title-row">
     <h3>${escapeHtml(project.name)} Fieldworker Data Queries</h3>
-    <span class="data-freshness-badge data-freshness-${getFreshnessStatus(extractLatestTimestampFromItems(normalizedItems)).tone}">
-      ${escapeHtml(getFreshnessStatus(extractLatestTimestampFromItems(normalizedItems)).label)}
+    <span class="data-freshness-badge data-freshness-${queryFreshness.tone}">
+      ${escapeHtml(queryFreshness.label)}
     </span>
   </div>
   <p>Search and filter query files by field worker, ${escapeHtml(locationLabel.toLowerCase())}, supervisor, and date.</p>
