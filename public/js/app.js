@@ -1396,6 +1396,9 @@ window.addEventListener("DOMContentLoaded", function () {
   setupMonitoringUI();
   setupAssignmentOverviewFilters();
 
+  // ✅ This activates the "Show Dashboard Guide" button
+  setupDashboardGuideUI();
+
   if (typeof window.setupChatUI === "function") {
     window.setupChatUI();
   }
