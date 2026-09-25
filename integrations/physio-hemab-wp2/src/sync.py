@@ -7,7 +7,7 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from config import load_settings
+from config import load_database_settings, load_redcap_settings
 from db import database_connection
 from redcap_client import RedcapClient
 
@@ -122,11 +122,12 @@ def upsert_record(
 
 
 def main() -> int:
-    settings = load_settings()
+    redcap_settings = load_redcap_settings(require_record_id=True)
+    database_settings = load_database_settings()
     client = RedcapClient(
-        api_url=settings.redcap_api_url,
-        api_token=settings.redcap_api_token,
-        timeout_seconds=settings.request_timeout_seconds,
+        api_url=redcap_settings.api_url,
+        api_token=redcap_settings.api_token,
+        timeout_seconds=redcap_settings.request_timeout_seconds,
     )
 
     records_received = 0
@@ -134,18 +135,18 @@ def main() -> int:
     records_updated = 0
     sync_run_id: int | None = None
 
-    with database_connection(settings) as connection:
+    with database_connection(database_settings) as connection:
         try:
             sync_run_id = start_sync_run(connection)
             records = client.export_records()
             records_received = len(records)
 
             for record in records:
-                record_id = str(record.get(settings.redcap_record_id_field, "")).strip()
+                record_id = str(record.get(redcap_settings.record_id_field, "")).strip()
                 if not record_id:
                     raise RuntimeError(
                         "A REDCap record did not contain the configured record ID field "
-                        f"'{settings.redcap_record_id_field}'."
+                        f"'{redcap_settings.record_id_field}'."
                     )
 
                 event_name = str(record.get("redcap_event_name", "") or "")
