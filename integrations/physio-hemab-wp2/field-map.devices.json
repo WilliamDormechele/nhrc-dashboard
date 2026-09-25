@@ -1,0 +1,79 @@
+{
+  "source_project": "devices",
+  "redcap_project": "HeMAB Ghana Devices",
+  "pid": 411,
+  "record_id": "record_id",
+  "distribution_date": "devices_date",
+  "distribution_form_complete": "distribution_log_complete",
+  "return_date": "date_devices_return",
+  "returned_sets": "devices_return",
+  "return_form_complete": "return_log_complete",
+  "facility_distribution_fields": {
+    "War Memorial Hospital": "devices_war",
+    "Paga Hospital": "devices_paga",
+    "Pungu Central": "devices_pungu",
+    "Martyrs of Uganda Health Centre Sirigu": "devices_sirigu"
+  },
+  "device_study_id_fields": {
+    "War Memorial Hospital": [
+      "study_id_a1",
+      "study_id_a2",
+      "study_id_a3",
+      "study_id_a4",
+      "study_id_a5",
+      "study_id_b1",
+      "study_id_b2",
+      "study_id_b3",
+      "study_id_b4",
+      "study_id_b5"
+    ],
+    "Paga Hospital": [
+      "study_id_paga_a1",
+      "study_id_paga_a2",
+      "study_id_paga_a3",
+      "study_id_paga_a4",
+      "study_id_paga_a5",
+      "study_id_paga_b1",
+      "study_id_paga_b2",
+      "study_id_paga_b3",
+      "study_id_paga_b4",
+      "study_id_paga_b5"
+    ],
+    "Pungu Central": [
+      "study_id_pungu_a1",
+      "study_id_pungu_a2",
+      "study_id_pungu_a3",
+      "study_id_pungu_a4",
+      "study_id_pungu_a5",
+      "study_id_pungu_b1",
+      "study_id_pungu_b2",
+      "study_id_pungu_b3",
+      "study_id_pungu_b4",
+      "study_id_pungu_b5"
+    ],
+    "Martyrs of Uganda Health Centre Sirigu": [
+      "study_id_sirigu_a1",
+      "study_id_sirigu_a2",
+      "study_id_sirigu_a3",
+      "study_id_sirigu_a4",
+      "study_id_sirigu_a5",
+      "study_id_sirigu_b",
+      "study_id_sirigu_b2",
+      "study_id_sirigu_b3",
+      "study_id_sirigu_b4",
+      "study_id_sirigu_b5"
+    ]
+  },
+  "returned_component_fields": [
+    "set_a1",
+    "set_a2",
+    "set_a3",
+    "set_a4",
+    "set_a5",
+    "set_b1",
+    "set_b2",
+    "set_b3",
+    "set_b4",
+    "set_b5"
+  ]
+}
