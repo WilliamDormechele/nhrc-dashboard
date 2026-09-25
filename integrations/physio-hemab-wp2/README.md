@@ -1,58 +1,86 @@
 # Physio-HeMAB WP2 integration
 
-This directory contains the first safe integration layer for the Physio-HeMAB Work Package 2 dashboard.
+This directory contains the integration layer for the Physio-HeMAB Work Package 2 dashboard.
 
-## Current state
+## REDCap source projects
 
-The existing NHRC Projects Dashboard remains unchanged on `main`. All WP2 work is isolated on the feature branch.
+Physio-HeMAB WP2 uses two separate REDCap projects on the same REDCap server:
 
-Implemented foundation:
+| Key | REDCap project | PID | Purpose |
+| --- | --- | ---: | --- |
+| `main` | HeMAB Ghana Main | 410 | Enrollment, Maternal Record Book, Physical Examination and Activity Diary |
+| `devices` | HeMAB Ghana Devices | 411 | Device distribution and device return logs |
 
-- Physio-HeMAB WP2 project entry and dashboard shell
-- REDCap API client
-- PostgreSQL staging and synchronization schema
-- synchronization audit table
-- raw REDCap record staging with deterministic update detection
-- REDCap metadata inspection utility
-- field-mapping template for the agreed KPMs
-- environment variable template containing names only
-
-No real REDCap token, database password, participant data or Power BI credential is stored in GitHub.
-
-## Planned data flow
+Both projects use the same REDCap API endpoint:
 
 ```text
-Physio-HeMAB REDCap
-        |
-        v
-Python synchronization
-        |
-        v
-PostgreSQL
-        |
-        v
-Power BI
-        |
-        v
-NHRC Projects Dashboard
+https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
 ```
 
-## Before the first live connection
+Each REDCap project requires its own API token. The token identifies the REDCap project, so the project browser URL with `index.php?pid=...` must not be used as the API URL.
 
-1. Confirm the Physio-HeMAB REDCap API URL.
-2. Create or obtain a REDCap API token with the minimum required rights.
-3. Confirm the REDCap record ID field.
-4. Run `inspect_metadata.py` and review field names before exporting participant records.
-5. Complete `field-map.example.json` using the actual REDCap field names.
-6. Confirm where the PostgreSQL database will run.
-7. Apply `sql/schema.sql` to the approved database.
-8. Confirm whether device distribution/return information is in REDCap or another approved source.
-9. Confirm the source for activity diary phone call counts.
-10. Build the Power BI model only after the field mapping is verified.
+## Local secret configuration
+
+Create or edit this local file:
+
+```text
+D:\Git\nhrc-dashboard\.env
+```
+
+The repository already ignores `.env` files. Never commit the real token values.
+
+Use:
+
+```env
+PHYSIO_HEMAB_MAIN_REDCAP_API_URL=https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
+PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN=<PID 410 token>
+PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD=record_id
+
+PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
+PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN=<PID 411 token>
+PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD=record_id
+```
+
+Do not paste either token into GitHub, the dashboard source, Power BI, chat messages, screenshots or documentation.
+
+## Verified field maps
+
+The supplied REDCap data dictionaries have been mapped into:
+
+- `field-map.main.json`
+- `field-map.devices.json`
+
+The Main project currently contains these forms:
+
+- `enrollment_form`
+- `maternal_record_book_baseline`
+- `physical_examination_form`
+- `activity_diary`
+
+The Devices project currently contains:
+
+- `distribution_log`
+- `return_log`
+
+The Main data dictionary does not contain a dedicated data-collector field. The project team still needs to decide whether the dashboard should use an explicit REDCap field or approved REDCap user/audit information for data-collector attribution.
+
+## Data flow
+
+```text
+PID 410 HeMAB Ghana Main --------\
+                                  -> Python sync -> PostgreSQL -> Power BI -> NHRC Dashboard
+PID 411 HeMAB Ghana Devices -----/
+```
 
 ## Local setup
 
-From this directory:
+From:
+
+```text
+D:\Git\nhrc-dashboard\integrations\physio-hemab-wp2
+```
+
+run:
 
 ```powershell
 python -m venv .venv
@@ -60,102 +88,65 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-Add the environment variable names from `config.example.env` to the repository's existing local environment configuration and supply the real values locally. Do not commit the resulting environment file.
+## Safe metadata inspection
 
-### Inspect REDCap metadata
+These commands request REDCap metadata only. They do not print participant records.
 
-This command requests metadata only. It does not print participant records.
+Main project:
 
 ```powershell
-python src\inspect_metadata.py
+python src\inspect_metadata.py main
 ```
 
-### Create the PostgreSQL objects
+Devices project:
 
-Run the statements in:
+```powershell
+python src\inspect_metadata.py devices
+```
+
+## PostgreSQL
+
+Apply:
 
 ```text
 sql/schema.sql
 ```
 
-against the approved PostgreSQL database.
+to the approved PostgreSQL database.
 
-### Run a synchronization
+The schema stores the two REDCap projects separately using `source_project`. This is necessary because both projects can use overlapping REDCap record IDs.
 
-Only run this after the record ID field and database configuration have been verified.
+## Synchronization
+
+Main only:
 
 ```powershell
-python src\sync.py
+python src\sync.py main
 ```
 
-The synchronizer records each run in `physio_hemab_wp2.sync_runs` and upserts REDCap rows into `physio_hemab_wp2.raw_records`.
+Devices only:
 
-## KPMs to implement after field mapping
+```powershell
+python src\sync.py devices
+```
 
-### Recruitment
+Both:
 
-- participants enrolled
-- enrolled by facility
-- enrolled by data collector
-- weekly enrolment
-- cumulative enrolment
-- progress against facility and overall targets
+```powershell
+python src\sync.py all
+```
 
-Current agreed recruitment targets:
-
-| Facility | Target |
-| --- | ---: |
-| Intervention Hospital | 60 |
-| Intervention Center | 40 |
-| Control Hospital | 60 |
-| Control Center | 40 |
-| **Total** | **200** |
-
-### Forms
-
-- Enrollment Form completion
-- Maternal Record Book completion
-- Physical Examination / Physicians Form completion
-
-### Activity diary
-
-- calls made
-- expected diaries
-- diaries completed on the expected date
-- diaries completed late
-- days late
-- missing diaries
-- performance by data collector
-- performance by facility
-
-### Devices
-
-- device ID
-- distribution date
-- facility
-- participant
-- expected return date
-- actual return date
-- returned / not returned
-- overdue devices
-
-### Data quality
-
-- missing required forms
-- late forms
-- incomplete records
-- duplicate or inconsistent records
-- records requiring follow-up
+Do not run record synchronization until the API permissions, database location and field mapping have been verified.
 
 ## Security
 
-The dashboard repository is public. Never commit:
+This GitHub repository is public. Never commit:
 
 - REDCap API tokens
 - participant-level exports
-- database credentials
+- database passwords
 - Power BI credentials
 - Firebase service-account files
 - private keys
 
-Participant-level data must remain in the approved research infrastructure. Only approved aggregate outputs should be exposed through public web hosting.
+Participant-level data must remain within the approved research infrastructure.
