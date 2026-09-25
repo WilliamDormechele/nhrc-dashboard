@@ -43,4 +43,6 @@ jobs:
         run: python -m py_compile integrations/physio-hemab-wp2/src/*.py
 
       - name: Validate field-map JSON
-        run: python -m json.tool integrations/physio-hemab-wp2/field-map.example.json > /dev/null
+        run: |
+          python -m json.tool integrations/physio-hemab-wp2/field-map.main.json > /dev/null
+          python -m json.tool integrations/physio-hemab-wp2/field-map.devices.json > /dev/null
