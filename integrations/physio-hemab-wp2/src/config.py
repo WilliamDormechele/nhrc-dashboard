@@ -7,18 +7,21 @@ from dotenv import load_dotenv
 
 
 @dataclass(frozen=True)
-class Settings:
-    redcap_api_url: str
-    redcap_api_token: str
-    redcap_record_id_field: str
-    db_host: str
-    db_port: int
-    db_name: str
-    db_user: str
-    db_password: str
-    db_sslmode: str
-    sync_batch_size: int
+class RedcapSettings:
+    api_url: str
+    api_token: str
+    record_id_field: str
     request_timeout_seconds: int
+
+
+@dataclass(frozen=True)
+class DatabaseSettings:
+    host: str
+    port: int
+    name: str
+    user: str
+    password: str
+    sslmode: str
 
 
 def _required(name: str) -> str:
@@ -28,21 +31,38 @@ def _required(name: str) -> str:
     return value
 
 
-def load_settings() -> Settings:
+def load_redcap_settings(*, require_record_id: bool = True) -> RedcapSettings:
     load_dotenv()
 
-    return Settings(
-        redcap_api_url=_required("PHYSIO_HEMAB_REDCAP_API_URL"),
-        redcap_api_token=_required("PHYSIO_HEMAB_REDCAP_API_TOKEN"),
-        redcap_record_id_field=_required("PHYSIO_HEMAB_REDCAP_RECORD_ID_FIELD"),
-        db_host=_required("PHYSIO_HEMAB_DB_HOST"),
-        db_port=int(os.getenv("PHYSIO_HEMAB_DB_PORT", "5432")),
-        db_name=_required("PHYSIO_HEMAB_DB_NAME"),
-        db_user=_required("PHYSIO_HEMAB_DB_USER"),
-        db_password=_required("PHYSIO_HEMAB_DB_PASSWORD"),
-        db_sslmode=os.getenv("PHYSIO_HEMAB_DB_SSLMODE", "prefer").strip() or "prefer",
-        sync_batch_size=int(os.getenv("PHYSIO_HEMAB_SYNC_BATCH_SIZE", "500")),
+    record_id_field = os.getenv(
+        "PHYSIO_HEMAB_REDCAP_RECORD_ID_FIELD",
+        "",
+    ).strip()
+
+    if require_record_id and not record_id_field:
+        raise RuntimeError(
+            "Required environment variable is not set: "
+            "PHYSIO_HEMAB_REDCAP_RECORD_ID_FIELD"
+        )
+
+    return RedcapSettings(
+        api_url=_required("PHYSIO_HEMAB_REDCAP_API_URL"),
+        api_token=_required("PHYSIO_HEMAB_REDCAP_API_TOKEN"),
+        record_id_field=record_id_field,
         request_timeout_seconds=int(
             os.getenv("PHYSIO_HEMAB_REQUEST_TIMEOUT_SECONDS", "60")
         ),
+    )
+
+
+def load_database_settings() -> DatabaseSettings:
+    load_dotenv()
+
+    return DatabaseSettings(
+        host=_required("PHYSIO_HEMAB_DB_HOST"),
+        port=int(os.getenv("PHYSIO_HEMAB_DB_PORT", "5432")),
+        name=_required("PHYSIO_HEMAB_DB_NAME"),
+        user=_required("PHYSIO_HEMAB_DB_USER"),
+        password=_required("PHYSIO_HEMAB_DB_PASSWORD"),
+        sslmode=os.getenv("PHYSIO_HEMAB_DB_SSLMODE", "prefer").strip() or "prefer",
     )
