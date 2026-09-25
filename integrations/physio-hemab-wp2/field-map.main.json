@@ -1,0 +1,22 @@
+{
+  "source_project": "main",
+  "redcap_project": "HeMAB Ghana Main",
+  "pid": 410,
+  "record_id": "record_id",
+  "study_id": "enroll_studid",
+  "facility": "health_facility_enrollment",
+  "enrollment_date": "enroll_registr_date",
+  "enrollment_complete": "enrollment_form_complete",
+  "maternal_record_book_complete": "maternal_record_book_baseline_complete",
+  "physical_examination_date": "crf_date",
+  "physical_examination_facility": "crf_facility",
+  "physical_examination_examiner": "crf_examiner",
+  "physical_examination_complete": "physical_examination_form_complete",
+  "activity_diary_date": "ad_date",
+  "activity_diary_phone_on_diary_date": "call_date",
+  "activity_diary_phone_date": "call_date_delay",
+  "activity_diary_call_count": "ad_call_numb",
+  "activity_diary_complete": "activity_diary_complete",
+  "data_collector": null,
+  "data_collector_note": "No dedicated data-collector field was identified in the supplied REDCap data dictionary. Confirm whether REDCap username/audit metadata or an added project field should be used."
+}

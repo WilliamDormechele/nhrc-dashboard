@@ -1,0 +1,48 @@
+name: Physio-HeMAB WP2 validation
+
+on:
+  pull_request:
+    paths:
+      - "public/data/project-config.js"
+      - "public/js/projects.js"
+      - "public/projects/physio-hemab-wp2/**"
+      - "integrations/physio-hemab-wp2/**"
+      - "scripts/validate-physio-hemab-wp2.js"
+      - "package.json"
+      - ".github/workflows/physio-hemab-wp2-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Validate dashboard integration
+        run: npm run test:physio-hemab-wp2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python syntax
+        run: python -m py_compile integrations/physio-hemab-wp2/src/*.py
+
+      - name: Validate field-map JSON
+        run: |
+          python -m json.tool integrations/physio-hemab-wp2/field-map.main.json > /dev/null
+          python -m json.tool integrations/physio-hemab-wp2/field-map.devices.json > /dev/null

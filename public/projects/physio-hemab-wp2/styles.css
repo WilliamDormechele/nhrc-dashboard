@@ -1,0 +1,295 @@
+:root {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #1e2f42;
+  background: #f3f6fa;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f3f6fa;
+}
+
+button,
+table {
+  font: inherit;
+}
+
+.wp2-dashboard {
+  width: 100%;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.wp2-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #546b82;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 6px;
+  font-size: 27px;
+  line-height: 1.2;
+  color: #20364d;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 18px;
+  color: #20364d;
+}
+
+.subtitle {
+  margin-bottom: 0;
+  color: #5a6c7e;
+  line-height: 1.5;
+}
+
+.setup-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #ccd6e0;
+  background: #fff;
+  padding: 9px 12px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d79a24;
+}
+
+.section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1px solid #d7e0e8;
+  background: #fff;
+}
+
+.nav-item {
+  border: 0;
+  border-right: 1px solid #d7e0e8;
+  background: #fff;
+  color: #40566d;
+  padding: 11px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+  background: #eef3f8;
+  outline: none;
+}
+
+.nav-item.active {
+  background: #20364d;
+  color: #fff;
+}
+
+.dashboard-section {
+  display: none;
+}
+
+.dashboard-section.active-section {
+  display: block;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.kpi-card,
+.panel {
+  background: #fff;
+  border: 1px solid #dce4eb;
+  border-radius: 7px;
+}
+
+.kpi-card {
+  padding: 18px;
+  min-height: 132px;
+}
+
+.kpi-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #586c80;
+  margin-bottom: 10px;
+}
+
+.kpi-value {
+  display: block;
+  font-size: 30px;
+  line-height: 1.1;
+  margin-bottom: 7px;
+  color: #20364d;
+}
+
+.kpi-value.pending {
+  font-size: 19px;
+  padding-top: 6px;
+}
+
+.kpi-note {
+  display: block;
+  color: #748496;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panel-heading span {
+  color: #748496;
+  font-size: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5ebf0;
+}
+
+th {
+  color: #4c6075;
+  font-weight: 700;
+}
+
+td {
+  color: #33495f;
+}
+
+.readiness-list {
+  display: grid;
+}
+
+.readiness-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5ebf0;
+  font-size: 13px;
+}
+
+.readiness-row:last-child,
+table tr:last-child th,
+table tr:last-child td {
+  border-bottom: 0;
+}
+
+.readiness-row span {
+  color: #4c6075;
+}
+
+.readiness-row strong {
+  color: #20364d;
+  text-align: right;
+}
+
+.notice-panel {
+  border-left: 4px solid #416b91;
+}
+
+.notice-panel p,
+.empty-state p {
+  margin: 8px 0 0;
+  color: #5a6c7e;
+  line-height: 1.55;
+}
+
+.empty-state {
+  min-height: 180px;
+}
+
+@media (max-width: 1000px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .wp2-dashboard {
+    padding: 14px;
+  }
+
+  .wp2-header {
+    flex-direction: column;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nav-item {
+    border-bottom: 1px solid #d7e0e8;
+  }
+}
