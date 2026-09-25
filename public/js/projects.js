@@ -44,6 +44,15 @@ hdss: {
 };
 
 /**
+ * Projects that are intentionally available from the version-controlled
+ * fallback configuration before a Firestore project document is created.
+ *
+ * Admin/developer users can see these immediately. Other users see them only
+ * when the project code is present in their assignedProjects array.
+ */
+const LOCAL_PROJECT_CODES = ["physio-hemab-wp2"];
+
+/**
  * Fetch JSON safely.
  */
 /**
@@ -287,11 +296,21 @@ async function loadProjectsRegistry() {
     });
   }
 
-  if (Object.keys(firestoreProjects).length > 0) {
-    window.projectRegistry = firestoreProjects;
-  } else {
-    window.projectRegistry = PROJECTS;
-  }
+  const resolvedRegistry = Object.keys(firestoreProjects).length > 0
+    ? { ...firestoreProjects }
+    : { ...PROJECTS };
+
+  LOCAL_PROJECT_CODES.forEach((projectCode) => {
+    const fallbackProject = PROJECTS[projectCode];
+    const canExposeProject =
+      canReadAllProjects || assignedProjects.includes(projectCode);
+
+    if (fallbackProject && canExposeProject && !resolvedRegistry[projectCode]) {
+      resolvedRegistry[projectCode] = { ...fallbackProject };
+    }
+  });
+
+  window.projectRegistry = resolvedRegistry;
 }
 
 /**
@@ -301,7 +320,24 @@ function populateProjectSelect(assignedProjects) {
   const projectSelect = document.getElementById("projectSelect");
   projectSelect.innerHTML = "";
 
-  (assignedProjects || []).forEach((projectCode) => {
+  const role = window.currentUserProfile?.role || "";
+  const canReadAllProjects = role === "administrator" || role === "developer";
+  const selectableProjectCodes = Array.isArray(assignedProjects)
+    ? [...assignedProjects]
+    : [];
+
+  if (canReadAllProjects) {
+    LOCAL_PROJECT_CODES.forEach((projectCode) => {
+      if (
+        window.projectRegistry[projectCode] &&
+        !selectableProjectCodes.includes(projectCode)
+      ) {
+        selectableProjectCodes.push(projectCode);
+      }
+    });
+  }
+
+  selectableProjectCodes.forEach((projectCode) => {
     const project = window.projectRegistry[projectCode];
     if (!project) return;
 
