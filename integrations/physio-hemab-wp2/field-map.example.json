@@ -1,0 +1,16 @@
+{
+  "record_id": "",
+  "facility": "",
+  "data_collector": "",
+  "enrollment_date": "",
+  "enrollment_complete": "",
+  "maternal_record_book_complete": "",
+  "physical_examination_complete": "",
+  "activity_diary_date": "",
+  "activity_diary_expected_date": "",
+  "activity_diary_data_collector": "",
+  "device_id": "",
+  "device_distributed_date": "",
+  "device_expected_return_date": "",
+  "device_returned_date": ""
+}
