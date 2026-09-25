@@ -6,8 +6,25 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
+REDCAP_PROJECTS = {
+    "main": {
+        "label": "HeMAB Ghana Main",
+        "pid": "410",
+        "prefix": "PHYSIO_HEMAB_MAIN",
+    },
+    "devices": {
+        "label": "HeMAB Ghana Devices",
+        "pid": "411",
+        "prefix": "PHYSIO_HEMAB_DEVICES",
+    },
+}
+
+
 @dataclass(frozen=True)
 class RedcapSettings:
+    project_key: str
+    project_label: str
+    pid: str
     api_url: str
     api_token: str
     record_id_field: str
@@ -31,23 +48,38 @@ def _required(name: str) -> str:
     return value
 
 
-def load_redcap_settings(*, require_record_id: bool = True) -> RedcapSettings:
+def load_redcap_settings(
+    project_key: str,
+    *,
+    require_record_id: bool = True,
+) -> RedcapSettings:
     load_dotenv()
 
-    record_id_field = os.getenv(
-        "PHYSIO_HEMAB_REDCAP_RECORD_ID_FIELD",
-        "",
-    ).strip()
+    project_key = project_key.strip().lower()
+    project = REDCAP_PROJECTS.get(project_key)
+
+    if not project:
+        valid = ", ".join(sorted(REDCAP_PROJECTS))
+        raise RuntimeError(
+            f"Unknown Physio-HeMAB REDCap project '{project_key}'. "
+            f"Expected one of: {valid}."
+        )
+
+    prefix = project["prefix"]
+    record_id_name = f"{prefix}_REDCAP_RECORD_ID_FIELD"
+    record_id_field = os.getenv(record_id_name, "").strip()
 
     if require_record_id and not record_id_field:
         raise RuntimeError(
-            "Required environment variable is not set: "
-            "PHYSIO_HEMAB_REDCAP_RECORD_ID_FIELD"
+            f"Required environment variable is not set: {record_id_name}"
         )
 
     return RedcapSettings(
-        api_url=_required("PHYSIO_HEMAB_REDCAP_API_URL"),
-        api_token=_required("PHYSIO_HEMAB_REDCAP_API_TOKEN"),
+        project_key=project_key,
+        project_label=project["label"],
+        pid=project["pid"],
+        api_url=_required(f"{prefix}_REDCAP_API_URL"),
+        api_token=_required(f"{prefix}_REDCAP_API_TOKEN"),
         record_id_field=record_id_field,
         request_timeout_seconds=int(
             os.getenv("PHYSIO_HEMAB_REQUEST_TIMEOUT_SECONDS", "60")
