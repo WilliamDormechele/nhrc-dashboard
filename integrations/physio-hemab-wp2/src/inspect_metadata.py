@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from config import load_settings
+from config import load_redcap_settings
 from redcap_client import RedcapClient
 
 
 def main() -> None:
-    settings = load_settings()
+    settings = load_redcap_settings(require_record_id=False)
     client = RedcapClient(
-        api_url=settings.redcap_api_url,
-        api_token=settings.redcap_api_token,
+        api_url=settings.api_url,
+        api_token=settings.api_token,
         timeout_seconds=settings.request_timeout_seconds,
     )
 
