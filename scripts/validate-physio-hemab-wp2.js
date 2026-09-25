@@ -17,6 +17,8 @@ const projectConfig = read("public/data/project-config.js");
 const projectsJs = read("public/js/projects.js");
 const wp2Html = read("public/projects/physio-hemab-wp2/index.html");
 const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
+const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
+const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
 const schema = read("integrations/physio-hemab-wp2/sql/schema.sql");
 
 [
@@ -51,8 +53,10 @@ assert(
 );
 
 [
-  "PHYSIO_HEMAB_REDCAP_API_URL=",
-  "PHYSIO_HEMAB_REDCAP_API_TOKEN=",
+  "PHYSIO_HEMAB_MAIN_REDCAP_API_URL=",
+  "PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN=",
+  "PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=",
+  "PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN=",
   "PHYSIO_HEMAB_DB_HOST=",
   "PHYSIO_HEMAB_DB_PASSWORD="
 ].forEach((name) => {
@@ -60,8 +64,23 @@ assert(
 });
 
 assert(
-  schema.includes("CREATE SCHEMA IF NOT EXISTS physio_hemab_wp2"),
-  "Physio-HeMAB WP2 PostgreSQL schema is missing."
+  mainFieldMap.includes('"pid": 410') &&
+    mainFieldMap.includes('"health_facility_enrollment"') &&
+    mainFieldMap.includes('"ad_call_numb"'),
+  "Main REDCap field mapping is incomplete."
+);
+
+assert(
+  devicesFieldMap.includes('"pid": 411') &&
+    devicesFieldMap.includes('"devices_date"') &&
+    devicesFieldMap.includes('"devices_return"'),
+  "Devices REDCap field mapping is incomplete."
+);
+
+assert(
+  schema.includes("CREATE SCHEMA IF NOT EXISTS physio_hemab_wp2") &&
+    schema.includes("source_project"),
+  "Physio-HeMAB WP2 two-project PostgreSQL schema is missing."
 );
 
 console.log("Physio-HeMAB WP2 structural validation passed.");
