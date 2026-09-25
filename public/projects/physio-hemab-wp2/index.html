@@ -79,11 +79,12 @@
             <span>No live data exposed</span>
           </div>
           <div class="readiness-list">
-            <div class="readiness-row"><span>REDCap API</span><strong>Awaiting credentials</strong></div>
+            <div class="readiness-row"><span>REDCap Main API (PID 410)</span><strong>Awaiting project token</strong></div>
+            <div class="readiness-row"><span>REDCap Devices API (PID 411)</span><strong>Awaiting project token</strong></div>
             <div class="readiness-row"><span>PostgreSQL monitoring database</span><strong>Schema prepared</strong></div>
             <div class="readiness-row"><span>Power BI report</span><strong>Not connected</strong></div>
-            <div class="readiness-row"><span>Device distribution / return source</span><strong>To confirm</strong></div>
-            <div class="readiness-row"><span>Activity diary phone call source</span><strong>To confirm</strong></div>
+            <div class="readiness-row"><span>Device distribution / return source</span><strong>Identified in PID 411</strong></div>
+            <div class="readiness-row"><span>Activity diary phone call source</span><strong>Identified in PID 410</strong></div>
           </div>
         </article>
       </div>
@@ -118,7 +119,7 @@
     <section id="devices" class="dashboard-section">
       <article class="panel empty-state">
         <h2>Device tracking</h2>
-        <p>Planned measures: device ID, distribution date, facility, participant, expected return date, actual return date and overdue devices. The final source for distribution and return data still needs to be confirmed.</p>
+        <p>Planned measures: device ID, distribution date, facility, participant, expected return date, actual return date and overdue devices. Distribution and return fields have been identified in the HeMAB Ghana Devices REDCap project (PID 411).</p>
       </article>
     </section>
 
@@ -137,8 +138,9 @@
         </div>
         <table>
           <tbody>
-            <tr><th>REDCap API</th><td>Not configured</td></tr>
-            <tr><th>PostgreSQL schema</th><td>Prepared in repository</td></tr>
+            <tr><th>REDCap Main API (PID 410)</th><td>Not configured</td></tr>
+            <tr><th>REDCap Devices API (PID 411)</th><td>Not configured</td></tr>
+            <tr><th>PostgreSQL schema</th><td>Prepared for both source projects</td></tr>
             <tr><th>Last successful sync</th><td>Not available</td></tr>
             <tr><th>Records retrieved</th><td>Not available</td></tr>
             <tr><th>Sync failures</th><td>Not available</td></tr>
