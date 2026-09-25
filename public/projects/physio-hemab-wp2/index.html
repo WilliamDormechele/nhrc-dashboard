@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physio-HeMAB WP2 Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wp2-dashboard">
+    <header class="wp2-header">
+      <div>
+        <p class="eyebrow">HeMAB - Work Package 2</p>
+        <h1>Physio-HeMAB Operational Dashboard</h1>
+        <p class="subtitle">Recruitment, form completion, activity diary, device tracking and data quality monitoring.</p>
+      </div>
+      <div class="setup-status" aria-label="Dashboard status">
+        <span class="status-dot"></span>
+        Setup phase
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Dashboard sections">
+      <button type="button" class="nav-item active" data-section="overview">Overview</button>
+      <button type="button" class="nav-item" data-section="recruitment">Recruitment</button>
+      <button type="button" class="nav-item" data-section="forms">Forms &amp; Completion</button>
+      <button type="button" class="nav-item" data-section="diary">Activity Diary</button>
+      <button type="button" class="nav-item" data-section="devices">Devices</button>
+      <button type="button" class="nav-item" data-section="quality">Data Quality</button>
+      <button type="button" class="nav-item" data-section="sync">Sync Status</button>
+    </nav>
+
+    <section id="overview" class="dashboard-section active-section">
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <span class="kpi-label">Participant target</span>
+          <strong class="kpi-value">200</strong>
+          <span class="kpi-note">Across four health facilities</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Participants enrolled</span>
+          <strong class="kpi-value pending">Pending</strong>
+          <span class="kpi-note">Will populate from REDCap</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Form completeness</span>
+          <strong class="kpi-value pending">Pending</strong>
+          <span class="kpi-note">Will populate after field mapping</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Latest data sync</span>
+          <strong class="kpi-value pending">Not connected</strong>
+          <span class="kpi-note">REDCap connection not configured</span>
+        </article>
+      </div>
+
+      <div class="two-column">
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Recruitment targets</h2>
+            <span>Planned sample</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Study arm / facility</th><th>Target</th><th>Enrolled</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Intervention Hospital</td><td>60</td><td>Pending</td></tr>
+              <tr><td>Intervention Center</td><td>40</td><td>Pending</td></tr>
+              <tr><td>Control Hospital</td><td>60</td><td>Pending</td></tr>
+              <tr><td>Control Center</td><td>40</td><td>Pending</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Data source readiness</h2>
+            <span>No live data exposed</span>
+          </div>
+          <div class="readiness-list">
+            <div class="readiness-row"><span>REDCap API</span><strong>Awaiting credentials</strong></div>
+            <div class="readiness-row"><span>PostgreSQL monitoring database</span><strong>Schema prepared</strong></div>
+            <div class="readiness-row"><span>Power BI report</span><strong>Not connected</strong></div>
+            <div class="readiness-row"><span>Device distribution / return source</span><strong>To confirm</strong></div>
+            <div class="readiness-row"><span>Activity diary phone call source</span><strong>To confirm</strong></div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel notice-panel">
+        <h2>Implementation status</h2>
+        <p>This project has been added without changing the existing HeMAB, BRAVE or HDSS dashboards. Values marked Pending are intentionally not estimated. They will be populated only after the Physio-HeMAB REDCap fields and approved data sources are mapped.</p>
+      </article>
+    </section>
+
+    <section id="recruitment" class="dashboard-section">
+      <article class="panel empty-state">
+        <h2>Recruitment monitoring</h2>
+        <p>Planned measures: participants enrolled by facility and data collector, weekly recruitment, cumulative recruitment and progress against target.</p>
+      </article>
+    </section>
+
+    <section id="forms" class="dashboard-section">
+      <article class="panel empty-state">
+        <h2>Forms &amp; Completion</h2>
+        <p>Planned monitoring: Enrollment Form, Maternal Record Book, Physical Examination / Physicians Form and required form completion by participant and facility.</p>
+      </article>
+    </section>
+
+    <section id="diary" class="dashboard-section">
+      <article class="panel empty-state">
+        <h2>Activity Diary</h2>
+        <p>Planned measures: expected diaries, diaries completed on the expected date, late diaries, days late, missing diaries and performance by data collector and facility.</p>
+      </article>
+    </section>
+
+    <section id="devices" class="dashboard-section">
+      <article class="panel empty-state">
+        <h2>Device tracking</h2>
+        <p>Planned measures: device ID, distribution date, facility, participant, expected return date, actual return date and overdue devices. The final source for distribution and return data still needs to be confirmed.</p>
+      </article>
+    </section>
+
+    <section id="quality" class="dashboard-section">
+      <article class="panel empty-state">
+        <h2>Data quality</h2>
+        <p>Planned checks: missing required forms, late forms, incomplete records, duplicate or inconsistent records and records requiring follow-up.</p>
+      </article>
+    </section>
+
+    <section id="sync" class="dashboard-section">
+      <article class="panel">
+        <div class="panel-heading">
+          <h2>Data synchronization</h2>
+          <span>Foundation prepared</span>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>REDCap API</th><td>Not configured</td></tr>
+            <tr><th>PostgreSQL schema</th><td>Prepared in repository</td></tr>
+            <tr><th>Last successful sync</th><td>Not available</td></tr>
+            <tr><th>Records retrieved</th><td>Not available</td></tr>
+            <tr><th>Sync failures</th><td>Not available</td></tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
