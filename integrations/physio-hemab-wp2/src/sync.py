@@ -27,6 +27,7 @@ MAIN_DASHBOARD_FIELDS = [
     "crf_date",
     "crf_facility",
     "crf_examiner",
+    "data_collector",
     "physical_examination_form_complete",
     "ad_date",
     "call_date",
