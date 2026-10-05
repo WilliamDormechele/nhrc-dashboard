@@ -17,6 +17,6 @@
   "activity_diary_phone_date": "call_date_delay",
   "activity_diary_call_count": "ad_call_numb",
   "activity_diary_complete": "activity_diary_complete",
-  "data_collector": null,
-  "data_collector_note": "No dedicated data-collector field was identified in the supplied REDCap data dictionary. Confirm whether REDCap username/audit metadata or an added project field should be used."
+  "data_collector": "data_collector",
+  "data_collector_note": "Dedicated REDCap data_collector variable is the authoritative collector source when populated; manual assignment remains a fallback only for legacy/unattributed tasks."
 }
