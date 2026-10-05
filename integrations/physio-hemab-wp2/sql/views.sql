@@ -97,6 +97,43 @@ SELECT
         )
     ) AS physical_examination_facility,
     NULLIF(r.payload ->> 'crf_examiner', '') AS physical_examiner,
+    COALESCE(
+        (
+            SELECT NULLIF(trim(a.data_collector), '')
+            FROM physio_hemab_wp2.data_collector_assignments a
+            WHERE a.source_project = 'main'
+              AND a.record_id = r.record_id
+              AND a.instrument = 'enrollment_form'
+              AND a.repeat_instance = ''
+            LIMIT 1
+        ),
+        'Unassigned'
+    ) AS enrollment_data_collector,
+    COALESCE(
+        (
+            SELECT NULLIF(trim(a.data_collector), '')
+            FROM physio_hemab_wp2.data_collector_assignments a
+            WHERE a.source_project = 'main'
+              AND a.record_id = r.record_id
+              AND a.instrument = 'maternal_record_book_baseline'
+              AND a.repeat_instance = ''
+            LIMIT 1
+        ),
+        'Unassigned'
+    ) AS maternal_data_collector,
+    COALESCE(
+        (
+            SELECT NULLIF(trim(a.data_collector), '')
+            FROM physio_hemab_wp2.data_collector_assignments a
+            WHERE a.source_project = 'main'
+              AND a.record_id = r.record_id
+              AND a.instrument = 'physical_examination_form'
+              AND a.repeat_instance = ''
+            LIMIT 1
+        ),
+        NULLIF(r.payload ->> 'crf_examiner', ''),
+        'Unassigned'
+    ) AS physical_data_collector,
     r.last_seen_at
 FROM physio_hemab_wp2.raw_records r
 WHERE r.source_project = 'main'
@@ -149,28 +186,66 @@ SELECT
         )::integer
         ELSE NULL
     END AS calls_made,
+    COALESCE(
+        NULLIF(trim(a.data_collector), ''),
+        'Unassigned'
+    ) AS data_collector,
     (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
     r.last_seen_at
 FROM physio_hemab_wp2.raw_records r
 LEFT JOIN physio_hemab_wp2.vw_participants p
     ON p.record_id = r.record_id
+LEFT JOIN physio_hemab_wp2.data_collector_assignments a
+    ON a.source_project = 'main'
+   AND a.record_id = r.record_id
+   AND a.instrument = 'activity_diary'
+   AND a.repeat_instance = COALESCE(r.repeat_instance, '')
 WHERE r.source_project = 'main'
   AND r.is_active = TRUE
   AND r.repeat_instrument = 'activity_diary';
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_recruitment_by_facility AS
+WITH recruitment AS (
+    SELECT
+        facility,
+        COUNT(*)::integer AS participants_enrolled,
+        COUNT(*) FILTER (WHERE enrollment_complete)::integer AS enrollment_forms_complete,
+        COUNT(*) FILTER (WHERE maternal_record_book_complete)::integer
+            AS maternal_record_books_complete,
+        COUNT(*) FILTER (WHERE physical_examination_complete)::integer
+            AS physical_examinations_complete,
+        MIN(enrollment_date) AS first_enrollment_date,
+        MAX(enrollment_date) AS latest_enrollment_date
+    FROM physio_hemab_wp2.vw_participants
+    GROUP BY facility
+)
 SELECT
-    facility,
-    COUNT(*)::integer AS participants_enrolled,
-    COUNT(*) FILTER (WHERE enrollment_complete)::integer AS enrollment_forms_complete,
-    COUNT(*) FILTER (WHERE maternal_record_book_complete)::integer
-        AS maternal_record_books_complete,
-    COUNT(*) FILTER (WHERE physical_examination_complete)::integer
-        AS physical_examinations_complete,
-    MIN(enrollment_date) AS first_enrollment_date,
-    MAX(enrollment_date) AS latest_enrollment_date
-FROM physio_hemab_wp2.vw_participants
-GROUP BY facility;
+    COALESCE(ft.facility, r.facility) AS facility,
+    ft.study_arm,
+    ft.recruitment_target,
+    COALESCE(r.participants_enrolled, 0)::integer AS participants_enrolled,
+    CASE
+        WHEN ft.recruitment_target IS NULL THEN NULL
+        ELSE GREATEST(ft.recruitment_target - COALESCE(r.participants_enrolled, 0), 0)
+    END::integer AS participants_remaining,
+    CASE
+        WHEN ft.recruitment_target IS NULL OR ft.recruitment_target = 0 THEN NULL
+        ELSE ROUND(
+            100.0 * COALESCE(r.participants_enrolled, 0) / ft.recruitment_target,
+            1
+        )
+    END AS target_attainment_pct,
+    COALESCE(r.enrollment_forms_complete, 0)::integer AS enrollment_forms_complete,
+    COALESCE(r.maternal_record_books_complete, 0)::integer AS maternal_record_books_complete,
+    COALESCE(r.physical_examinations_complete, 0)::integer AS physical_examinations_complete,
+    r.first_enrollment_date,
+    r.latest_enrollment_date,
+    (ft.recruitment_target IS NOT NULL AND ft.study_arm IS NOT NULL) AS target_configured
+FROM physio_hemab_wp2.facility_targets ft
+FULL OUTER JOIN recruitment r
+    ON r.facility = ft.facility
+WHERE COALESCE(ft.is_active, TRUE) = TRUE
+ORDER BY facility;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_form_completion AS
 WITH participant_counts AS (
