@@ -171,3 +171,9 @@ python src\audit_records.py devices
 
 The audit prints only aggregate counts and field-presence information. Do not paste full
 REDCap record exports into chat or commit them to the repository.
+
+
+The audit also decodes REDCap checkbox exports (for example `devices_war___...`)
+and reports only aggregate selected-choice counts. It also reports repeating-instrument
+structure so that the transformation logic can distinguish participant rows from
+repeating Activity Diary rows.
