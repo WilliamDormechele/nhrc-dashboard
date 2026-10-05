@@ -49,6 +49,12 @@ def parser() -> argparse.ArgumentParser:
     )
     collectors_csv.add_argument("path")
 
+    return_window = sub.add_parser(
+        "return-window",
+        help="Set the project default device return window in days.",
+    )
+    return_window.add_argument("--days", required=True, type=int)
+
     sub.add_parser("show", help="Show aggregate configuration status.")
     return p
 
@@ -161,6 +167,28 @@ def load_collectors_csv(connection, path: str) -> int:
     return rows
 
 
+def set_return_window(connection, days: int) -> None:
+    if days <= 0:
+        raise ValueError("Return window must be greater than zero days.")
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO physio_hemab_wp2.dashboard_config (
+                config_key,
+                config_value,
+                updated_at
+            )
+            VALUES ('device_return_days_default', to_jsonb(%s::integer), NOW())
+            ON CONFLICT (config_key)
+            DO UPDATE SET
+                config_value = EXCLUDED.config_value,
+                updated_at = NOW()
+            """,
+            (days,),
+        )
+
+
 def show(connection) -> None:
     with connection.cursor() as cursor:
         cursor.execute(
@@ -200,6 +228,17 @@ def show(connection) -> None:
         print("Selectable device return windows:")
         print("  " + ", ".join(label for _, label in cursor.fetchall()))
 
+        cursor.execute(
+            """
+            SELECT config_value #>> '{}'
+            FROM physio_hemab_wp2.dashboard_config
+            WHERE config_key = 'device_return_days_default'
+            """
+        )
+        row = cursor.fetchone()
+        configured_days = row[0] if row and row[0] not in {None, "null"} else "Not set"
+        print(f"Default return window: {configured_days}")
+
 
 def main() -> int:
     args = parser().parse_args()
@@ -236,6 +275,11 @@ def main() -> int:
             count = load_collectors_csv(connection, args.path)
             connection.commit()
             print(f"Loaded {count} data-collector assignment row(s).")
+
+        elif args.command == "return-window":
+            set_return_window(connection, args.days)
+            connection.commit()
+            print(f"Default device return window saved: {args.days} day(s).")
 
         elif args.command == "show":
             show(connection)
