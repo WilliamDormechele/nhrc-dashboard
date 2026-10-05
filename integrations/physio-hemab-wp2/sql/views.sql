@@ -416,7 +416,7 @@ WHERE r.source_project = 'devices'
   AND c.choice_code IS NOT NULL
   AND r.payload ->> ('devices_return___' || c.choice_code) = '1';
 
-CREATE OR REPLACE VIEW physio_hemab_wp2.vw_device_set_status AS
+CREATE OR REPLACE VIEW physio_hemab_wp2.vw_device_set_status_base AS
 WITH sets AS (
     SELECT DISTINCT device_set
     FROM (
@@ -469,6 +469,37 @@ SELECT
 FROM sets s
 LEFT JOIN latest_distribution d USING (device_set)
 LEFT JOIN latest_return r USING (device_set);
+
+CREATE OR REPLACE VIEW physio_hemab_wp2.vw_device_set_status AS
+SELECT
+    b.device_set,
+    b.latest_distribution_date,
+    b.latest_facility,
+    b.latest_study_id,
+    b.latest_return_date,
+    b.components_returned,
+    b.components_expected,
+    b.all_components_returned,
+    b.current_status,
+    o.return_window_days,
+    o.label AS return_window,
+    CASE
+        WHEN b.latest_distribution_date IS NULL THEN NULL
+        ELSE b.latest_distribution_date + o.return_window_days
+    END AS expected_return_date,
+    CASE
+        WHEN b.current_status <> 'Distributed' OR b.latest_distribution_date IS NULL THEN FALSE
+        ELSE CURRENT_DATE > (b.latest_distribution_date + o.return_window_days)
+    END AS is_overdue,
+    CASE
+        WHEN b.current_status = 'Returned' THEN 'Returned'
+        WHEN b.latest_distribution_date IS NULL THEN 'No distribution date'
+        WHEN CURRENT_DATE > (b.latest_distribution_date + o.return_window_days) THEN 'Overdue'
+        WHEN CURRENT_DATE = (b.latest_distribution_date + o.return_window_days) THEN 'Due today'
+        ELSE 'Within return window'
+    END AS return_status
+FROM physio_hemab_wp2.vw_device_set_status_base b
+CROSS JOIN physio_hemab_wp2.device_return_policy_options o;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_sync_status AS
 SELECT DISTINCT ON (source_project)
@@ -654,31 +685,18 @@ ORDER BY sort_order;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_device_overdue_scenarios AS
 SELECT
-    o.return_window_days,
-    o.label AS return_window,
-    s.device_set,
-    s.current_status,
-    s.latest_facility,
-    s.latest_study_id,
-    s.latest_distribution_date,
-    s.latest_return_date,
-    CASE
-        WHEN s.latest_distribution_date IS NULL THEN NULL
-        ELSE s.latest_distribution_date + o.return_window_days
-    END AS expected_return_date,
-    CASE
-        WHEN s.current_status <> 'Distributed' OR s.latest_distribution_date IS NULL THEN FALSE
-        ELSE CURRENT_DATE > (s.latest_distribution_date + o.return_window_days)
-    END AS is_overdue,
-    CASE
-        WHEN s.current_status = 'Returned' THEN 'Returned'
-        WHEN s.latest_distribution_date IS NULL THEN 'No distribution date'
-        WHEN CURRENT_DATE > (s.latest_distribution_date + o.return_window_days) THEN 'Overdue'
-        WHEN CURRENT_DATE = (s.latest_distribution_date + o.return_window_days) THEN 'Due today'
-        ELSE 'Within return window'
-    END AS return_status
-FROM physio_hemab_wp2.vw_device_set_status s
-CROSS JOIN physio_hemab_wp2.device_return_policy_options o;
+    return_window_days,
+    return_window,
+    device_set,
+    current_status,
+    latest_facility,
+    latest_study_id,
+    latest_distribution_date,
+    latest_return_date,
+    expected_return_date,
+    is_overdue,
+    return_status
+FROM physio_hemab_wp2.vw_device_set_status;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_data_freshness AS
 WITH threshold AS (
