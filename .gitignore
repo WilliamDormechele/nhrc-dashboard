@@ -97,3 +97,6 @@ __pycache__/
 # Windows Explorer metadata
 desktop.ini
 Desktop.ini
+
+# Physio-HeMAB local configuration files
+*.local.csv
