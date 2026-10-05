@@ -13,6 +13,9 @@ if (-not (Test-Path $EnvFile)) {
 
 Write-Host "Starting Physio-HeMAB WP2 PostgreSQL..." -ForegroundColor Cyan
 docker compose --env-file $EnvFile -f $ComposeFile up -d postgres
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to start the Physio-HeMAB WP2 PostgreSQL container."
+}
 
 Write-Host "Waiting for PostgreSQL health check..." -ForegroundColor Cyan
 $healthy = $false
@@ -35,8 +38,14 @@ if (-not $healthy) {
 
 Write-Host "Applying database schema..." -ForegroundColor Cyan
 docker compose --env-file $EnvFile -f $ComposeFile exec -T postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /opt/physio-hemab/sql/schema.sql'
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to apply the Physio-HeMAB WP2 database schema."
+}
 
 Write-Host "Applying reporting views..." -ForegroundColor Cyan
 docker compose --env-file $EnvFile -f $ComposeFile exec -T postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /opt/physio-hemab/sql/views.sql'
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to apply the Physio-HeMAB WP2 reporting views."
+}
 
 Write-Host "Physio-HeMAB WP2 PostgreSQL is ready." -ForegroundColor Green
