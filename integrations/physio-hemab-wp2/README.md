@@ -11,10 +11,10 @@ Physio-HeMAB WP2 uses two separate REDCap projects on the same REDCap server:
 | `main` | HeMAB Ghana Main | 410 | Enrollment, Maternal Record Book, Physical Examination and Activity Diary |
 | `devices` | HeMAB Ghana Devices | 411 | Device distribution and device return logs |
 
-Both projects use the same REDCap API endpoint:
+Both projects use the same stable, versionless REDCap API endpoint:
 
 ```text
-https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
+https://redcap-test.uk-halle.de/api/
 ```
 
 Each REDCap project requires its own API token. The token identifies the REDCap project, so the project browser URL with `index.php?pid=...` must not be used as the API URL.
@@ -32,11 +32,11 @@ The repository already ignores `.env` files. Never commit the real token values.
 Use:
 
 ```env
-PHYSIO_HEMAB_MAIN_REDCAP_API_URL=https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
+PHYSIO_HEMAB_MAIN_REDCAP_API_URL=https://redcap-test.uk-halle.de/api/
 PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN=<PID 410 token>
 PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD=record_id
 
-PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=https://redcap-test.uk-halle.de/redcap_v17.3.12/api/
+PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=https://redcap-test.uk-halle.de/api/
 PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN=<PID 411 token>
 PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD=record_id
 ```
