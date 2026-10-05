@@ -130,8 +130,22 @@ SELECT
         ELSE NULL
     END AS delay_days,
     CASE
-        WHEN NULLIF(r.payload ->> 'ad_call_numb', '') ~ '^[0-9]+$'
-        THEN (r.payload ->> 'ad_call_numb')::integer
+        WHEN substring(
+            physio_hemab_wp2.choice_label(
+                'main',
+                'ad_call_numb',
+                r.payload ->> 'ad_call_numb'
+            )
+            FROM '([0-9]+)'
+        ) IS NOT NULL
+        THEN substring(
+            physio_hemab_wp2.choice_label(
+                'main',
+                'ad_call_numb',
+                r.payload ->> 'ad_call_numb'
+            )
+            FROM '([0-9]+)'
+        )::integer
         ELSE NULL
     END AS calls_made,
     (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
