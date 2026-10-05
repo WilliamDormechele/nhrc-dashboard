@@ -46,3 +46,22 @@ jobs:
         run: |
           python -m json.tool integrations/physio-hemab-wp2/field-map.main.json > /dev/null
           python -m json.tool integrations/physio-hemab-wp2/field-map.devices.json > /dev/null
+
+      - name: Validate PostgreSQL schema and reporting views
+        run: |
+          docker run --name wp2-pg-test \
+            -e POSTGRES_PASSWORD=test \
+            -e POSTGRES_DB=physio_hemab_wp2 \
+            -d -p 55432:5432 postgres:16-alpine
+          for i in {1..30}; do
+            if docker exec wp2-pg-test pg_isready -U postgres -d physio_hemab_wp2; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/schema.sql
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/views.sql
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT * FROM physio_hemab_wp2.vw_overview_metrics ORDER BY metric_code;"
