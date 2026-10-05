@@ -214,3 +214,64 @@ python src\check_reporting.py
 ```
 
 This reports only aggregate recruitment, form-completion, Activity Diary, device and sync counts.
+
+
+## Project configuration for advanced KPIs
+
+Three advanced dashboard capabilities are implemented with explicit configuration rather than hard-coded assumptions.
+
+### Facility-specific target attainment
+
+The four named facilities are present in `physio_hemab_wp2.facility_targets`, but the study source material does not identify which facility receives each 60/40/60/40 target. Configure the approved mapping before publishing target-attainment visuals.
+
+Example:
+
+```powershell
+python src\configure_project.py facility-target --facility "Paga District Hospital" --arm Intervention --target 60
+```
+
+Or copy `facility-targets.example.csv`, fill the approved mappings, and load them:
+
+```powershell
+python src\configure_project.py facility-targets-csv .\facility-targets.local.csv
+```
+
+### Data-collector performance
+
+Physical Examination performance can use the REDCap `crf_examiner` field automatically. Enrollment, Maternal Record Book and Activity Diary attribution can be configured without changing REDCap by using the assignment table.
+
+Example:
+
+```powershell
+python src\configure_project.py collector --record-id 1 --instrument activity_diary --instance 1 --name "Collector Name"
+```
+
+For bulk attribution, copy `data-collector-assignments.example.csv` and load it:
+
+```powershell
+python src\configure_project.py collectors-csv .\data-collector-assignments.local.csv
+```
+
+Actual collector-assignment files should remain local and must not be committed.
+
+### Selectable device return window
+
+The dashboard exposes return-window options of 1, 2, 3, 5, 7, 10 and 14 days through `vw_return_window_options` and `vw_device_overdue_scenarios`.
+
+Power BI should use `return_window_days` or `return_window` as a single-select slicer. The selected window calculates:
+
+- expected return date
+- overdue status
+- due-today status
+- within-window status
+- returned status
+
+This avoids hard-coding an unapproved return rule.
+
+### Configuration status
+
+```powershell
+python src\configure_project.py show
+```
+
+This reports facility-target configuration, collector attribution coverage and available return-window options without exposing participant data.
