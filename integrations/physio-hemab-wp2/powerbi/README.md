@@ -191,3 +191,19 @@ Display:
 Power BI should connect only to the reporting views. Do not import `raw_records.payload`.
 
 The synchronization layer intentionally excludes participant name, date of birth, telephone number and address from PostgreSQL.
+
+
+## Release-candidate interaction hardening
+
+The v5 report hardening includes:
+
+- corrected percentage formatting for recruitment progress;
+- issue-focused Device and Data Quality KPI cards;
+- delayed Activity Diary follow-up restricted to delayed interviews;
+- incomplete device-return follow-up restricted to incomplete returns;
+- synchronized slicers retained across related pages;
+- cross-filter guidance added to each analytical page;
+- user-facing aggregate labels kept professional rather than showing default "Sum of ..." wording;
+- the standalone theme is stored as `Physio-HeMAB_Professional_Theme_v5.json`.
+
+The PBIX itself is not committed to this public repository. Keep the working PBIX in the approved project workspace and publish only after Power BI Desktop rendering, interaction, and data-governance checks pass.
