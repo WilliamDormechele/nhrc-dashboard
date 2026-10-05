@@ -98,3 +98,68 @@ VALUES
     ('participant_target', '200'::jsonb),
     ('activity_diaries_expected_per_participant', '6'::jsonb)
 ON CONFLICT (config_key) DO NOTHING;
+
+
+CREATE TABLE IF NOT EXISTS physio_hemab_wp2.facility_targets (
+    facility TEXT PRIMARY KEY,
+    study_arm TEXT CHECK (study_arm IN ('Intervention', 'Control')),
+    recruitment_target INTEGER CHECK (recruitment_target > 0),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO physio_hemab_wp2.facility_targets (facility)
+VALUES
+    ('War Memorial Hospital'),
+    ('Paga District Hospital'),
+    ('Pungu Central'),
+    ('Martyrs of Uganda Health Centre, Sirigu')
+ON CONFLICT (facility) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS physio_hemab_wp2.data_collector_assignments (
+    source_project TEXT NOT NULL CHECK (source_project IN ('main', 'devices')),
+    record_id TEXT NOT NULL,
+    instrument TEXT NOT NULL DEFAULT '',
+    repeat_instance TEXT NOT NULL DEFAULT '',
+    data_collector TEXT NOT NULL,
+    assignment_source TEXT NOT NULL DEFAULT 'manual'
+        CHECK (assignment_source IN ('manual', 'redcap_field', 'redcap_audit', 'derived')),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (
+        source_project,
+        record_id,
+        instrument,
+        repeat_instance
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_collector_assignments_collector
+    ON physio_hemab_wp2.data_collector_assignments(data_collector);
+
+CREATE TABLE IF NOT EXISTS physio_hemab_wp2.device_return_policy_options (
+    return_window_days INTEGER PRIMARY KEY CHECK (return_window_days > 0),
+    label TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+);
+
+INSERT INTO physio_hemab_wp2.device_return_policy_options (
+    return_window_days,
+    label,
+    sort_order
+)
+VALUES
+    (1, '1 day', 1),
+    (2, '2 days', 2),
+    (3, '3 days', 3),
+    (5, '5 days', 4),
+    (7, '7 days', 5),
+    (10, '10 days', 6),
+    (14, '14 days', 7)
+ON CONFLICT (return_window_days) DO UPDATE
+SET label = EXCLUDED.label,
+    sort_order = EXCLUDED.sort_order;
+
+INSERT INTO physio_hemab_wp2.dashboard_config (config_key, config_value)
+VALUES
+    ('sync_stale_minutes', '15'::jsonb)
+ON CONFLICT (config_key) DO NOTHING;
