@@ -1,3 +1,25 @@
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_overview_metrics CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_data_quality_issues CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_data_collector_performance CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_data_collector_work CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_data_freshness CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_overdue_scenarios CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_return_window_options CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_component_completeness CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_weekly_flow CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_form_completion_by_facility CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_core_form_completion_by_participant CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_facility_target_attainment CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_recruitment_trend CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_sync_status CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_set_status CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_returns CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_device_distributions CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_form_completion CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_recruitment_by_facility CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_activity_diaries CASCADE;
+DROP VIEW IF EXISTS physio_hemab_wp2.vw_participants CASCADE;
+
 CREATE OR REPLACE FUNCTION physio_hemab_wp2.choice_label(
     p_source_project TEXT,
     p_field_name TEXT,
@@ -96,6 +118,7 @@ SELECT
             r.payload ->> 'crf_facility'
         )
     ) AS physical_examination_facility,
+    r.last_seen_at,
     NULLIF(r.payload ->> 'crf_examiner', '') AS physical_examiner,
     COALESCE(
         (
@@ -133,8 +156,7 @@ SELECT
         ),
         NULLIF(r.payload ->> 'crf_examiner', ''),
         'Unassigned'
-    ) AS physical_data_collector,
-    r.last_seen_at
+    ) AS physical_data_collector
 FROM physio_hemab_wp2.raw_records r
 WHERE r.source_project = 'main'
   AND r.is_active = TRUE
@@ -186,12 +208,12 @@ SELECT
         )::integer
         ELSE NULL
     END AS calls_made,
+    (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
+    r.last_seen_at,
     COALESCE(
         NULLIF(trim(a.data_collector), ''),
         'Unassigned'
-    ) AS data_collector,
-    (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
-    r.last_seen_at
+    ) AS data_collector
 FROM physio_hemab_wp2.raw_records r
 LEFT JOIN physio_hemab_wp2.vw_participants p
     ON p.record_id = r.record_id
@@ -221,9 +243,14 @@ WITH recruitment AS (
 )
 SELECT
     COALESCE(ft.facility, r.facility) AS facility,
+    COALESCE(r.participants_enrolled, 0)::integer AS participants_enrolled,
+    COALESCE(r.enrollment_forms_complete, 0)::integer AS enrollment_forms_complete,
+    COALESCE(r.maternal_record_books_complete, 0)::integer AS maternal_record_books_complete,
+    COALESCE(r.physical_examinations_complete, 0)::integer AS physical_examinations_complete,
+    r.first_enrollment_date,
+    r.latest_enrollment_date,
     ft.study_arm,
     ft.recruitment_target,
-    COALESCE(r.participants_enrolled, 0)::integer AS participants_enrolled,
     CASE
         WHEN ft.recruitment_target IS NULL THEN NULL
         ELSE GREATEST(ft.recruitment_target - COALESCE(r.participants_enrolled, 0), 0)
@@ -235,11 +262,6 @@ SELECT
             1
         )
     END AS target_attainment_pct,
-    COALESCE(r.enrollment_forms_complete, 0)::integer AS enrollment_forms_complete,
-    COALESCE(r.maternal_record_books_complete, 0)::integer AS maternal_record_books_complete,
-    COALESCE(r.physical_examinations_complete, 0)::integer AS physical_examinations_complete,
-    r.first_enrollment_date,
-    r.latest_enrollment_date,
     (ft.recruitment_target IS NOT NULL AND ft.study_arm IS NOT NULL) AS target_configured
 FROM physio_hemab_wp2.facility_targets ft
 FULL OUTER JOIN recruitment r
