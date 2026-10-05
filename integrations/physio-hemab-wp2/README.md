@@ -203,3 +203,14 @@ The audit also decodes REDCap checkbox exports (for example `devices_war___...`)
 and reports only aggregate selected-choice counts. It also reports repeating-instrument
 structure so that the transformation logic can distinguish participant rows from
 repeating Activity Diary rows.
+
+
+## Reporting validation
+
+Before connecting Power BI, validate the populated reporting views without exposing participant-level values:
+
+```powershell
+python src\check_reporting.py
+```
+
+This reports only aggregate recruitment, form-completion, Activity Diary, device and sync counts.
