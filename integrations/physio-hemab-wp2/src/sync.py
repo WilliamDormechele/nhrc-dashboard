@@ -26,6 +26,7 @@ MAIN_DASHBOARD_FIELDS = [
     "maternal_record_book_baseline_complete",
     "crf_date",
     "crf_facility",
+    "crf_examiner",
     "physical_examination_form_complete",
     "ad_date",
     "call_date",
