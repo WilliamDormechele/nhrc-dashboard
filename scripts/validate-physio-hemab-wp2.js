@@ -96,6 +96,18 @@ assert(
   "vw_device_returns",
   "vw_device_set_status",
   "vw_sync_status",
+  "vw_recruitment_trend",
+  "vw_facility_target_attainment",
+  "vw_core_form_completion_by_participant",
+  "vw_form_completion_by_facility",
+  "vw_device_weekly_flow",
+  "vw_device_component_completeness",
+  "vw_return_window_options",
+  "vw_device_overdue_scenarios",
+  "vw_data_freshness",
+  "vw_data_collector_work",
+  "vw_data_collector_performance",
+  "vw_data_quality_issues",
   "vw_overview_metrics"
 ].forEach((viewName) => {
   assert(views.includes(viewName), `Reporting view missing: ${viewName}`);
