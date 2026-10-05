@@ -20,6 +20,9 @@ const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
 const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
 const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
 const schema = read("integrations/physio-hemab-wp2/sql/schema.sql");
+const views = read("integrations/physio-hemab-wp2/sql/views.sql");
+const syncPy = read("integrations/physio-hemab-wp2/src/sync.py");
+const compose = read("integrations/physio-hemab-wp2/compose.yaml");
 
 [
   "hemab:",
@@ -79,8 +82,48 @@ assert(
 
 assert(
   schema.includes("CREATE SCHEMA IF NOT EXISTS physio_hemab_wp2") &&
-    schema.includes("source_project"),
-  "Physio-HeMAB WP2 two-project PostgreSQL schema is missing."
+    schema.includes("redcap_metadata") &&
+    schema.includes("is_active"),
+  "Physio-HeMAB WP2 PostgreSQL schema is incomplete."
+);
+
+[
+  "vw_participants",
+  "vw_activity_diaries",
+  "vw_recruitment_by_facility",
+  "vw_form_completion",
+  "vw_device_distributions",
+  "vw_device_returns",
+  "vw_device_set_status",
+  "vw_sync_status",
+  "vw_overview_metrics"
+].forEach((viewName) => {
+  assert(views.includes(viewName), `Reporting view missing: ${viewName}`);
+});
+
+assert(
+  syncPy.includes("MAIN_DASHBOARD_FIELDS") &&
+    syncPy.includes("DEVICE_DASHBOARD_FIELDS") &&
+    syncPy.includes("minimize_record"),
+  "REDCap data minimisation is missing from the synchronizer."
+);
+
+[
+  "enroll_name",
+  "enroll_birthday",
+  "enroll_tel",
+  "enroll_address"
+].forEach((sensitiveField) => {
+  assert(
+    !syncPy.includes('"' + sensitiveField + '"'),
+    `Sensitive participant field must not be synchronized: ${sensitiveField}`
+  );
+});
+
+assert(
+  compose.includes("postgres:16-alpine") &&
+    compose.includes("physio-hemab-wp2-postgres"),
+  "Local PostgreSQL service configuration is missing."
 );
 
 console.log("Physio-HeMAB WP2 structural validation passed.");
