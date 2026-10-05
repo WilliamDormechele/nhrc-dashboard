@@ -9,11 +9,27 @@ CREATE TABLE IF NOT EXISTS physio_hemab_wp2.sync_runs (
     records_received INTEGER NOT NULL DEFAULT 0,
     records_inserted INTEGER NOT NULL DEFAULT 0,
     records_updated INTEGER NOT NULL DEFAULT 0,
+    records_deactivated INTEGER NOT NULL DEFAULT 0,
     error_message TEXT
 );
 
+ALTER TABLE physio_hemab_wp2.sync_runs
+    ADD COLUMN IF NOT EXISTS records_deactivated INTEGER NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_sync_runs_project_time
     ON physio_hemab_wp2.sync_runs(source_project, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS physio_hemab_wp2.redcap_metadata (
+    source_project TEXT NOT NULL CHECK (source_project IN ('main', 'devices')),
+    field_name TEXT NOT NULL,
+    form_name TEXT NOT NULL DEFAULT '',
+    field_type TEXT NOT NULL DEFAULT '',
+    field_label TEXT NOT NULL DEFAULT '',
+    choices JSONB NOT NULL DEFAULT '{}'::jsonb,
+    raw_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (source_project, field_name)
+);
 
 CREATE TABLE IF NOT EXISTS physio_hemab_wp2.raw_records (
     raw_record_id BIGSERIAL PRIMARY KEY,
@@ -24,6 +40,8 @@ CREATE TABLE IF NOT EXISTS physio_hemab_wp2.raw_records (
     repeat_instance TEXT NOT NULL DEFAULT '',
     payload JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    deleted_at TIMESTAMPTZ,
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_sync_run_id BIGINT REFERENCES physio_hemab_wp2.sync_runs(sync_run_id),
@@ -36,11 +54,20 @@ CREATE TABLE IF NOT EXISTS physio_hemab_wp2.raw_records (
     )
 );
 
+ALTER TABLE physio_hemab_wp2.raw_records
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+ALTER TABLE physio_hemab_wp2.raw_records
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_raw_records_source_record
     ON physio_hemab_wp2.raw_records(source_project, record_id);
 
 CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_raw_records_last_seen_at
     ON physio_hemab_wp2.raw_records(last_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_raw_records_active
+    ON physio_hemab_wp2.raw_records(source_project, is_active);
 
 CREATE TABLE IF NOT EXISTS physio_hemab_wp2.kpm_snapshots (
     snapshot_id BIGSERIAL PRIMARY KEY,
@@ -59,3 +86,15 @@ CREATE TABLE IF NOT EXISTS physio_hemab_wp2.kpm_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_kpm_snapshots_metric_time
     ON physio_hemab_wp2.kpm_snapshots(metric_code, captured_at DESC);
+
+CREATE TABLE IF NOT EXISTS physio_hemab_wp2.dashboard_config (
+    config_key TEXT PRIMARY KEY,
+    config_value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO physio_hemab_wp2.dashboard_config (config_key, config_value)
+VALUES
+    ('participant_target', '200'::jsonb),
+    ('activity_diaries_expected_per_participant', '6'::jsonb)
+ON CONFLICT (config_key) DO NOTHING;
