@@ -150,3 +150,24 @@ This GitHub repository is public. Never commit:
 - private keys
 
 Participant-level data must remain within the approved research infrastructure.
+
+
+## Privacy-preserving record audit
+
+After metadata access succeeds, validate the returned record structure without printing names,
+dates of birth, telephone numbers, addresses, study IDs or other participant-level values.
+
+Main project:
+
+```powershell
+python src\audit_records.py main
+```
+
+Devices project:
+
+```powershell
+python src\audit_records.py devices
+```
+
+The audit prints only aggregate counts and field-presence information. Do not paste full
+REDCap record exports into chat or commit them to the repository.
