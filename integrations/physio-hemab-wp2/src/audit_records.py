@@ -193,6 +193,35 @@ def main() -> None:
             + render_counter(call_date_counts, call_date_labels)
         )
 
+        collector_meta = metadata_map.get("data_collector")
+        if collector_meta:
+            print(
+                "data_collector_metadata="
+                + ":".join(
+                    [
+                        str(collector_meta.get("form_name", "")),
+                        str(collector_meta.get("field_type", "")),
+                        str(collector_meta.get("field_label", "")).replace(":", " "),
+                    ]
+                )
+            )
+            collector_labels = choice_label_map(collector_meta)
+            collector_counts = Counter(
+                str(row.get("data_collector", "")).strip()
+                for row in records
+                if nonblank(row.get("data_collector"))
+            )
+            print(
+                "data_collector_rows_with_value="
+                + str(sum(collector_counts.values()))
+            )
+            print(
+                "data_collector_counts="
+                + render_counter(collector_counts, collector_labels)
+            )
+        else:
+            print("data_collector_metadata=NOT_FOUND")
+
     elif settings.project_key == "devices":
         print(
             "distribution_rows_with_date="
