@@ -207,3 +207,50 @@ The v5 report hardening includes:
 - the standalone theme is stored as `Physio-HeMAB_Professional_Theme_v5.json`.
 
 The PBIX itself is not committed to this public repository. Keep the working PBIX in the approved project workspace and publish only after Power BI Desktop rendering, interaction, and data-governance checks pass.
+
+
+## Advanced operational views
+
+After applying the latest database schema and views, add these views to the Power BI model:
+
+| View | Purpose |
+| --- | --- |
+| `vw_recruitment_trend` | Weekly and cumulative enrollment trend |
+| `vw_facility_target_attainment` | Named-facility target, remaining participants and attainment percentage |
+| `vw_core_form_completion_by_participant` | Participant-level completion of all three core forms |
+| `vw_form_completion_by_facility` | Expected/completed/missing forms by facility |
+| `vw_device_weekly_flow` | Weekly device distributions vs returns |
+| `vw_device_component_completeness` | Return-component completeness |
+| `vw_return_window_options` | User-selectable return-window slicer |
+| `vw_device_overdue_scenarios` | Expected return dates and overdue status for each selectable window |
+| `vw_data_freshness` | Last successful sync age and stale-data flag |
+| `vw_data_collector_performance` | Workload, completion, delays and call attempts by collector |
+| `vw_data_quality_issues` | Issue counts and severity for operational follow-up |
+
+### Recommended additional cards
+
+- Participants Remaining
+- Recruiting Facilities
+- Activity Diary Completion %
+- Activity Diaries Outstanding
+- On-Time Interview Rate
+- Delayed Interview Rate
+- Average Call Attempts per Diary
+- Average Interview Delay
+- Maximum Interview Delay
+- Core Forms Complete
+- Device Component Completeness %
+- Incomplete Device Returns
+- Data Age
+
+### Recommended additional charts
+
+- Weekly / cumulative recruitment trend
+- Facility target attainment
+- Form completion by facility
+- Data-collector performance
+- Weekly device distribution vs return
+- Data-quality issues by type and severity
+- Device overdue status controlled by the selected return-window slicer
+
+The return-window slicer must be single-select to keep overdue interpretation unambiguous.
