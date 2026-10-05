@@ -10,9 +10,9 @@
   "return_form_complete": "return_log_complete",
   "facility_distribution_fields": {
     "War Memorial Hospital": "devices_war",
-    "Paga Hospital": "devices_paga",
+    "Paga District Hospital": "devices_paga",
     "Pungu Central": "devices_pungu",
-    "Martyrs of Uganda Health Centre Sirigu": "devices_sirigu"
+    "Martyrs of Uganda Health Centre, Sirigu": "devices_sirigu"
   },
   "device_study_id_fields": {
     "War Memorial Hospital": [
@@ -27,7 +27,7 @@
       "study_id_b4",
       "study_id_b5"
     ],
-    "Paga Hospital": [
+    "Paga District Hospital": [
       "study_id_paga_a1",
       "study_id_paga_a2",
       "study_id_paga_a3",
@@ -51,7 +51,7 @@
       "study_id_pungu_b4",
       "study_id_pungu_b5"
     ],
-    "Martyrs of Uganda Health Centre Sirigu": [
+    "Martyrs of Uganda Health Centre, Sirigu": [
       "study_id_sirigu_a1",
       "study_id_sirigu_a2",
       "study_id_sirigu_a3",
