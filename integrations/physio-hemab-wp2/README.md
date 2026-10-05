@@ -106,15 +106,32 @@ python src\inspect_metadata.py devices
 
 ## PostgreSQL
 
-Apply:
+For local development, WP2 uses a free PostgreSQL 16 container on port `5437`, isolated from
+the other NHRC repositories.
 
-```text
-sql/schema.sql
+Add these values to the repository root `.env` file:
+
+```env
+PHYSIO_HEMAB_DB_HOST=127.0.0.1
+PHYSIO_HEMAB_DB_PORT=5437
+PHYSIO_HEMAB_DB_NAME=physio_hemab_wp2
+PHYSIO_HEMAB_DB_USER=physio_hemab
+PHYSIO_HEMAB_DB_PASSWORD=<choose a strong local password>
+PHYSIO_HEMAB_DB_SSLMODE=disable
 ```
 
-to the approved PostgreSQL database.
+Then, from the WP2 integration directory, run:
 
-The schema stores the two REDCap projects separately using `source_project`. This is necessary because both projects can use overlapping REDCap record IDs.
+```powershell
+.\scripts\setup-db.ps1
+```
+
+The setup script starts PostgreSQL, waits for the health check, and applies both
+`sql/schema.sql` and `sql/views.sql`.
+
+The database stores only dashboard-required REDCap fields. Names, dates of birth,
+telephone numbers, addresses and unrelated clinical variables are not requested by
+the synchronizer and are not written to PostgreSQL.
 
 ## Synchronization
 
@@ -136,7 +153,16 @@ Both:
 python src\sync.py all
 ```
 
-Do not run record synchronization until the API permissions, database location and field mapping have been verified.
+After PostgreSQL is initialized, run both REDCap sources:
+
+```powershell
+python src\sync.py all
+python src\check_db.py
+```
+
+The reporting layer exposes Power BI-ready views for participants, activity diaries,
+form completion, recruitment by facility, device distribution, device returns, current
+device-set status, synchronization status and overview metrics.
 
 ## Security
 
