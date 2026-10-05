@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable
 
 import requests
 
@@ -8,7 +8,7 @@ import requests
 class RedcapClient:
     def __init__(self, api_url: str, api_token: str, timeout_seconds: int = 60) -> None:
         # Keep a trailing slash. Some REDCap/Apache deployments treat
-        # POST /api and POST /api/ differently and may return 404 for /api.
+        # POST /api and POST /api/ differently.
         self.api_url = api_url.rstrip("/") + "/"
         self.api_token = api_token
         self.timeout_seconds = timeout_seconds
@@ -49,18 +49,26 @@ class RedcapClient:
             raise RuntimeError("Unexpected REDCap metadata response format.")
         return data
 
-    def export_records(self) -> list[dict[str, Any]]:
-        data = self._post(
-            {
-                "content": "record",
-                "type": "flat",
-                "rawOrLabel": "raw",
-                "rawOrLabelHeaders": "raw",
-                "exportCheckboxLabel": "false",
-                "exportSurveyFields": "false",
-                "exportDataAccessGroups": "true",
-            }
-        )
+    def export_records(
+        self,
+        *,
+        fields: Iterable[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        payload: dict[str, Any] = {
+            "content": "record",
+            "type": "flat",
+            "rawOrLabel": "raw",
+            "rawOrLabelHeaders": "raw",
+            "exportCheckboxLabel": "false",
+            "exportSurveyFields": "false",
+            "exportDataAccessGroups": "true",
+        }
+
+        if fields:
+            for index, field in enumerate(dict.fromkeys(fields)):
+                payload[f"fields[{index}]"] = field
+
+        data = self._post(payload)
 
         if not isinstance(data, list):
             raise RuntimeError("Unexpected REDCap record response format.")
