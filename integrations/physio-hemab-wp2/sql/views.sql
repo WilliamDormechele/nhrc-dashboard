@@ -44,13 +44,13 @@ CREATE OR REPLACE FUNCTION physio_hemab_wp2.choice_count(
 RETURNS INTEGER
 LANGUAGE sql
 STABLE
-AS $
+AS $choice_count$
     SELECT COUNT(*)::INTEGER
     FROM physio_hemab_wp2.redcap_metadata m
     CROSS JOIN LATERAL jsonb_each_text(m.choices)
     WHERE m.source_project = p_source_project
       AND m.field_name = p_field_name;
-$;
+$choice_count$;
 
 CREATE OR REPLACE FUNCTION physio_hemab_wp2.canonical_facility(
     p_facility TEXT
@@ -58,7 +58,7 @@ CREATE OR REPLACE FUNCTION physio_hemab_wp2.canonical_facility(
 RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE
-AS $
+AS $canonical_facility$
     SELECT CASE trim(COALESCE(p_facility, ''))
         WHEN 'Paga Hospital' THEN 'Paga District Hospital'
         WHEN 'Paga District Hospital' THEN 'Paga District Hospital'
@@ -68,7 +68,7 @@ AS $
         WHEN 'Martyrs of Uganda Health Centre, Sirigu' THEN 'Martyrs of Uganda Health Centre, Sirigu'
         ELSE NULLIF(trim(COALESCE(p_facility, '')), '')
     END;
-$;
+$canonical_facility$;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_participants AS
 SELECT
