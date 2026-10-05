@@ -258,7 +258,15 @@ Actual collector-assignment files should remain local and must not be committed.
 
 The dashboard exposes return-window options of 1, 2, 3, 5, 7, 10 and 14 days through `vw_return_window_options` and `vw_device_overdue_scenarios`.
 
-Power BI should use `return_window_days` or `return_window` as a single-select slicer. The selected window calculates:
+Power BI can use `return_window_days` or `return_window` from the scenario view as a single-select slicer. In addition, the current Device Set Status view supports a project-level selected policy.
+
+Set the operational return window, for example 3 days:
+
+```powershell
+python src\configure_project.py return-window --days 3
+```
+
+The configured value calculates:
 
 - expected return date
 - overdue status
@@ -266,7 +274,7 @@ Power BI should use `return_window_days` or `return_window` as a single-select s
 - within-window status
 - returned status
 
-This avoids hard-coding an unapproved return rule.
+This avoids hard-coding an unapproved return rule while still allowing a single project policy to drive the dashboard.
 
 ### Configuration status
 
