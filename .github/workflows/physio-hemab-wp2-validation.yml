@@ -63,5 +63,14 @@ jobs:
             < integrations/physio-hemab-wp2/sql/schema.sql
           docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
             < integrations/physio-hemab-wp2/sql/views.sql
+          # Re-apply to prove reporting views are upgrade/idempotency safe.
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/views.sql
           docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
             -c "SELECT * FROM physio_hemab_wp2.vw_overview_metrics ORDER BY metric_code;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_facility_target_attainment;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_data_collector_performance;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_device_overdue_scenarios;"
