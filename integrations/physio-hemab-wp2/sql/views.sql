@@ -44,23 +44,43 @@ CREATE OR REPLACE FUNCTION physio_hemab_wp2.choice_count(
 RETURNS INTEGER
 LANGUAGE sql
 STABLE
-AS $$
+AS $
     SELECT COUNT(*)::INTEGER
     FROM physio_hemab_wp2.redcap_metadata m
     CROSS JOIN LATERAL jsonb_each_text(m.choices)
     WHERE m.source_project = p_source_project
       AND m.field_name = p_field_name;
-$$;
+$;
+
+CREATE OR REPLACE FUNCTION physio_hemab_wp2.canonical_facility(
+    p_facility TEXT
+)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $
+    SELECT CASE trim(COALESCE(p_facility, ''))
+        WHEN 'Paga Hospital' THEN 'Paga District Hospital'
+        WHEN 'Paga District Hospital' THEN 'Paga District Hospital'
+        WHEN 'Pungu Central' THEN 'Pungu Central'
+        WHEN 'War Memorial Hospital' THEN 'War Memorial Hospital'
+        WHEN 'Martiers of Uganda Health Centre Sirigu' THEN 'Martyrs of Uganda Health Centre, Sirigu'
+        WHEN 'Martyrs of Uganda Health Centre, Sirigu' THEN 'Martyrs of Uganda Health Centre, Sirigu'
+        ELSE NULLIF(trim(COALESCE(p_facility, '')), '')
+    END;
+$;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_participants AS
 SELECT
     r.record_id,
     NULLIF(r.payload ->> 'enroll_studid', '') AS study_id,
     NULLIF(r.payload ->> 'health_facility_enrollment', '') AS facility_code,
-    physio_hemab_wp2.choice_label(
-        'main',
-        'health_facility_enrollment',
-        r.payload ->> 'health_facility_enrollment'
+    physio_hemab_wp2.canonical_facility(
+        physio_hemab_wp2.choice_label(
+            'main',
+            'health_facility_enrollment',
+            r.payload ->> 'health_facility_enrollment'
+        )
     ) AS facility,
     NULLIF(r.payload ->> 'enroll_registr_date', '')::date AS enrollment_date,
     (r.payload ->> 'enrollment_form_complete') = '2' AS enrollment_complete,
@@ -69,10 +89,12 @@ SELECT
     (r.payload ->> 'physical_examination_form_complete') = '2'
         AS physical_examination_complete,
     NULLIF(r.payload ->> 'crf_date', '')::date AS physical_examination_date,
-    physio_hemab_wp2.choice_label(
-        'main',
-        'crf_facility',
-        r.payload ->> 'crf_facility'
+    physio_hemab_wp2.canonical_facility(
+        physio_hemab_wp2.choice_label(
+            'main',
+            'crf_facility',
+            r.payload ->> 'crf_facility'
+        )
     ) AS physical_examination_facility,
     r.last_seen_at
 FROM physio_hemab_wp2.raw_records r
