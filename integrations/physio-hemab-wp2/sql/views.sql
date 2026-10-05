@@ -121,6 +121,16 @@ SELECT
     r.last_seen_at,
     NULLIF(r.payload ->> 'crf_examiner', '') AS physical_examiner,
     COALESCE(
+        NULLIF(
+            trim(
+                physio_hemab_wp2.choice_label(
+                    'main',
+                    'data_collector',
+                    r.payload ->> 'data_collector'
+                )
+            ),
+            ''
+        ),
         (
             SELECT NULLIF(trim(a.data_collector), '')
             FROM physio_hemab_wp2.data_collector_assignments a
@@ -133,6 +143,16 @@ SELECT
         'Unassigned'
     ) AS enrollment_data_collector,
     COALESCE(
+        NULLIF(
+            trim(
+                physio_hemab_wp2.choice_label(
+                    'main',
+                    'data_collector',
+                    r.payload ->> 'data_collector'
+                )
+            ),
+            ''
+        ),
         (
             SELECT NULLIF(trim(a.data_collector), '')
             FROM physio_hemab_wp2.data_collector_assignments a
@@ -145,6 +165,16 @@ SELECT
         'Unassigned'
     ) AS maternal_data_collector,
     COALESCE(
+        NULLIF(
+            trim(
+                physio_hemab_wp2.choice_label(
+                    'main',
+                    'data_collector',
+                    r.payload ->> 'data_collector'
+                )
+            ),
+            ''
+        ),
         (
             SELECT NULLIF(trim(a.data_collector), '')
             FROM physio_hemab_wp2.data_collector_assignments a
@@ -156,7 +186,17 @@ SELECT
         ),
         NULLIF(r.payload ->> 'crf_examiner', ''),
         'Unassigned'
-    ) AS physical_data_collector
+    ) AS physical_data_collector,
+    NULLIF(
+        trim(
+            physio_hemab_wp2.choice_label(
+                'main',
+                'data_collector',
+                r.payload ->> 'data_collector'
+            )
+        ),
+        ''
+    ) AS data_collector
 FROM physio_hemab_wp2.raw_records r
 WHERE r.source_project = 'main'
   AND r.is_active = TRUE
@@ -211,6 +251,17 @@ SELECT
     (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
     r.last_seen_at,
     COALESCE(
+        NULLIF(
+            trim(
+                physio_hemab_wp2.choice_label(
+                    'main',
+                    'data_collector',
+                    r.payload ->> 'data_collector'
+                )
+            ),
+            ''
+        ),
+        NULLIF(trim(p.data_collector), ''),
         NULLIF(trim(a.data_collector), ''),
         'Unassigned'
     ) AS data_collector
@@ -780,14 +831,15 @@ WITH participant_tasks AS (
         NULL::boolean AS delayed,
         NULL::integer AS calls_made,
         NULL::integer AS delay_days,
-        NULL::text AS derived_collector
+        p.enrollment_data_collector AS derived_collector
     FROM physio_hemab_wp2.vw_participants p
     UNION ALL
     SELECT
         p.record_id, p.study_id, p.facility,
         'Maternal Record Book', '',
         p.maternal_record_book_complete,
-        NULL, NULL, NULL, NULL
+        NULL, NULL, NULL,
+        p.maternal_data_collector
     FROM physio_hemab_wp2.vw_participants p
     UNION ALL
     SELECT
@@ -795,7 +847,7 @@ WITH participant_tasks AS (
         'Physical Examination', '',
         p.physical_examination_complete,
         NULL, NULL, NULL,
-        p.physical_examiner
+        p.physical_data_collector
     FROM physio_hemab_wp2.vw_participants p
 ),
 diary_tasks AS (
@@ -809,7 +861,7 @@ diary_tasks AS (
         (a.same_day_interview = 'No') AS delayed,
         a.calls_made,
         a.delay_days,
-        NULL::text AS derived_collector
+        a.data_collector AS derived_collector
     FROM physio_hemab_wp2.vw_activity_diaries a
 ),
 all_tasks AS (
@@ -824,13 +876,15 @@ SELECT
     t.task_type,
     t.repeat_instance,
     COALESCE(
+        NULLIF(NULLIF(trim(t.derived_collector), ''), 'Unassigned'),
         NULLIF(trim(a.data_collector), ''),
-        NULLIF(trim(t.derived_collector), ''),
         'Unassigned'
     ) AS data_collector,
     CASE
-        WHEN NULLIF(trim(a.data_collector), '') IS NOT NULL THEN a.assignment_source
-        WHEN NULLIF(trim(t.derived_collector), '') IS NOT NULL THEN 'redcap_field'
+        WHEN NULLIF(NULLIF(trim(t.derived_collector), ''), 'Unassigned') IS NOT NULL
+            THEN 'redcap_field'
+        WHEN NULLIF(trim(a.data_collector), '') IS NOT NULL
+            THEN a.assignment_source
         ELSE 'unassigned'
     END AS attribution_source,
     t.completed,
