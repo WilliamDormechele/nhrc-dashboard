@@ -987,6 +987,28 @@ config AS (
         ),
         6
     ) AS diaries_per_participant
+),
+collector AS (
+    SELECT COUNT(*)::integer AS unassigned_tasks
+    FROM physio_hemab_wp2.vw_data_collector_work
+    WHERE data_collector = 'Unassigned'
+),
+target_config AS (
+    SELECT COUNT(*)::integer AS unconfigured_targets
+    FROM physio_hemab_wp2.vw_facility_target_attainment
+    WHERE target_configured = FALSE
+),
+overdue AS (
+    SELECT
+        COUNT(*) FILTER (WHERE is_overdue = TRUE)::integer AS overdue_devices,
+        MAX(return_window_days) AS configured_return_window_days
+    FROM physio_hemab_wp2.vw_device_set_status
+),
+freshness AS (
+    SELECT
+        COUNT(*) FILTER (WHERE is_stale)::integer AS stale_sources,
+        MAX(age_minutes) AS max_data_age_minutes
+    FROM physio_hemab_wp2.vw_data_freshness
 )
 SELECT 'participant_target'::text AS metric_code, t.participant_target::numeric AS metric_value
 FROM target t
@@ -1016,4 +1038,10 @@ UNION ALL SELECT 'device_complete_return_records', dv.complete_return_records::n
 UNION ALL SELECT 'device_incomplete_return_records', dv.incomplete_return_records::numeric FROM device dv
 UNION ALL SELECT 'device_components_returned', dv.components_returned::numeric FROM device dv
 UNION ALL SELECT 'device_components_expected', dv.components_expected::numeric FROM device dv
-UNION ALL SELECT 'device_component_completeness_pct', dv.component_completeness_pct::numeric FROM device dv;
+UNION ALL SELECT 'device_component_completeness_pct', dv.component_completeness_pct::numeric FROM device dv
+UNION ALL SELECT 'unassigned_collector_tasks', c.unassigned_tasks::numeric FROM collector c
+UNION ALL SELECT 'unconfigured_facility_targets', tc.unconfigured_targets::numeric FROM target_config tc
+UNION ALL SELECT 'overdue_devices', o.overdue_devices::numeric FROM overdue o
+UNION ALL SELECT 'configured_return_window_days', o.configured_return_window_days::numeric FROM overdue o
+UNION ALL SELECT 'stale_data_sources', f.stale_sources::numeric FROM freshness f
+UNION ALL SELECT 'max_data_age_minutes', ROUND(f.max_data_age_minutes::numeric,1) FROM freshness f;
