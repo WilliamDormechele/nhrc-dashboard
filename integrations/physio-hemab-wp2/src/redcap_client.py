@@ -7,7 +7,9 @@ import requests
 
 class RedcapClient:
     def __init__(self, api_url: str, api_token: str, timeout_seconds: int = 60) -> None:
-        self.api_url = api_url.rstrip("/")
+        # Keep a trailing slash. Some REDCap/Apache deployments treat
+        # POST /api and POST /api/ differently and may return 404 for /api.
+        self.api_url = api_url.rstrip("/") + "/"
         self.api_token = api_token
         self.timeout_seconds = timeout_seconds
         self.session = requests.Session()
@@ -25,7 +27,14 @@ class RedcapClient:
             data=request_payload,
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
+
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise RuntimeError(
+                f"REDCap API HTTP error {response.status_code} at {response.url}. "
+                "Check the API endpoint path and project API access."
+            ) from exc
 
         data = response.json()
 
