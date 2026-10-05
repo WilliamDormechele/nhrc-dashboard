@@ -163,3 +163,8 @@ INSERT INTO physio_hemab_wp2.dashboard_config (config_key, config_value)
 VALUES
     ('sync_stale_minutes', '15'::jsonb)
 ON CONFLICT (config_key) DO NOTHING;
+
+
+INSERT INTO physio_hemab_wp2.dashboard_config (config_key, config_value)
+VALUES ('device_return_days_default', 'null'::jsonb)
+ON CONFLICT (config_key) DO NOTHING;
