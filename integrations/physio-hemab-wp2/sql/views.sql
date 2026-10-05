@@ -445,6 +445,14 @@ latest_return AS (
         return_form_complete
     FROM physio_hemab_wp2.vw_device_returns
     ORDER BY device_set, return_date DESC NULLS LAST, return_instance DESC
+),
+policy AS (
+    SELECT CASE
+        WHEN config_value IS NULL OR config_value = 'null'::jsonb THEN NULL
+        ELSE (config_value #>> '{}')::integer
+    END AS return_window_days
+    FROM physio_hemab_wp2.dashboard_config
+    WHERE config_key = 'device_return_days_default'
 )
 SELECT
     s.device_set,
@@ -465,10 +473,43 @@ SELECT
              AND r.return_date >= d.distribution_date
         THEN 'Returned'
         ELSE 'Unknown'
-    END AS current_status
+    END AS current_status,
+    p.return_window_days,
+    CASE
+        WHEN p.return_window_days IS NULL OR d.distribution_date IS NULL THEN NULL
+        ELSE d.distribution_date + p.return_window_days
+    END AS expected_return_date,
+    CASE
+        WHEN p.return_window_days IS NULL THEN NULL
+        WHEN d.distribution_date IS NULL THEN FALSE
+        WHEN (
+            CASE
+                WHEN d.distribution_date IS NULL AND r.return_date IS NOT NULL THEN 'Returned'
+                WHEN d.distribution_date IS NOT NULL
+                     AND (r.return_date IS NULL OR d.distribution_date > r.return_date)
+                THEN 'Distributed'
+                WHEN r.return_date IS NOT NULL
+                     AND d.distribution_date IS NOT NULL
+                     AND r.return_date >= d.distribution_date
+                THEN 'Returned'
+                ELSE 'Unknown'
+            END
+        ) <> 'Distributed' THEN FALSE
+        ELSE CURRENT_DATE > (d.distribution_date + p.return_window_days)
+    END AS is_overdue,
+    CASE
+        WHEN p.return_window_days IS NULL THEN 'Return window not configured'
+        WHEN d.distribution_date IS NULL THEN 'No distribution date'
+        WHEN r.return_date IS NOT NULL
+             AND r.return_date >= d.distribution_date THEN 'Returned'
+        WHEN CURRENT_DATE > (d.distribution_date + p.return_window_days) THEN 'Overdue'
+        WHEN CURRENT_DATE = (d.distribution_date + p.return_window_days) THEN 'Due today'
+        ELSE 'Within return window'
+    END AS return_status
 FROM sets s
 LEFT JOIN latest_distribution d USING (device_set)
-LEFT JOIN latest_return r USING (device_set);
+LEFT JOIN latest_return r USING (device_set)
+CROSS JOIN policy p;
 
 CREATE OR REPLACE VIEW physio_hemab_wp2.vw_sync_status AS
 SELECT DISTINCT ON (source_project)
