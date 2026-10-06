@@ -390,6 +390,7 @@
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const target = Number(state.data?.config?.participantTarget || 200);
+    const overallEnrolled = (state.data?.participants || []).length;
     const expectedPerParticipant = Number(
       state.data?.config?.activityDiariesExpectedPerParticipant || 6
     );
@@ -404,8 +405,9 @@
       diaries,
       target,
       enrolled: participants.length,
-      remaining: Math.max(target - participants.length, 0),
-      recruitmentPct: percent(participants.length, target),
+      overallEnrolled,
+      remaining: Math.max(target - overallEnrolled, 0),
+      recruitmentPct: percent(overallEnrolled, target),
       recruitingFacilities: unique(participants.map((r) => r.facility)).length,
       enrollmentComplete: participants.filter((r) => r.enrollmentComplete).length,
       maternalComplete: participants.filter((r) => r.maternalRecordComplete).length,
@@ -445,9 +447,18 @@
 
     content.innerHTML = `
       <div class="kpi-grid">
-        ${kpiCard("Participants Enrolled", number(m.enrolled), "info", `Target ${m.target}`)}
-        ${kpiCard("Overall Study Target", number(m.target), "neutral", "Across four study facilities")}
-        ${kpiCard("Recruitment Progress", `${number(m.recruitmentPct, 1)}%`, "positive", `${m.remaining} participants remaining`)}
+        ${kpiCard(
+          state.filters.facility || state.filters.collector || state.filters.dateFrom || state.filters.dateTo
+            ? "Participants in Filtered View"
+            : "Participants Enrolled",
+          number(m.enrolled),
+          "info",
+          state.filters.facility || state.filters.collector || state.filters.dateFrom || state.filters.dateTo
+            ? `${m.overallEnrolled} enrolled overall`
+            : `Target ${m.target}`
+        )}
+        ${kpiCard("Overall Study Target", number(m.target), "neutral", "Study-level target across four facilities")}
+        ${kpiCard("Overall Recruitment Progress", `${number(m.recruitmentPct, 1)}%`, "positive", `${m.remaining} participants remaining overall`)}
         ${kpiCard("Activity Diaries Complete", number(m.diaryComplete), m.diaryOutstanding ? "warning" : "positive", `${m.diaryOutstanding} outstanding of ${m.diaryExpected}`)}
         ${kpiCard("Enrollment Forms Complete", number(m.enrollmentComplete), "positive")}
         ${kpiCard("Maternal Records Complete", number(m.maternalComplete), "positive")}
@@ -509,6 +520,7 @@
     const content = document.getElementById("recruitmentContent");
     const participants = filteredParticipants();
     const target = Number(state.data?.config?.participantTarget || 200);
+    const overallEnrolled = (state.data?.participants || []).length;
     const byFacility = FACILITIES.map((facility) => ({
       facility,
       count: participants.filter((r) => r.facility === facility).length
@@ -518,10 +530,19 @@
 
     content.innerHTML = `
       <div class="kpi-grid">
-        ${kpiCard("Participants Enrolled", number(participants.length), "info")}
+        ${kpiCard(
+          state.filters.facility || state.filters.collector || state.filters.dateFrom || state.filters.dateTo
+            ? "Participants in Filtered View"
+            : "Participants Enrolled",
+          number(participants.length),
+          "info",
+          state.filters.facility || state.filters.collector || state.filters.dateFrom || state.filters.dateTo
+            ? `${overallEnrolled} enrolled overall`
+            : ""
+        )}
         ${kpiCard("Overall Study Target", number(target), "neutral")}
-        ${kpiCard("Recruitment Progress", `${number(percent(participants.length, target), 1)}%`, "positive")}
-        ${kpiCard("Participants Remaining", number(Math.max(target - participants.length, 0)), "info")}
+        ${kpiCard("Overall Recruitment Progress", `${number(percent(overallEnrolled, target), 1)}%`, "positive")}
+        ${kpiCard("Participants Remaining Overall", number(Math.max(target - overallEnrolled, 0)), "info")}
       </div>
 
       <div class="dashboard-grid">
