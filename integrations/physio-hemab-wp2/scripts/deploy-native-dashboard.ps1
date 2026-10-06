@@ -155,12 +155,12 @@ Set-FirebaseSecretFromValue -Name "PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN" -Value $m
 Set-FirebaseSecretFromValue -Name "PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN" -Value $devicesToken
 
 Write-Host ""
-Write-Host "[5/7] Deploying the secure Firebase callable function..." -ForegroundColor Yellow
+Write-Host "[5/7] Deploying the secure Firebase callable functions..." -ForegroundColor Yellow
 
 $functionDeployArgs = @(
     "deploy",
     "--only",
-    "functions:getPhysioHemabWp2Dashboard",
+    "functions:getPhysioHemabWp2Dashboard,functions:savePhysioHemabWp2Config",
     "--project",
     $FirebaseProject
 )
