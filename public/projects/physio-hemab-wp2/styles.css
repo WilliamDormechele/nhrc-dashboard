@@ -1021,3 +1021,10 @@ h3 {
     grid-column: 1 / -1;
   }
 }
+
+
+.active-filter-empty {
+  color: #8a9aa8;
+  font-size: 10px;
+  font-weight: 700;
+}
