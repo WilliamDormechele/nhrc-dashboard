@@ -78,6 +78,7 @@ assert(
 
 assert(
   wp2DashboardJs.includes("getPhysioHemabWp2Dashboard") &&
+    wp2DashboardJs.includes("savePhysioHemabWp2Config") &&
     wp2DashboardJs.includes("setFacilityFilter") &&
     wp2DashboardJs.includes("setCollectorFilter") &&
     wp2DashboardJs.includes("returnWindowDays"),
@@ -93,6 +94,7 @@ assert(
 
 assert(
   functionsIndex.includes("exports.getPhysioHemabWp2Dashboard") &&
+    functionsIndex.includes("exports.savePhysioHemabWp2Config") &&
     functionsIndex.includes("requirePhysioHemabProjectAccess") &&
     functionsIndex.includes("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN") &&
     functionsIndex.includes("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"),
@@ -106,7 +108,7 @@ assert(
 );
 
 assert(
-  nativeDeployScript.includes("functions:getPhysioHemabWp2Dashboard") &&
+  nativeDeployScript.includes("functions:getPhysioHemabWp2Dashboard,functions:savePhysioHemabWp2Config") &&
     nativeDeployScript.includes("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN") &&
     nativeDeployScript.includes("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"),
   "Combined native WP2 deployment script is incomplete."
