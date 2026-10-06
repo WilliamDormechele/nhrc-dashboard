@@ -287,54 +287,58 @@ This reports facility-target configuration, collector attribution coverage and a
 
 ## Native Firebase dashboard deployment
 
-The production user-facing Physio-HeMAB WP2 dashboard is now a native Firebase dashboard rather than a Power BI embed.
+The production user-facing Physio-HeMAB WP2 dashboard is a native Firebase dashboard rather than a Power BI embed.
 
-This preserves the existing NHRC Firebase login as the only user authentication step. The browser never receives REDCap API tokens and does not connect directly to PostgreSQL or REDCap.
+This preserves the existing NHRC Firebase login as the only user authentication step. Power BI authentication is not required.
+
+Because the Firebase project is being used without billing, the production path does **not** use Cloud Functions or Secret Manager. REDCap remains local to the trusted sync workstation and only a privacy-minimised dashboard snapshot is published to the existing Firestore project document.
 
 ### Production flow
 
 ```text
+Local trusted workstation
+        ↓
+REDCap PID 410 + PID 411
+        ↓
+privacy-minimised local sync
+        ↓
+PostgreSQL reporting views
+        ↓
+publish_firestore.py
+        ↓
+Firestore projects/physio-hemab-wp2.wp2Snapshot
+        ↓
 NHRC Firebase login
         ↓
-Physio-HeMAB native dashboard
-        ↓
-Firebase callable function
-        ↓
-Firebase user/project authorization
-        ↓
-REDCap Main PID 410 + Devices PID 411
-        ↓
-Privacy-minimised operational payload
+native Physio-HeMAB dashboard
 ```
 
-The Firebase function checks that the signed-in user is either:
+The browser never receives REDCap API tokens or PostgreSQL credentials.
 
-- assigned to `physio-hemab-wp2`, or
-- an administrator/developer.
+The published snapshot excludes participant name, date of birth, telephone number, address and unrelated clinical variables.
 
-Only operational dashboard fields are requested. Participant name, date of birth, telephone number, address and unrelated clinical fields are not requested.
+### One-time local Firebase publisher credential
 
-### Required Firebase secrets
+The local publisher uses a Firebase/Google service-account JSON credential stored only on the trusted sync workstation.
 
-Set these secrets before deploying the function:
+Keep the file outside Git or use a Git-ignored filename such as:
 
-```powershell
-firebase functions:secrets:set PHYSIO_HEMAB_REDCAP_API_URL
-firebase functions:secrets:set PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN
-firebase functions:secrets:set PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN
+```text
+D:\Git\nhrc-dashboard\serviceAccountKey.json
 ```
 
-Use:
+Then add the local path to the ignored `.env`:
 
-- `PHYSIO_HEMAB_REDCAP_API_URL`: the REDCap API endpoint, currently `https://redcap-test.uk-halle.de/api/`
-- `PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN`: PID 410 token
-- `PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN`: PID 411 token
+```text
+PHYSIO_HEMAB_FIREBASE_CREDENTIALS_FILE=D:\Git\nhrc-dashboard\serviceAccountKey.json
+PHYSIO_HEMAB_FIREBASE_PROJECT_ID=nhrc-dashboard
+```
 
-Do not commit any of these values to Git.
+Do not commit the credential file.
 
 ### Deploy
 
-The preferred deployment path is the combined script. It reads the existing ignored local `.env`, updates the three Firebase secrets without printing their values, deploys only the new callable function, regenerates the versioned hosting index, and deploys Hosting:
+After the one-time Firebase publisher credential is available:
 
 ```powershell
 cd D:\Git\nhrc-dashboard
@@ -342,16 +346,28 @@ git pull --ff-only origin feature/physio-hemab-wp2
 .\integrations\physio-hemab-wp2\scripts\deploy-native-dashboard.ps1
 ```
 
-The equivalent manual sequence is:
+The combined deployment script:
+
+1. validates the WP2 integration;
+2. installs Python dependencies;
+3. starts/upgrades the local PostgreSQL reporting layer;
+4. synchronizes both REDCap projects locally;
+5. publishes the privacy-minimised snapshot to Firestore;
+6. regenerates the versioned site index;
+7. deploys Firebase Hosting only.
+
+No Cloud Functions or Secret Manager deployment is required.
+
+### Routine data refresh
+
+After the site has been deployed, update the live dashboard without redeploying Hosting:
 
 ```powershell
-npm run test:physio-hemab-wp2
-
-firebase deploy --only "functions:getPhysioHemabWp2Dashboard,functions:savePhysioHemabWp2Config"
-firebase deploy --only hosting
+cd D:\Git\nhrc-dashboard\integrations\physio-hemab-wp2
+.\scripts\sync-and-publish.ps1
 ```
 
-The Power BI report can remain as a private analytical/design copy, but it is no longer required for end-user access.
+This refreshes REDCap locally and updates the Firestore snapshot. The dashboard then reads the newest snapshot through the already authenticated Firestore client.
 
 ### Native dashboard capabilities
 
@@ -368,29 +384,16 @@ The native dashboard includes:
 - synchronized Facility, Data Collector and date filters
 - chart-click cross-filtering
 - row-click cross-filtering
-- configurable device return-window scenarios
+- weekly/cumulative recruitment
+- form completion by facility
+- weekly device distribution vs return
+- selectable device return-window scenarios
 - REDCap data freshness and source status
 - data-collector performance
 - target-configuration gap protection
+- administrator configuration for approved targets and return policy
 
-The dashboard intentionally does not guess the named-facility 60/40/60/40 target mapping. Facility targets remain blank until approved values are added to the Firestore project document under `wp2Config.facilityTargets`.
+The dashboard intentionally does not guess the named-facility 60/40/60/40 target mapping. Administrators can enter the approved mapping from the Performance & Targets page when it is known.
 
-Optional Firestore project configuration shape:
+The Power BI report can remain as a private analytical/design copy, but it is not required for end-user dashboard access.
 
-```json
-{
-  "wp2Config": {
-    "participantTarget": 200,
-    "activityDiariesExpectedPerParticipant": 6,
-    "returnWindowDays": 3,
-    "facilityTargets": {
-      "War Memorial Hospital": {
-        "arm": "Intervention",
-        "target": 60
-      }
-    }
-  }
-}
-```
-
-Only add facility mappings that have been formally confirmed.
