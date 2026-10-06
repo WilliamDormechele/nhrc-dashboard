@@ -25,9 +25,10 @@ db.settings({
 
 const functions = firebase.app().functions("us-central1");
 
-// Same-origin native project dashboards use this authenticated callable client.
-// No credentials or secrets are exposed here; Firebase Auth supplies the user's ID token.
-window.nhrcFirebaseFunctions = functions;
+// Same-origin native project dashboards read project-scoped snapshots through
+// the already authenticated Firestore client. No REDCap token is exposed.
+window.nhrcFirestore = db;
+
 
 let secondaryApp;
 try {
