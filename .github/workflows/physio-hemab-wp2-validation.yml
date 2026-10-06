@@ -5,6 +5,7 @@ on:
     paths:
       - "public/data/project-config.js"
       - "public/js/projects.js"
+      - "public/js/firebase-config.js"
       - "public/projects/physio-hemab-wp2/**"
       - "functions/**"
       - "integrations/physio-hemab-wp2/**"
