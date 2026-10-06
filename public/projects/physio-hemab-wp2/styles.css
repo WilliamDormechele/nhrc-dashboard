@@ -953,3 +953,71 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+
+.active-filter-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0 12px;
+  padding: 9px 11px;
+  border: 1px solid #d7e3ec;
+  border-radius: 9px;
+  background: #f8fbfd;
+}
+
+.active-filter-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #466078;
+  font-size: 11px;
+}
+
+.active-filter-bar-label strong {
+  color: var(--navy);
+}
+
+#activeFilterBarStatus {
+  color: #7a8d9e;
+  font-weight: 700;
+}
+
+.active-filter-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.active-filter-clear-all {
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.active-filter-clear-all:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.wp2-build-marker {
+  color: #93a3b1;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .active-filter-bar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .active-filter-chip-list {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .wp2-build-marker {
+    grid-column: 1 / -1;
+  }
+}
