@@ -108,7 +108,7 @@ assert(
   wp2DashboardJs.includes(".onSnapshot(") &&
     wp2DashboardJs.includes("startLiveDashboardListener") &&
     wp2DashboardJs.includes("stopLiveDashboardListener") &&
-    wp2DashboardJs.includes("Live • auto-updates enabled"),
+    wp2DashboardJs.includes("Live view • REDCap refresh every 5 min"),
   "Firestore live dashboard updates are missing."
 );
 
