@@ -1708,16 +1708,49 @@ async function loadProject(projectCode) {
 
   document.getElementById("dashboardTitle").textContent = `${project.name} Dashboard`;
   document.getElementById("dashboardDescription").textContent = project.description || "";
-  document.getElementById("dashboardFrame").src = project.dashboardEmbedUrl || "";
+
+  const dashboardFrame = document.getElementById("dashboardFrame");
+  const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
+  const dashboardHelpBar = document.getElementById("dashboardHelpBar");
+  const powerBiHintFooter = document.getElementById("powerBiHintFooter");
+  const dashboardInstructions = document.querySelector(".dashboard-instructions");
+  const isNativeDashboard = project.dashboardMode === "native";
+
+  if (dashboardFrame) {
+    dashboardFrame.src = project.dashboardEmbedUrl || "";
+    dashboardFrame.title = `${project.name} Dashboard`;
+  }
+
+  if (dashboardFrameWrap) {
+    dashboardFrameWrap.classList.toggle("native-dashboard-container", isNativeDashboard);
+    dashboardFrameWrap.style.height = isNativeDashboard ? "88vh" : "";
+  }
+
+  if (dashboardHelpBar) {
+    dashboardHelpBar.style.display = isNativeDashboard ? "none" : "";
+  }
+
+  if (powerBiHintFooter) {
+    powerBiHintFooter.style.display = "none";
+  }
+
+  if (dashboardInstructions) {
+    dashboardInstructions.textContent = isNativeDashboard
+      ? "Use the filters and page tabs inside the dashboard below. Your NHRC login controls access to the live data."
+      : "Use the project dropdown ABOVE to switch between projects you are assigned to.";
+  }
+
   const downloadPdfBtn = document.getElementById("downloadPdfBtn");
   const downloadPptBtn = document.getElementById("downloadPptBtn");
 
   if (downloadPdfBtn) {
     downloadPdfBtn.href = project.dashboardPdf || "#";
+    downloadPdfBtn.style.display = project.dashboardPdf ? "" : "none";
   }
 
   if (downloadPptBtn) {
     downloadPptBtn.href = project.dashboardPpt || "#";
+    downloadPptBtn.style.display = project.dashboardPpt ? "" : "none";
   }
 
   await loadProjectUsersDirectory();
