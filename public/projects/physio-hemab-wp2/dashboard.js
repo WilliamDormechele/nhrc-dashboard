@@ -1820,7 +1820,7 @@
 
     if (fromLiveListener) {
       els.liveStatus.innerHTML =
-        '<span class="status-dot status-good"></span><span>Live • auto-updates enabled</span>';
+        '<span class="status-dot status-good"></span><span>Live view • REDCap refresh every 5 min</span>';
     }
 
     els.errorPanel.classList.add("hidden");
