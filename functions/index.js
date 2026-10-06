@@ -13,6 +13,9 @@ const FieldValue = admin.firestore.FieldValue;
 const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 const GMAIL_SMTP_USER = defineSecret("GMAIL_SMTP_USER");
 const GMAIL_SMTP_PASS = defineSecret("GMAIL_SMTP_PASS");
+const PHYSIO_HEMAB_REDCAP_API_URL = defineSecret("PHYSIO_HEMAB_REDCAP_API_URL");
+const PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN = defineSecret("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN");
+const PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN = defineSecret("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN");
 
 const APP_BASE_URL = "https://nhrc-dashboard.web.app/";
 const LOGIN_URL = APP_BASE_URL;
@@ -1001,3 +1004,721 @@ exports.getAssignmentOverview = onCall(async (request) => {
     workers: []
   };
 });
+
+/* ========================================================================== */
+/* Physio-HeMAB WP2 native dashboard                                         */
+/* ========================================================================== */
+
+const PHYSIO_HEMAB_PROJECT_CODE = "physio-hemab-wp2";
+const PHYSIO_HEMAB_MAIN_PID = 410;
+const PHYSIO_HEMAB_DEVICES_PID = 411;
+const PHYSIO_HEMAB_CACHE_TTL_MS = 60 * 1000;
+
+let physioHemabDashboardCache = {
+  expiresAt: 0,
+  payload: null
+};
+
+const PHYSIO_HEMAB_MAIN_FIELDS = [
+  "record_id",
+  "health_facility_enrollment",
+  "enroll_studid",
+  "enroll_registr_date",
+  "data_collector",
+  "enrollment_form_complete",
+  "maternal_record_book_baseline_complete",
+  "crf_date",
+  "crf_facility",
+  "crf_examiner",
+  "physical_examination_form_complete",
+  "ad_date",
+  "call_date",
+  "call_date_delay",
+  "ad_call_numb",
+  "activity_diary_complete"
+];
+
+const PHYSIO_HEMAB_DEVICE_FIELDS = [
+  "record_id",
+  "devices_date",
+  "distribution_log_complete",
+  "devices_war",
+  "devices_paga",
+  "devices_pungu",
+  "devices_sirigu",
+  "study_id_a1",
+  "study_id_a2",
+  "study_id_a3",
+  "study_id_a4",
+  "study_id_a5",
+  "study_id_b1",
+  "study_id_b2",
+  "study_id_b3",
+  "study_id_b4",
+  "study_id_b5",
+  "study_id_paga_a1",
+  "study_id_paga_a2",
+  "study_id_paga_a3",
+  "study_id_paga_a4",
+  "study_id_paga_a5",
+  "study_id_paga_b1",
+  "study_id_paga_b2",
+  "study_id_paga_b3",
+  "study_id_paga_b4",
+  "study_id_paga_b5",
+  "study_id_pungu_a1",
+  "study_id_pungu_a2",
+  "study_id_pungu_a3",
+  "study_id_pungu_a4",
+  "study_id_pungu_a5",
+  "study_id_pungu_b1",
+  "study_id_pungu_b2",
+  "study_id_pungu_b3",
+  "study_id_pungu_b4",
+  "study_id_pungu_b5",
+  "study_id_sirigu_a1",
+  "study_id_sirigu_a2",
+  "study_id_sirigu_a3",
+  "study_id_sirigu_a4",
+  "study_id_sirigu_a5",
+  "study_id_sirigu_b",
+  "study_id_sirigu_b2",
+  "study_id_sirigu_b3",
+  "study_id_sirigu_b4",
+  "study_id_sirigu_b5",
+  "date_devices_return",
+  "devices_return",
+  "return_log_complete",
+  "set_a1",
+  "set_a2",
+  "set_a3",
+  "set_a4",
+  "set_a5",
+  "set_b1",
+  "set_b2",
+  "set_b3",
+  "set_b4",
+  "set_b5"
+];
+
+async function requirePhysioHemabProjectAccess(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const userSnap = await db.collection("users").doc(request.auth.uid).get();
+  if (!userSnap.exists) {
+    throw new HttpsError("permission-denied", "User profile not found.");
+  }
+
+  const user = userSnap.data() || {};
+  if (user.isDeleted === true || user.isActive === false) {
+    throw new HttpsError("permission-denied", "Your dashboard account is not active.");
+  }
+
+  const role = String(user.role || "").trim();
+  const projects = normalizeProjectCodes(user.assignedProjects);
+  const privileged = ["administrator", "developer"].includes(role);
+
+  if (!privileged && !projects.includes(PHYSIO_HEMAB_PROJECT_CODE)) {
+    throw new HttpsError(
+      "permission-denied",
+      "You are not assigned to the Physio-HeMAB WP2 project."
+    );
+  }
+
+  return {
+    uid: request.auth.uid,
+    email: user.email || request.auth.token.email || "",
+    role,
+    assignedProjects: projects
+  };
+}
+
+function physioParseChoices(raw = "") {
+  const result = {};
+  String(raw || "")
+    .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .forEach((item) => {
+      const comma = item.indexOf(",");
+      if (comma < 0) return;
+      const code = item.slice(0, comma).trim();
+      const label = item.slice(comma + 1).trim();
+      if (code) result[code] = label;
+    });
+  return result;
+}
+
+function physioMetadataMap(metadata = []) {
+  const map = new Map();
+  for (const field of metadata) {
+    const name = String(field?.field_name || "").trim();
+    if (!name) continue;
+    map.set(name, {
+      ...field,
+      choices: physioParseChoices(field?.select_choices_or_calculations || "")
+    });
+  }
+  return map;
+}
+
+function physioChoiceLabel(metadataMap, fieldName, code) {
+  const raw = String(code ?? "").trim();
+  if (!raw) return "";
+  return metadataMap.get(fieldName)?.choices?.[raw] || raw;
+}
+
+function physioCanonicalFacility(value = "") {
+  const label = String(value || "").trim();
+  if (!label) return "";
+
+  const aliases = {
+    "Paga Hospital": "Paga District Hospital",
+    "Paga District Hospital": "Paga District Hospital",
+    "Pungu Central": "Pungu Central",
+    "War Memorial Hospital": "War Memorial Hospital",
+    "Martiers of Uganda Health Centre Sirigu": "Martyrs of Uganda Health Centre, Sirigu",
+    "Martyrs of Uganda Health Centre, Sirigu": "Martyrs of Uganda Health Centre, Sirigu"
+  };
+
+  return aliases[label] || label;
+}
+
+function physioDateOnly(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : text;
+}
+
+function physioDateValue(value) {
+  const dateOnly = physioDateOnly(value);
+  if (!dateOnly) return null;
+  const ms = Date.parse(`${dateOnly}T00:00:00Z`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function physioDateDiffDays(start, end) {
+  const a = physioDateValue(start);
+  const b = physioDateValue(end);
+  if (a === null || b === null) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+function physioNumericFromChoice(labelOrCode) {
+  const match = String(labelOrCode || "").match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+async function physioRedcapPost(apiUrl, token, payload = {}) {
+  const body = new URLSearchParams();
+  body.set("token", token);
+  body.set("format", "json");
+  body.set("returnFormat", "json");
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    body.set(key, String(value));
+  });
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    body
+  });
+
+  if (!response.ok) {
+    throw new Error(`REDCap returned HTTP ${response.status}.`);
+  }
+
+  const data = await response.json();
+  if (data && !Array.isArray(data) && data.error) {
+    throw new Error(String(data.error));
+  }
+
+  return data;
+}
+
+async function physioFetchRedcapProject(apiUrl, token, fields) {
+  const metadataPromise = physioRedcapPost(apiUrl, token, {
+    content: "metadata"
+  });
+
+  const recordsPayload = {
+    content: "record",
+    type: "flat",
+    rawOrLabel: "raw",
+    rawOrLabelHeaders: "raw",
+    exportCheckboxLabel: "false",
+    exportSurveyFields: "false",
+    exportDataAccessGroups: "false"
+  };
+
+  fields.forEach((field, index) => {
+    recordsPayload[`fields[${index}]`] = field;
+  });
+
+  const recordsPromise = physioRedcapPost(apiUrl, token, recordsPayload);
+  const [metadata, records] = await Promise.all([metadataPromise, recordsPromise]);
+
+  if (!Array.isArray(metadata) || !Array.isArray(records)) {
+    throw new Error("Unexpected REDCap API response.");
+  }
+
+  return { metadata, records };
+}
+
+function physioStudyFieldForDevice(facilityKey, deviceSet) {
+  const suffix = String(deviceSet || "").toLowerCase();
+  if (facilityKey === "war") return `study_id_${suffix}`;
+  if (facilityKey === "paga") return `study_id_paga_${suffix}`;
+  if (facilityKey === "pungu") return `study_id_pungu_${suffix}`;
+  if (facilityKey === "sirigu" && suffix === "b1") return "study_id_sirigu_b";
+  if (facilityKey === "sirigu") return `study_id_sirigu_${suffix}`;
+  return "";
+}
+
+function physioBuildMainPayload(projectData) {
+  if (!projectData) {
+    return {
+      participants: [],
+      activityDiaries: []
+    };
+  }
+
+  const metadataMap = physioMetadataMap(projectData.metadata);
+  const participantsByRecord = new Map();
+  const participants = [];
+
+  for (const row of projectData.records) {
+    const repeatInstrument = String(row.redcap_repeat_instrument || "").trim();
+    if (repeatInstrument) continue;
+
+    const recordId = String(row.record_id || "").trim();
+    if (!recordId) continue;
+
+    const facility = physioCanonicalFacility(
+      physioChoiceLabel(
+        metadataMap,
+        "health_facility_enrollment",
+        row.health_facility_enrollment
+      )
+    );
+
+    const dataCollector = physioChoiceLabel(
+      metadataMap,
+      "data_collector",
+      row.data_collector
+    );
+
+    const participant = {
+      studyId: String(row.enroll_studid || "").trim(),
+      facility,
+      enrollmentDate: physioDateOnly(row.enroll_registr_date),
+      dataCollector: dataCollector || "Unassigned",
+      enrollmentComplete: String(row.enrollment_form_complete || "") === "2",
+      maternalRecordComplete:
+        String(row.maternal_record_book_baseline_complete || "") === "2",
+      physicalExamComplete:
+        String(row.physical_examination_form_complete || "") === "2",
+      physicalExamDate: physioDateOnly(row.crf_date),
+      physicalExamFacility: physioCanonicalFacility(
+        physioChoiceLabel(metadataMap, "crf_facility", row.crf_facility)
+      ),
+      physicalExaminer: String(row.crf_examiner || "").trim()
+    };
+
+    participantsByRecord.set(recordId, participant);
+    participants.push(participant);
+  }
+
+  const activityDiaries = [];
+  for (const row of projectData.records) {
+    if (String(row.redcap_repeat_instrument || "").trim() !== "activity_diary") {
+      continue;
+    }
+
+    const recordId = String(row.record_id || "").trim();
+    const participant = participantsByRecord.get(recordId) || {};
+    const sameDayInterview = physioChoiceLabel(
+      metadataMap,
+      "call_date",
+      row.call_date
+    );
+    const callLabel = physioChoiceLabel(
+      metadataMap,
+      "ad_call_numb",
+      row.ad_call_numb
+    );
+
+    const diaryDate = physioDateOnly(row.ad_date);
+    const interviewDate = physioDateOnly(row.call_date_delay);
+    let delayDays = null;
+
+    if (sameDayInterview === "Yes") {
+      delayDays = 0;
+    } else if (diaryDate && interviewDate) {
+      delayDays = physioDateDiffDays(diaryDate, interviewDate);
+    }
+
+    activityDiaries.push({
+      studyId: participant.studyId || "",
+      facility: participant.facility || "",
+      dataCollector: participant.dataCollector || "Unassigned",
+      diaryInstance: Number(row.redcap_repeat_instance || 0) || null,
+      diaryDate,
+      sameDayInterview,
+      interviewDate,
+      delayDays,
+      callsMade: physioNumericFromChoice(callLabel),
+      diaryComplete: String(row.activity_diary_complete || "") === "2"
+    });
+  }
+
+  return { participants, activityDiaries };
+}
+
+function physioBuildDevicePayload(projectData) {
+  if (!projectData) {
+    return {
+      deviceDistributions: [],
+      deviceReturns: [],
+      deviceSets: []
+    };
+  }
+
+  const metadataMap = physioMetadataMap(projectData.metadata);
+
+  const facilityMappings = [
+    {
+      key: "war",
+      field: "devices_war",
+      facility: "War Memorial Hospital"
+    },
+    {
+      key: "paga",
+      field: "devices_paga",
+      facility: "Paga District Hospital"
+    },
+    {
+      key: "pungu",
+      field: "devices_pungu",
+      facility: "Pungu Central"
+    },
+    {
+      key: "sirigu",
+      field: "devices_sirigu",
+      facility: "Martyrs of Uganda Health Centre, Sirigu"
+    }
+  ];
+
+  const deviceDistributions = [];
+  const deviceReturns = [];
+
+  for (const row of projectData.records) {
+    const instrument = String(row.redcap_repeat_instrument || "").trim();
+
+    if (instrument === "distribution_log") {
+      for (const mapping of facilityMappings) {
+        const choices = metadataMap.get(mapping.field)?.choices || {};
+        for (const [code, deviceSet] of Object.entries(choices)) {
+          if (String(row[`${mapping.field}___${code}`] || "") !== "1") {
+            continue;
+          }
+
+          const studyField = physioStudyFieldForDevice(mapping.key, deviceSet);
+          deviceDistributions.push({
+            distributionDate: physioDateOnly(row.devices_date),
+            distributionInstance:
+              Number(row.redcap_repeat_instance || 0) || null,
+            facility: mapping.facility,
+            deviceSet,
+            studyId: studyField ? String(row[studyField] || "").trim() : "",
+            formComplete:
+              String(row.distribution_log_complete || "") === "2"
+          });
+        }
+      }
+    }
+
+    if (instrument === "return_log") {
+      const returnedChoices = metadataMap.get("devices_return")?.choices || {};
+      for (const [code, deviceSet] of Object.entries(returnedChoices)) {
+        if (String(row[`devices_return___${code}`] || "") !== "1") {
+          continue;
+        }
+
+        const componentField = `set_${String(deviceSet || "").toLowerCase()}`;
+        const components = metadataMap.get(componentField)?.choices || {};
+        let componentsReturned = 0;
+
+        for (const componentCode of Object.keys(components)) {
+          if (String(row[`${componentField}___${componentCode}`] || "") === "1") {
+            componentsReturned += 1;
+          }
+        }
+
+        const componentsExpected = Object.keys(components).length;
+
+        deviceReturns.push({
+          returnDate: physioDateOnly(row.date_devices_return),
+          returnInstance: Number(row.redcap_repeat_instance || 0) || null,
+          deviceSet,
+          componentsReturned,
+          componentsExpected,
+          allComponentsReturned:
+            componentsExpected > 0 && componentsReturned === componentsExpected,
+          formComplete: String(row.return_log_complete || "") === "2"
+        });
+      }
+    }
+  }
+
+  const deviceSetNames = new Set();
+  deviceDistributions.forEach((row) => deviceSetNames.add(row.deviceSet));
+  deviceReturns.forEach((row) => deviceSetNames.add(row.deviceSet));
+
+  function latestByDate(rows, dateField, instanceField) {
+    return [...rows].sort((a, b) => {
+      const aDate = physioDateValue(a[dateField]) ?? -1;
+      const bDate = physioDateValue(b[dateField]) ?? -1;
+      if (aDate !== bDate) return bDate - aDate;
+      return Number(b[instanceField] || 0) - Number(a[instanceField] || 0);
+    })[0] || null;
+  }
+
+  const deviceSets = [...deviceSetNames]
+    .sort()
+    .map((deviceSet) => {
+      const distribution = latestByDate(
+        deviceDistributions.filter((row) => row.deviceSet === deviceSet),
+        "distributionDate",
+        "distributionInstance"
+      );
+      const returned = latestByDate(
+        deviceReturns.filter((row) => row.deviceSet === deviceSet),
+        "returnDate",
+        "returnInstance"
+      );
+
+      const distributionMs = physioDateValue(distribution?.distributionDate);
+      const returnMs = physioDateValue(returned?.returnDate);
+
+      let currentStatus = "Unknown";
+      if (distributionMs === null && returnMs !== null) {
+        currentStatus = "Returned";
+      } else if (
+        distributionMs !== null &&
+        (returnMs === null || distributionMs > returnMs)
+      ) {
+        currentStatus = "Distributed";
+      } else if (
+        distributionMs !== null &&
+        returnMs !== null &&
+        returnMs >= distributionMs
+      ) {
+        currentStatus = "Returned";
+      }
+
+      return {
+        deviceSet,
+        latestDistributionDate: distribution?.distributionDate || "",
+        latestFacility: distribution?.facility || "",
+        latestStudyId: distribution?.studyId || "",
+        latestReturnDate: returned?.returnDate || "",
+        componentsReturned: returned?.componentsReturned ?? null,
+        componentsExpected: returned?.componentsExpected ?? null,
+        allComponentsReturned: returned?.allComponentsReturned ?? null,
+        currentStatus
+      };
+    });
+
+  return {
+    deviceDistributions,
+    deviceReturns,
+    deviceSets
+  };
+}
+
+function physioSanitizeFacilityTargets(rawTargets = {}) {
+  const result = {};
+  if (!rawTargets || typeof rawTargets !== "object" || Array.isArray(rawTargets)) {
+    return result;
+  }
+
+  for (const [facility, raw] of Object.entries(rawTargets)) {
+    if (!raw || typeof raw !== "object") continue;
+    const target = Number(raw.target);
+    const arm = String(raw.arm || "").trim();
+    result[facility] = {
+      arm,
+      target: Number.isFinite(target) && target > 0 ? Math.round(target) : null
+    };
+  }
+
+  return result;
+}
+
+async function physioProjectConfiguration() {
+  const projectSnap = await db.collection("projects").doc(PHYSIO_HEMAB_PROJECT_CODE).get();
+  const project = projectSnap.exists ? projectSnap.data() || {} : {};
+  const wp2Config = project.wp2Config || {};
+
+  const participantTarget = Number(wp2Config.participantTarget);
+  const diariesExpected = Number(wp2Config.activityDiariesExpectedPerParticipant);
+  const returnWindowDays = Number(wp2Config.returnWindowDays);
+
+  return {
+    participantTarget:
+      Number.isFinite(participantTarget) && participantTarget > 0
+        ? Math.round(participantTarget)
+        : 200,
+    activityDiariesExpectedPerParticipant:
+      Number.isFinite(diariesExpected) && diariesExpected > 0
+        ? Math.round(diariesExpected)
+        : 6,
+    facilityTargets: physioSanitizeFacilityTargets(wp2Config.facilityTargets),
+    returnWindowDays:
+      Number.isFinite(returnWindowDays) && returnWindowDays > 0
+        ? Math.round(returnWindowDays)
+        : null,
+    returnWindowOptions: [1, 2, 3, 5, 7, 10, 14]
+  };
+}
+
+async function physioBuildDashboardPayload({ apiUrl, mainToken, devicesToken }) {
+  const normalizedApiUrl = String(apiUrl || "").trim().replace(/\/+$/, "") + "/";
+  const fetchedAt = new Date().toISOString();
+
+  const [mainResult, devicesResult, config] = await Promise.all([
+    physioFetchRedcapProject(
+      normalizedApiUrl,
+      mainToken,
+      PHYSIO_HEMAB_MAIN_FIELDS
+    ).then(
+      (value) => ({ ok: true, value }),
+      (error) => ({ ok: false, error })
+    ),
+    physioFetchRedcapProject(
+      normalizedApiUrl,
+      devicesToken,
+      PHYSIO_HEMAB_DEVICE_FIELDS
+    ).then(
+      (value) => ({ ok: true, value }),
+      (error) => ({ ok: false, error })
+    ),
+    physioProjectConfiguration()
+  ]);
+
+  if (!mainResult.ok && !devicesResult.ok) {
+    logger.error("Both Physio-HeMAB REDCap sources failed", {
+      main: mainResult.error?.message || String(mainResult.error),
+      devices: devicesResult.error?.message || String(devicesResult.error)
+    });
+    throw new HttpsError(
+      "unavailable",
+      "The Physio-HeMAB data sources could not be reached."
+    );
+  }
+
+  const mainPayload = physioBuildMainPayload(mainResult.ok ? mainResult.value : null);
+  const devicePayload = physioBuildDevicePayload(
+    devicesResult.ok ? devicesResult.value : null
+  );
+
+  return {
+    projectCode: PHYSIO_HEMAB_PROJECT_CODE,
+    fetchedAt,
+    sourceStatus: {
+      main: {
+        pid: PHYSIO_HEMAB_MAIN_PID,
+        status: mainResult.ok ? "success" : "error",
+        message: mainResult.ok ? "" : "Main REDCap source unavailable"
+      },
+      devices: {
+        pid: PHYSIO_HEMAB_DEVICES_PID,
+        status: devicesResult.ok ? "success" : "error",
+        message: devicesResult.ok ? "" : "Devices REDCap source unavailable"
+      }
+    },
+    config,
+    participants: mainPayload.participants,
+    activityDiaries: mainPayload.activityDiaries,
+    deviceDistributions: devicePayload.deviceDistributions,
+    deviceReturns: devicePayload.deviceReturns,
+    deviceSets: devicePayload.deviceSets
+  };
+}
+
+exports.getPhysioHemabWp2Dashboard = onCall(
+  {
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [
+      PHYSIO_HEMAB_REDCAP_API_URL,
+      PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN,
+      PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN
+    ]
+  },
+  async (request) => {
+    const actor = await requirePhysioHemabProjectAccess(request);
+    const forceRefresh = request.data?.forceRefresh === true;
+    const now = Date.now();
+
+    if (
+      !forceRefresh &&
+      physioHemabDashboardCache.payload &&
+      physioHemabDashboardCache.expiresAt > now
+    ) {
+      return {
+        ...physioHemabDashboardCache.payload,
+        cacheHit: true
+      };
+    }
+
+    try {
+      const payload = await physioBuildDashboardPayload({
+        apiUrl: PHYSIO_HEMAB_REDCAP_API_URL.value(),
+        mainToken: PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN.value(),
+        devicesToken: PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN.value()
+      });
+
+      physioHemabDashboardCache = {
+        payload,
+        expiresAt: now + PHYSIO_HEMAB_CACHE_TTL_MS
+      };
+
+      logger.info("Physio-HeMAB WP2 dashboard data served", {
+        actorUid: actor.uid,
+        actorRole: actor.role,
+        participants: payload.participants.length,
+        activityDiaries: payload.activityDiaries.length,
+        deviceSets: payload.deviceSets.length
+      });
+
+      return {
+        ...payload,
+        cacheHit: false
+      };
+    } catch (error) {
+      logger.error("getPhysioHemabWp2Dashboard failed", {
+        actorUid: actor.uid,
+        message: error?.message || String(error)
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        "Unable to load the Physio-HeMAB WP2 dashboard."
+      );
+    }
+  }
+);
