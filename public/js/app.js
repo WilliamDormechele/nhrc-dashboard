@@ -1,6 +1,4 @@
 // js/app.js
-// re_j5Kdk8Vh_D2y45R9BqCzbdwk6mze31gfi
-
 window.currentUserProfile = null;
 window.currentProjectCode = null;
 window.currentUserDocUnsubscribe = null;
@@ -1371,7 +1369,8 @@ auth.onAuthStateChanged(async (user) => {
 
     startTabTimer("tab-dashboard");
 
-    await showDashboardRefreshNotice();
+    // Refresh-schedule popup intentionally disabled.
+    // await showDashboardRefreshNotice();
 
     if (permissions.canMonitorUsers) {
       await loadMonitoringData();
