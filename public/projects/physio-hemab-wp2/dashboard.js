@@ -315,6 +315,13 @@
     };
 
     if (clickHandler) {
+      options.onHover = (event, elements) => {
+        const target = event?.native?.target;
+        if (target?.style) {
+          target.style.cursor = elements.length ? "pointer" : "default";
+        }
+      };
+
       options.onClick = (event, elements, chart) => {
         if (!elements.length) return;
         const index = elements[0].index;
@@ -327,14 +334,20 @@
   }
 
   function setFacilityFilter(value) {
-    state.filters.facility = value || "";
+    const nextValue = value || "";
+    state.filters.facility =
+      nextValue && state.filters.facility === nextValue ? "" : nextValue;
+
     els.facilityFilter.value = state.filters.facility;
     renderActiveFilterSummary();
     renderCurrentSection();
   }
 
   function setCollectorFilter(value) {
-    state.filters.collector = value || "";
+    const nextValue = value || "";
+    state.filters.collector =
+      nextValue && state.filters.collector === nextValue ? "" : nextValue;
+
     els.collectorFilter.value = state.filters.collector;
     renderActiveFilterSummary();
     renderCurrentSection();
@@ -1611,18 +1624,42 @@
   }
 
   function wireInteractiveRows() {
-    document.querySelectorAll("tr[data-filter-facility], tr[data-filter-collector]").forEach((row) => {
-      row.addEventListener("click", () => {
-        const facility = row.dataset.filterFacility;
-        const collector = row.dataset.filterCollector;
-        if (facility) state.filters.facility = facility;
-        if (collector) state.filters.collector = collector;
-        els.facilityFilter.value = state.filters.facility;
-        els.collectorFilter.value = state.filters.collector;
-        renderActiveFilterSummary();
-        renderCurrentSection();
+    document
+      .querySelectorAll("tr[data-filter-facility], tr[data-filter-collector]")
+      .forEach((row) => {
+        const facility = row.dataset.filterFacility || "";
+        const collector = row.dataset.filterCollector || "";
+
+        const representedFiltersAreActive =
+          (!facility || state.filters.facility === facility) &&
+          (!collector || state.filters.collector === collector) &&
+          Boolean(facility || collector);
+
+        row.classList.toggle("filter-row-active", representedFiltersAreActive);
+        row.title = representedFiltersAreActive
+          ? "Click again to remove this row filter"
+          : "Click to filter the dashboard to this row";
+
+        row.addEventListener("click", () => {
+          const isSameSelection =
+            (!facility || state.filters.facility === facility) &&
+            (!collector || state.filters.collector === collector) &&
+            Boolean(facility || collector);
+
+          if (isSameSelection) {
+            if (facility) state.filters.facility = "";
+            if (collector) state.filters.collector = "";
+          } else {
+            if (facility) state.filters.facility = facility;
+            if (collector) state.filters.collector = collector;
+          }
+
+          els.facilityFilter.value = state.filters.facility;
+          els.collectorFilter.value = state.filters.collector;
+          renderActiveFilterSummary();
+          renderCurrentSection();
+        });
       });
-    });
   }
 
   function showSection(sectionId) {
