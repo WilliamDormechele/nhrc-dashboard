@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Physio-HeMAB WP2 Operational Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261007-toggle-filter">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -74,6 +74,9 @@
       <div class="filter-actions">
         <button type="button" class="btn btn-secondary" id="clearFiltersBtn">Clear filters</button>
       </div>
+      <p class="filter-tip">
+        Tip: click a chart bar or table row to filter; click the same bar or row again to remove that filter.
+      </p>
     </section>
 
     <nav class="section-nav" aria-label="Physio-HeMAB dashboard sections">
@@ -186,6 +189,6 @@
     </div>
   </main>
 
-  <script src="dashboard.js"></script>
+  <script src="dashboard.js?v=20261007-toggle-filter"></script>
 </body>
 </html>
