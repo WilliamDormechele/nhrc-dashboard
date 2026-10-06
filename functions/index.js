@@ -1722,3 +1722,164 @@ exports.getPhysioHemabWp2Dashboard = onCall(
     }
   }
 );
+
+
+exports.savePhysioHemabWp2Config = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const actor = await requireAdmin(request);
+    const input = request.data || {};
+
+    const participantTarget = Number(input.participantTarget);
+    const activityDiariesExpectedPerParticipant = Number(
+      input.activityDiariesExpectedPerParticipant
+    );
+    const rawReturnWindowDays =
+      input.returnWindowDays === null ||
+      input.returnWindowDays === undefined ||
+      input.returnWindowDays === ""
+        ? null
+        : Number(input.returnWindowDays);
+
+    if (
+      !Number.isInteger(participantTarget) ||
+      participantTarget < 1 ||
+      participantTarget > 10000
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Participant target must be a whole number between 1 and 10,000."
+      );
+    }
+
+    if (
+      !Number.isInteger(activityDiariesExpectedPerParticipant) ||
+      activityDiariesExpectedPerParticipant < 1 ||
+      activityDiariesExpectedPerParticipant > 30
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Expected Activity Diaries per participant must be between 1 and 30."
+      );
+    }
+
+    const allowedReturnWindows = new Set([1, 2, 3, 5, 7, 10, 14]);
+
+    if (
+      rawReturnWindowDays !== null &&
+      !allowedReturnWindows.has(rawReturnWindowDays)
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Return window must be one of 1, 2, 3, 5, 7, 10 or 14 days."
+      );
+    }
+
+    const allowedFacilities = [
+      "War Memorial Hospital",
+      "Paga District Hospital",
+      "Pungu Central",
+      "Martyrs of Uganda Health Centre, Sirigu"
+    ];
+    const allowedArms = new Set(["", "Intervention", "Control"]);
+    const facilityTargets = {};
+
+    for (const facility of allowedFacilities) {
+      const raw = input.facilityTargets?.[facility] || {};
+      const arm = String(raw.arm || "").trim();
+      const rawTarget =
+        raw.target === null || raw.target === undefined || raw.target === ""
+          ? null
+          : Number(raw.target);
+
+      if (!allowedArms.has(arm)) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Invalid study arm for ${facility}.`
+        );
+      }
+
+      if (
+        rawTarget !== null &&
+        (!Number.isInteger(rawTarget) || rawTarget < 1 || rawTarget > participantTarget)
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Invalid recruitment target for ${facility}.`
+        );
+      }
+
+      if ((arm && rawTarget === null) || (!arm && rawTarget !== null)) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Study arm and target must both be set, or both left blank, for ${facility}.`
+        );
+      }
+
+      if (arm && rawTarget !== null) {
+        facilityTargets[facility] = {
+          arm,
+          target: rawTarget
+        };
+      }
+    }
+
+    if (Object.keys(facilityTargets).length === allowedFacilities.length) {
+      const totalFacilityTarget = Object.values(facilityTargets).reduce(
+        (sum, row) => sum + Number(row.target || 0),
+        0
+      );
+
+      if (totalFacilityTarget !== participantTarget) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Configured facility targets total ${totalFacilityTarget}, but the overall participant target is ${participantTarget}.`
+        );
+      }
+    }
+
+    const projectRef = db.collection("projects").doc(PHYSIO_HEMAB_PROJECT_CODE);
+    const beforeSnap = await projectRef.get();
+    const before = beforeSnap.exists ? beforeSnap.data() || {} : {};
+
+    const wp2Config = {
+      participantTarget,
+      activityDiariesExpectedPerParticipant,
+      returnWindowDays: rawReturnWindowDays,
+      facilityTargets
+    };
+
+    await projectRef.set(
+      {
+        wp2Config,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: actor.email || actor.uid
+      },
+      { merge: true }
+    );
+
+    physioHemabDashboardCache = {
+      expiresAt: 0,
+      payload: null
+    };
+
+    await db.collection("admin_audit_logs").add({
+      action: "update_physio_hemab_wp2_config",
+      actorUid: actor.uid,
+      actorEmail: actor.email || "",
+      actorName: actor.fullName || "",
+      targetUserId: "",
+      targetEmail: "",
+      targetName: "Physio-HeMAB WP2",
+      note: "Updated Physio-HeMAB WP2 dashboard configuration",
+      before: before.wp2Config || null,
+      after: wp2Config,
+      createdAt: FieldValue.serverTimestamp()
+    });
+
+    return {
+      ok: true,
+      config: wp2Config
+    };
+  }
+);
