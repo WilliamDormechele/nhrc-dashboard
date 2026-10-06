@@ -19,7 +19,7 @@ if (-not (Test-Path -LiteralPath $PowerShellExe)) {
 
 $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 $StartAt = (Get-Date).AddMinutes(1)
-$PowerShellArguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $SyncScript + '"'
+$PowerShellArguments = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $SyncScript + '"'
 
 $Action = New-ScheduledTaskAction -Execute $PowerShellExe -Argument $PowerShellArguments
 $Trigger = New-ScheduledTaskTrigger -Once -At $StartAt -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
