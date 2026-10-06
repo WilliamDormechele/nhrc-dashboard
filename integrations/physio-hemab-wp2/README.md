@@ -397,3 +397,67 @@ The dashboard intentionally does not guess the named-facility 60/40/60/40 target
 
 The Power BI report can remain as a private analytical/design copy, but it is not required for end-user dashboard access.
 
+
+
+### Five-minute automatic refresh
+
+The production refresh model is near-real-time on the free Firebase setup:
+
+```text
+Windows Scheduled Task every 5 minutes
+        ↓
+sync-and-publish.ps1
+        ↓
+REDCap PID 410 + PID 411
+        ↓
+local PostgreSQL reporting views
+        ↓
+Firestore wp2Snapshot
+        ↓
+Firestore onSnapshot listener
+        ↓
+open dashboard re-renders automatically
+```
+
+Install or refresh the Windows task with:
+
+```powershell
+cd D:\Git\nhrc-dashboard
+.\integrations\physio-hemab-wp2\scripts\install-auto-refresh-task.ps1
+```
+
+The task is named:
+
+```text
+NHRC Physio-HeMAB WP2 - 5 Minute Sync
+```
+
+It runs every five minutes while the Windows user is signed in, including while the workstation is locked. The sync runner uses a named mutex and the Scheduled Task is configured to ignore overlapping instances.
+
+The live dashboard uses a Firestore `onSnapshot` listener. When a new snapshot is published, users who already have the dashboard open receive the update automatically without refreshing the browser.
+
+Automatic refresh therefore depends on:
+
+- this Windows workstation being powered on;
+- the Windows user session remaining signed in;
+- Docker Desktop/PostgreSQL being available;
+- internet access to REDCap and Firebase.
+
+A local status log is written to:
+
+```text
+D:\Git\nhrc-dashboard\logs\physio-hemab-wp2-auto-sync.log
+```
+
+### Toggle filtering
+
+Interactive charts and tables use true toggle semantics:
+
+- click a chart bar once to apply its filter;
+- click the same bar again to remove that filter;
+- click a table row once to apply its represented Facility/Data Collector filters;
+- click the same row again to remove them;
+- click an active filter chip to remove only that filter;
+- use **Clear filters** to remove all Facility, Data Collector and date filters.
+
+Filter comparisons are normalized so harmless whitespace or case differences do not prevent repeat-click removal.
