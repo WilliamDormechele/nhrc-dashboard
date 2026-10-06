@@ -254,3 +254,20 @@ After applying the latest database schema and views, add these views to the Powe
 - Device overdue status controlled by the selected return-window slicer
 
 The return-window slicer must be single-select to keep overdue interpretation unambiguous.
+
+## REDCap data collector integration
+
+The live Main REDCap project now exposes `data_collector` on the Enrollment Form as a dropdown. It is the authoritative participant-level collector source when populated.
+
+Current reporting behavior:
+
+- `vw_participants.data_collector` exposes the REDCap collector label.
+- Enrollment, Maternal Record Book and Physical Examination collector fields prefer the REDCap `data_collector` value and retain legacy/manual assignment only as a fallback.
+- `vw_activity_diaries.data_collector` inherits the participant collector when the repeating row does not contain its own collector value.
+- Collector performance should therefore be interpreted as participant-level responsibility unless the study later adds a form/repeat-specific collector variable.
+- Power BI Activity Diary visuals use the Activity Diaries collector field for same-table cross-filtering.
+- Power BI Performance & Targets visuals use the Participants collector field so the collector slicer cross-filters all core-form workload charts consistently.
+- Manual collector CSV assignment remains a compatibility fallback and is no longer required for current test records.
+
+Before final report UAT, refresh the Power BI model schema after the PostgreSQL reporting views have been applied and the REDCap Main project has been synchronized.
+
