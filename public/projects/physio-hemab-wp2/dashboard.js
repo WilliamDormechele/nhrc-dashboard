@@ -43,6 +43,9 @@
     mainStatus: document.getElementById("mainSourceStatus"),
     devicesStatus: document.getElementById("devicesSourceStatus"),
     activeFilterSummary: document.getElementById("activeFilterSummary"),
+    activeFilterBarStatus: document.getElementById("activeFilterBarStatus"),
+    activeFilterChipList: document.getElementById("activeFilterChipList"),
+    clearAllActiveFiltersBtn: document.getElementById("clearAllActiveFiltersBtn"),
     facilityFilter: document.getElementById("facilityFilter"),
     collectorFilter: document.getElementById("collectorFilter"),
     dateFromFilter: document.getElementById("dateFromFilter"),
@@ -447,12 +450,33 @@
       });
     }
 
-    if (!chips.length) {
-      els.activeFilterSummary.textContent = "None";
+    const hasFilters = chips.length > 0;
+
+    if (els.activeFilterSummary) {
+      els.activeFilterSummary.textContent = hasFilters
+        ? chips.map((chip) => chip.label).join(" • ")
+        : "None";
+    }
+
+    if (els.activeFilterBarStatus) {
+      els.activeFilterBarStatus.textContent = hasFilters
+        ? `${chips.length} active`
+        : "None";
+    }
+
+    if (els.clearAllActiveFiltersBtn) {
+      els.clearAllActiveFiltersBtn.disabled = !hasFilters;
+    }
+
+    if (!els.activeFilterChipList) return;
+
+    if (!hasFilters) {
+      els.activeFilterChipList.innerHTML =
+        '<span class="active-filter-empty">No filters applied</span>';
       return;
     }
 
-    els.activeFilterSummary.innerHTML = chips
+    els.activeFilterChipList.innerHTML = chips
       .map(
         (chip) => `
           <button
@@ -468,10 +492,11 @@
       )
       .join("");
 
-    els.activeFilterSummary
+    els.activeFilterChipList
       .querySelectorAll("[data-clear-filter]")
       .forEach((button) => {
         button.addEventListener("click", (event) => {
+          event.preventDefault();
           event.stopPropagation();
           clearSingleFilter(button.dataset.clearFilter || "");
         });
@@ -1982,6 +2007,7 @@
   });
 
   document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);
+  els.clearAllActiveFiltersBtn?.addEventListener("click", clearFilters);
   document.getElementById("refreshDashboardBtn").addEventListener("click", () => loadDashboard(true));
   document.getElementById("retryDashboardBtn").addEventListener("click", () => loadDashboard(true));
 
