@@ -22,6 +22,7 @@ const firebaseConfigJs = read("public/js/firebase-config.js");
 const nativeDeployScript = read("integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1");
 const snapshotPublisher = read("integrations/physio-hemab-wp2/src/publish_firestore.py");
 const syncPublishScript = read("integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1");
+const autoRefreshInstaller = read("integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1");
 const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
 const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
 const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
@@ -95,10 +96,20 @@ assert(
 );
 
 assert(
-  wp2DashboardJs.includes("state.filters.facility === nextValue ? \"\" : nextValue") &&
-    wp2DashboardJs.includes("state.filters.collector === nextValue ? \"\" : nextValue") &&
-    wp2DashboardJs.includes("isSameSelection"),
+  wp2DashboardJs.includes("setDimensionFilter") &&
+    wp2DashboardJs.includes("sameFilterValue") &&
+    wp2DashboardJs.includes('{ toggle: true }') &&
+    wp2DashboardJs.includes("isSameSelection") &&
+    wp2DashboardJs.includes("active-filter-chip"),
   "Repeat-click chart/table filter clearing is missing."
+);
+
+assert(
+  wp2DashboardJs.includes(".onSnapshot(") &&
+    wp2DashboardJs.includes("startLiveDashboardListener") &&
+    wp2DashboardJs.includes("stopLiveDashboardListener") &&
+    wp2DashboardJs.includes("Live • auto-updates enabled"),
+  "Firestore live dashboard updates are missing."
 );
 
 assert(
@@ -130,8 +141,22 @@ assert(
 
 assert(
   syncPublishScript.includes("src\\sync.py") &&
-    syncPublishScript.includes("src\\publish_firestore.py"),
+    syncPublishScript.includes("src\\publish_firestore.py") &&
+    syncPublishScript.includes("NHRC_PhysioHeMAB_WP2_SyncPublish"),
   "Repeatable WP2 sync-and-publish script is incomplete."
+);
+
+assert(
+  autoRefreshInstaller.includes("RepetitionInterval") &&
+    autoRefreshInstaller.includes("New-TimeSpan -Minutes 5") &&
+    autoRefreshInstaller.includes("sync-and-publish.ps1") &&
+    autoRefreshInstaller.includes("MultipleInstances IgnoreNew"),
+  "Five-minute WP2 automatic refresh task installer is incomplete."
+);
+
+assert(
+  nativeDeployScript.includes("install-auto-refresh-task.ps1"),
+  "Native deployment does not install the five-minute automatic refresh task."
 );
 
 [
