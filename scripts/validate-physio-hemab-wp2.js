@@ -101,9 +101,12 @@ assert(
     wp2DashboardJs.includes('{ toggle: true }') &&
     wp2DashboardJs.includes("isSameSelection") &&
     wp2DashboardJs.includes("active-filter-chip") &&
+    wp2DashboardJs.includes("activeFilterChipList") &&
     wp2DashboardJs.includes("getElementsAtEventForMode") &&
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
-    wp2DashboardJs.includes("delete options.onClick"),
+    wp2DashboardJs.includes("delete options.onClick") &&
+    wp2Html.includes("activeFilterChipList") &&
+    wp2Html.includes("WP2 UI build 2026-10-07.4"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
