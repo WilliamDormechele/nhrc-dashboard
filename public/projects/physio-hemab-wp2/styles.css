@@ -550,6 +550,13 @@ h3 {
   background: #eef5fa;
 }
 
+.table-note {
+  padding: 8px 4px 0;
+  color: #7a8d9e;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .status-chip,
 .severity-chip {
   display: inline-flex;
