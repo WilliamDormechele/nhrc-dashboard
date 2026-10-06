@@ -1435,32 +1435,35 @@
     if (button) button.disabled = true;
 
     try {
-      let callable = null;
-      try {
-        callable = window.parent?.nhrcFirebaseFunctions?.httpsCallable(
-          "savePhysioHemabWp2Config"
-        );
-      } catch (error) {
-        callable = null;
+      const firestore = getFirestoreBridge();
+      const parentFirebase = window.parent?.firebase || window.firebase;
+      const serverTimestamp =
+        parentFirebase?.firestore?.FieldValue?.serverTimestamp?.();
+
+      const update = {
+        wp2Config: {
+          participantTarget,
+          activityDiariesExpectedPerParticipant: expectedDiaries,
+          returnWindowDays: returnWindowRaw ? Number(returnWindowRaw) : null,
+          facilityTargets
+        }
+      };
+
+      if (serverTimestamp) {
+        update.updatedAt = serverTimestamp;
       }
 
-      if (!callable) {
-        throw new Error("Administrator configuration service is unavailable.");
-      }
-
-      await callable({
-        participantTarget,
-        activityDiariesExpectedPerParticipant: expectedDiaries,
-        returnWindowDays: returnWindowRaw ? Number(returnWindowRaw) : null,
-        facilityTargets
-      });
+      await firestore
+        .collection("projects")
+        .doc("physio-hemab-wp2")
+        .set(update, { merge: true });
 
       if (message) {
         message.className = "config-message success";
         message.textContent = "Configuration saved. Refreshing dashboard…";
       }
 
-      await loadDashboard(true);
+      await loadDashboard(false);
     } catch (error) {
       console.error("WP2 configuration save failed", error);
       if (message) {
@@ -1635,25 +1638,25 @@
     renderCurrentSection();
   }
 
-  function getCallable() {
+  function getFirestoreBridge() {
     try {
       if (
         window.parent &&
         window.parent !== window &&
-        window.parent.nhrcFirebaseFunctions &&
-        typeof window.parent.nhrcFirebaseFunctions.httpsCallable === "function"
+        window.parent.nhrcFirestore &&
+        typeof window.parent.nhrcFirestore.collection === "function"
       ) {
-        return window.parent.nhrcFirebaseFunctions.httpsCallable("getPhysioHemabWp2Dashboard");
+        return window.parent.nhrcFirestore;
       }
     } catch (error) {
-      console.warn("Parent Firebase Functions context is unavailable.", error);
+      console.warn("Parent Firestore context is unavailable.", error);
     }
 
     if (
-      window.nhrcFirebaseFunctions &&
-      typeof window.nhrcFirebaseFunctions.httpsCallable === "function"
+      window.nhrcFirestore &&
+      typeof window.nhrcFirestore.collection === "function"
     ) {
-      return window.nhrcFirebaseFunctions.httpsCallable("getPhysioHemabWp2Dashboard");
+      return window.nhrcFirestore;
     }
 
     throw new Error(
@@ -1666,12 +1669,25 @@
     els.errorPanel.classList.add("hidden");
 
     try {
-      const callable = getCallable();
-      const result = await callable({ forceRefresh });
-      state.data = result?.data || result;
+      const firestore = getFirestoreBridge();
+      const snapshot = await firestore
+        .collection("projects")
+        .doc("physio-hemab-wp2")
+        .get();
+
+      if (!snapshot.exists) {
+        throw new Error(
+          "Physio-HeMAB WP2 has not been published to the NHRC dashboard yet."
+        );
+      }
+
+      const projectData = snapshot.data() || {};
+      state.data = projectData.wp2Snapshot || null;
 
       if (!state.data || !Array.isArray(state.data.participants)) {
-        throw new Error("The dashboard returned an unexpected response.");
+        throw new Error(
+          "No current Physio-HeMAB dashboard snapshot is available. Ask the administrator to run the local sync-and-publish process."
+        );
       }
 
       populateFilters();
@@ -1682,7 +1698,7 @@
       console.error("Physio-HeMAB WP2 dashboard load failed", error);
       els.errorMessage.textContent =
         error?.message ||
-        "The Physio-HeMAB dashboard data could not be retrieved.";
+        "The Physio-HeMAB dashboard snapshot could not be retrieved.";
       els.errorPanel.classList.remove("hidden");
       els.liveStatus.innerHTML =
         '<span class="status-dot status-bad"></span><span>Data unavailable</span>';
