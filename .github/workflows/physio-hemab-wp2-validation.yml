@@ -40,19 +40,26 @@ jobs:
         run: |
           node --check public/projects/physio-hemab-wp2/dashboard.js
 
-      - name: Check native dashboard deployment script syntax
+      - name: Check native dashboard PowerShell syntax
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
+          $scripts = @(
             "integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1",
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
+            "integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1",
+            "integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1"
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$script: $($_.Message)" }
+              exit 1
+            }
           }
 
       - name: Set up Python
