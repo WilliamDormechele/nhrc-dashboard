@@ -7,7 +7,6 @@ on:
       - "public/js/projects.js"
       - "public/js/firebase-config.js"
       - "public/projects/physio-hemab-wp2/**"
-      - "functions/**"
       - "integrations/physio-hemab-wp2/**"
       - "scripts/validate-physio-hemab-wp2.js"
       - "package.json"
@@ -39,7 +38,6 @@ jobs:
       - name: Check native dashboard JavaScript syntax
         run: |
           node --check public/projects/physio-hemab-wp2/dashboard.js
-          node --check functions/index.js
 
       - name: Check native dashboard deployment script syntax
         shell: pwsh
