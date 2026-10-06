@@ -1682,7 +1682,17 @@
       }
 
       const projectData = snapshot.data() || {};
-      state.data = projectData.wp2Snapshot || null;
+      const publishedSnapshot = projectData.wp2Snapshot || null;
+
+      state.data = publishedSnapshot
+        ? {
+            ...publishedSnapshot,
+            config: {
+              ...(publishedSnapshot.config || {}),
+              ...(projectData.wp2Config || {})
+            }
+          }
+        : null;
 
       if (!state.data || !Array.isArray(state.data.participants)) {
         throw new Error(
