@@ -324,14 +324,46 @@
         }
       };
 
-      options.onClick = (event, elements, chart) => {
-        if (!elements.length) return;
-        const index = elements[0].index;
-        clickHandler(chart.data.labels[index], index);
-      };
+      // Do not use Chart.js options.onClick here. The chart is re-rendered
+      // immediately after a filter change, and a native canvas click handler
+      // gives us one deterministic toggle action per user click.
+      delete options.onClick;
     }
 
     const chart = new Chart(canvas, { ...config, options });
+
+    if (clickHandler) {
+      canvas.addEventListener("click", (event) => {
+        let elements = chart.getElementsAtEventForMode(
+          event,
+          "nearest",
+          { intersect: true },
+          true
+        );
+
+        // Horizontal bars can be quite thin after filtering. If the pointer
+        // is in the category row but misses the painted rectangle by a few
+        // pixels, resolve the nearest category on that axis.
+        if (!elements.length) {
+          const axis = chart.options.indexAxis === "y" ? "y" : "x";
+          elements = chart.getElementsAtEventForMode(
+            event,
+            "nearest",
+            { intersect: false, axis },
+            true
+          );
+        }
+
+        if (!elements.length) return;
+
+        const index = elements[0].index;
+        const label = chart.data.labels?.[index];
+        if (label === undefined || label === null) return;
+
+        clickHandler(String(label), index);
+      });
+    }
+
     state.charts.set(id, chart);
   }
 
