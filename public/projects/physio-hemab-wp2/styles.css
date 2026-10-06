@@ -806,3 +806,98 @@ h3 {
     padding: 7px;
   }
 }
+
+
+.admin-config-panel {
+  border-color: #cfdde9;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+}
+
+.config-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.config-summary-grid label,
+.config-facility-row label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.config-summary-grid label > span,
+.config-facility-row label > span {
+  color: #637789;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.config-summary-grid input,
+.config-summary-grid select,
+.config-facility-row input,
+.config-facility-row select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d8e2eb;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #33495f;
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.config-facility-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.config-facility-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.6fr) minmax(150px, 0.8fr) minmax(130px, 0.7fr);
+  gap: 10px;
+  align-items: end;
+  padding: 10px 11px;
+  border: 1px solid #e2eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.config-facility-name {
+  align-self: center;
+  color: #24415a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.config-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.config-message {
+  color: #637789;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.config-message.success {
+  color: #2e7d5b;
+}
+
+.config-message.error {
+  color: #b84444;
+}
+
+@media (max-width: 900px) {
+  .config-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-facility-row {
+    grid-template-columns: 1fr;
+  }
+}
