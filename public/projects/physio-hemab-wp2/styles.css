@@ -224,6 +224,41 @@ h3 {
   color: #40566d;
 }
 
+#activeFilterSummary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  white-space: normal;
+  overflow: visible;
+}
+
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid #c9d9e5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #33556f;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.active-filter-chip:hover {
+  border-color: var(--blue);
+  background: #edf5fa;
+}
+
+.active-filter-chip-x {
+  color: var(--red);
+  font-size: 14px;
+  line-height: 1;
+}
+
 .global-filters {
   display: grid;
   grid-template-columns: 1.25fr 1.1fr 0.8fr 0.8fr auto;
