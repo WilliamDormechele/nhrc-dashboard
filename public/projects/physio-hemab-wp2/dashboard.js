@@ -159,6 +159,32 @@
     return valid.reduce((a, b) => a + b, 0) / valid.length;
   }
 
+  function weekStartMonday(dateString) {
+    if (!dateString) return "";
+    const ms = Date.parse(`${dateString}T00:00:00Z`);
+    if (!Number.isFinite(ms)) return "";
+
+    const date = new Date(ms);
+    const day = date.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    date.setUTCDate(date.getUTCDate() + diff);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function weeklyCounts(rows, dateField) {
+    const map = new Map();
+
+    rows.forEach((row) => {
+      const week = weekStartMonday(row[dateField]);
+      if (!week) return;
+      map.set(week, (map.get(week) || 0) + 1);
+    });
+
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([weekStart, count]) => ({ weekStart, count }));
+  }
+
   function kpiCard(label, value, tone = "info", note = "") {
     return `
       <article class="kpi-card ${tone}">
@@ -491,6 +517,7 @@
       <div class="dashboard-grid">
         ${panel("Participants Enrolled by Facility", chartCanvas("recruitmentFacility"), 6)}
         ${panel("Participants by Data Collector", chartCanvas("recruitmentCollector"), 6)}
+        ${panel("Weekly and Cumulative Recruitment", chartCanvas("recruitmentTrend", true), 12)}
         ${panel(
           "Participant Operational Status",
           table(
@@ -528,6 +555,40 @@
       },
       (label) => setFacilityFilter(label)
     );
+
+    const weeklyRecruitment = weeklyCounts(participants, "enrollmentDate");
+    let cumulativeRecruitment = 0;
+    const cumulativeValues = weeklyRecruitment.map((row) => {
+      cumulativeRecruitment += row.count;
+      return cumulativeRecruitment;
+    });
+
+    buildChart("recruitmentTrend", {
+      type: "bar",
+      data: {
+        labels: weeklyRecruitment.map((row) => formatDate(row.weekStart)),
+        datasets: [
+          {
+            type: "bar",
+            label: "Weekly Enrolled",
+            data: weeklyRecruitment.map((row) => row.count),
+            backgroundColor: "#BFD0DD",
+            borderRadius: 4
+          },
+          {
+            type: "line",
+            label: "Cumulative Enrolled",
+            data: cumulativeValues,
+            borderColor: COLORS.teal,
+            backgroundColor: COLORS.teal,
+            borderWidth: 2,
+            tension: 0.2,
+            pointRadius: 3,
+            pointHoverRadius: 4
+          }
+        ]
+      }
+    });
 
     buildChart(
       "recruitmentCollector",
@@ -610,6 +671,7 @@
           ),
           5
         )}
+        ${panel("Core Form Completion by Facility", chartCanvas("formsByFacility", true), 12)}
       </div>
     `;
 
@@ -634,6 +696,44 @@
       },
       options: { indexAxis: "y" }
     });
+
+    const coreFormsByFacility = FACILITIES.map((facility) => {
+      const rows = participants.filter((row) => row.facility === facility);
+      return {
+        facility,
+        expected: rows.length * 3,
+        completed:
+          rows.filter((row) => row.enrollmentComplete).length +
+          rows.filter((row) => row.maternalRecordComplete).length +
+          rows.filter((row) => row.physicalExamComplete).length
+      };
+    });
+
+    buildChart(
+      "formsByFacility",
+      {
+        type: "bar",
+        data: {
+          labels: coreFormsByFacility.map((row) => row.facility),
+          datasets: [
+            {
+              label: "Expected Core Forms",
+              data: coreFormsByFacility.map((row) => row.expected),
+              backgroundColor: "#BFD0DD",
+              borderRadius: 4
+            },
+            {
+              label: "Completed Core Forms",
+              data: coreFormsByFacility.map((row) => row.completed),
+              backgroundColor: COLORS.teal,
+              borderRadius: 4
+            }
+          ]
+        },
+        options: { indexAxis: "y" }
+      },
+      (label) => setFacilityFilter(label)
+    );
   }
 
   function renderDiary() {
@@ -821,6 +921,7 @@
       <div class="dashboard-grid">
         ${panel("Device Components by Latest Facility", chartCanvas("deviceFacility"), 6)}
         ${panel("Current Device Set Status", chartCanvas("deviceStatus"), 6)}
+        ${panel("Weekly Device Distribution vs Return", chartCanvas("deviceWeeklyFlow", true), 12)}
         ${panel(
           "Current Device Set Detail",
           table(
@@ -873,6 +974,40 @@
       (label) => setFacilityFilter(label)
     );
 
+    const distributionWeeks = weeklyCounts(distributions, "distributionDate");
+    const returnWeeks = weeklyCounts(returns, "returnDate");
+    const allWeeks = unique([
+      ...distributionWeeks.map((row) => row.weekStart),
+      ...returnWeeks.map((row) => row.weekStart)
+    ]);
+    const distributionWeekMap = new Map(
+      distributionWeeks.map((row) => [row.weekStart, row.count])
+    );
+    const returnWeekMap = new Map(
+      returnWeeks.map((row) => [row.weekStart, row.count])
+    );
+
+    buildChart("deviceWeeklyFlow", {
+      type: "bar",
+      data: {
+        labels: allWeeks.map((week) => formatDate(week)),
+        datasets: [
+          {
+            label: "Distributed",
+            data: allWeeks.map((week) => distributionWeekMap.get(week) || 0),
+            backgroundColor: COLORS.blue,
+            borderRadius: 4
+          },
+          {
+            label: "Returned",
+            data: allWeeks.map((week) => returnWeekMap.get(week) || 0),
+            backgroundColor: COLORS.teal,
+            borderRadius: 4
+          }
+        ]
+      }
+    });
+
     const statuses = [...statusMap.entries()];
     buildChart("deviceStatus", {
       type: "bar",
@@ -916,6 +1051,18 @@
       {
         name: "Incomplete Device Returns",
         count: returns.filter((r) => !r.allComponentsReturned).length,
+        severity: "High"
+      },
+      {
+        name: "Return Logs Missing Return Date",
+        count: returns.filter((r) => !r.returnDate).length,
+        severity: "High"
+      },
+      {
+        name: "Overdue Devices",
+        count: filteredDeviceSets().filter((row) =>
+          deviceStatusWithWindow(row, state.returnWindowDays).isOverdue
+        ).length,
         severity: "High"
       },
       {
@@ -974,6 +1121,7 @@
       </div>
 
       <div class="dashboard-grid">
+        ${panel("Issues by Type", chartCanvas("qualityIssues", true), 7, "warning-panel")}
         ${panel(
           "Issues Requiring Follow-up",
           `<div class="issue-list">
@@ -1023,6 +1171,28 @@
         )}
       </div>
     `;
+
+    buildChart("qualityIssues", {
+      type: "bar",
+      data: {
+        labels: issues.map((issue) => issue.name),
+        datasets: [{
+          label: "Issue Count",
+          data: issues.map((issue) => issue.count),
+          backgroundColor: issues.map((issue) => {
+            if (issue.severity === "Critical") return COLORS.red;
+            if (issue.severity === "High") return "#D96B6B";
+            if (issue.severity === "Medium") return COLORS.amber;
+            return COLORS.slate;
+          }),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false } }
+      }
+    });
   }
 
   function renderSync() {
