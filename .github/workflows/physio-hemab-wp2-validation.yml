@@ -6,6 +6,7 @@ on:
       - "public/data/project-config.js"
       - "public/js/projects.js"
       - "public/projects/physio-hemab-wp2/**"
+      - "functions/**"
       - "integrations/physio-hemab-wp2/**"
       - "scripts/validate-physio-hemab-wp2.js"
       - "package.json"
@@ -33,6 +34,11 @@ jobs:
 
       - name: Validate dashboard integration
         run: npm run test:physio-hemab-wp2
+
+      - name: Check native dashboard JavaScript syntax
+        run: |
+          node --check public/projects/physio-hemab-wp2/dashboard.js
+          node --check functions/index.js
 
       - name: Set up Python
         uses: actions/setup-python@v5
