@@ -48,6 +48,18 @@
     returnWindowFilter: document.getElementById("returnWindowFilter")
   };
 
+  function currentUserRole() {
+    try {
+      return String(window.parent?.currentUserProfile?.role || "").trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function isAdminUser() {
+    return ["administrator", "developer"].includes(currentUserRole());
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -1307,6 +1319,167 @@
     });
   }
 
+
+  function renderAdminConfigurationPanel() {
+    if (!isAdminUser()) return "";
+
+    const config = state.data?.config || {};
+    const targets = config.facilityTargets || {};
+    const returnOptions = config.returnWindowOptions || [1, 2, 3, 5, 7, 10, 14];
+
+    const facilityRows = FACILITIES.map((facility, index) => {
+      const row = targets[facility] || {};
+      const safeFacility = escapeHtml(facility);
+      return `
+        <div class="config-facility-row" data-config-facility="${safeFacility}">
+          <div class="config-facility-name">${safeFacility}</div>
+          <label>
+            <span>Study arm</span>
+            <select class="config-arm-input" data-facility-index="${index}">
+              <option value="" ${!row.arm ? "selected" : ""}>Not configured</option>
+              <option value="Intervention" ${row.arm === "Intervention" ? "selected" : ""}>Intervention</option>
+              <option value="Control" ${row.arm === "Control" ? "selected" : ""}>Control</option>
+            </select>
+          </label>
+          <label>
+            <span>Recruitment target</span>
+            <input
+              class="config-target-input"
+              data-facility-index="${index}"
+              type="number"
+              min="1"
+              step="1"
+              value="${row.target ?? ""}"
+              placeholder="Target"
+            >
+          </label>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <article class="panel span-12 admin-config-panel">
+        <div class="panel-title-row">
+          <div>
+            <h3>Administrator Configuration</h3>
+            <span>Changes are audit logged and apply to all WP2 dashboard users.</span>
+          </div>
+        </div>
+
+        <div class="config-summary-grid">
+          <label>
+            <span>Overall participant target</span>
+            <input id="configParticipantTarget" type="number" min="1" step="1"
+              value="${Number(config.participantTarget || 200)}">
+          </label>
+
+          <label>
+            <span>Expected Activity Diaries per participant</span>
+            <input id="configExpectedDiaries" type="number" min="1" max="30" step="1"
+              value="${Number(config.activityDiariesExpectedPerParticipant || 6)}">
+          </label>
+
+          <label>
+            <span>Default device return window</span>
+            <select id="configReturnWindow">
+              <option value="" ${config.returnWindowDays ? "" : "selected"}>Not configured</option>
+              ${returnOptions.map((days) => `
+                <option value="${days}" ${Number(config.returnWindowDays) === Number(days) ? "selected" : ""}>
+                  ${days} day${Number(days) === 1 ? "" : "s"}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="config-facility-grid">
+          ${facilityRows}
+        </div>
+
+        <div class="config-actions">
+          <button type="button" class="btn btn-primary" id="saveWp2ConfigBtn">
+            Save WP2 configuration
+          </button>
+          <span id="wp2ConfigMessage" class="config-message"></span>
+        </div>
+      </article>
+    `;
+  }
+
+  async function saveAdminConfiguration() {
+    if (!isAdminUser()) return;
+
+    const message = document.getElementById("wp2ConfigMessage");
+    const button = document.getElementById("saveWp2ConfigBtn");
+    const participantTarget = Number(document.getElementById("configParticipantTarget")?.value);
+    const expectedDiaries = Number(document.getElementById("configExpectedDiaries")?.value);
+    const returnWindowRaw = document.getElementById("configReturnWindow")?.value || "";
+    const facilityTargets = {};
+
+    FACILITIES.forEach((facility, index) => {
+      const arm = document.querySelector(`.config-arm-input[data-facility-index="${index}"]`)?.value || "";
+      const targetRaw = document.querySelector(`.config-target-input[data-facility-index="${index}"]`)?.value || "";
+
+      if (arm || targetRaw) {
+        facilityTargets[facility] = {
+          arm,
+          target: targetRaw ? Number(targetRaw) : null
+        };
+      }
+    });
+
+    if (message) {
+      message.className = "config-message";
+      message.textContent = "Saving…";
+    }
+    if (button) button.disabled = true;
+
+    try {
+      let callable = null;
+      try {
+        callable = window.parent?.nhrcFirebaseFunctions?.httpsCallable(
+          "savePhysioHemabWp2Config"
+        );
+      } catch (error) {
+        callable = null;
+      }
+
+      if (!callable) {
+        throw new Error("Administrator configuration service is unavailable.");
+      }
+
+      await callable({
+        participantTarget,
+        activityDiariesExpectedPerParticipant: expectedDiaries,
+        returnWindowDays: returnWindowRaw ? Number(returnWindowRaw) : null,
+        facilityTargets
+      });
+
+      if (message) {
+        message.className = "config-message success";
+        message.textContent = "Configuration saved. Refreshing dashboard…";
+      }
+
+      await loadDashboard(true);
+    } catch (error) {
+      console.error("WP2 configuration save failed", error);
+      if (message) {
+        message.className = "config-message error";
+        message.textContent =
+          error?.message || "Configuration could not be saved.";
+      }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function wirePerformanceConfiguration() {
+    const saveButton = document.getElementById("saveWp2ConfigBtn");
+    if (saveButton) {
+      saveButton.addEventListener("click", saveAdminConfiguration);
+    }
+  }
+
   function renderPerformance() {
     const content = document.getElementById("performanceContent");
     const performance = collectorPerformanceRows();
@@ -1365,6 +1538,7 @@
           ),
           12
         )}
+        ${renderAdminConfigurationPanel()}
       </div>
     `;
 
@@ -1427,6 +1601,10 @@
     const render = renderers[state.section] || renderOverview;
     render();
     wireInteractiveRows();
+
+    if (state.section === "performance") {
+      wirePerformanceConfiguration();
+    }
   }
 
   function wireInteractiveRows() {
