@@ -78,8 +78,8 @@ assert(
 });
 
 assert(
-  wp2DashboardJs.includes("getPhysioHemabWp2Dashboard") &&
-    wp2DashboardJs.includes("savePhysioHemabWp2Config") &&
+  wp2DashboardJs.includes("wp2Snapshot") &&
+    wp2DashboardJs.includes("wp2Config") &&
     wp2DashboardJs.includes("setFacilityFilter") &&
     wp2DashboardJs.includes("setCollectorFilter") &&
     wp2DashboardJs.includes("returnWindowDays"),
