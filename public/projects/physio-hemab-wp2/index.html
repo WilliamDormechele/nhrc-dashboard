@@ -3,24 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Physio-HeMAB WP2 Dashboard</title>
+  <title>Physio-HeMAB WP2 Operational Dashboard</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <main class="wp2-dashboard">
+  <main class="wp2-dashboard" id="wp2Dashboard">
     <header class="wp2-header">
-      <div>
-        <p class="eyebrow">HeMAB - Work Package 2</p>
+      <div class="header-copy">
+        <p class="eyebrow">HEMAB • WORK PACKAGE 2</p>
         <h1>Physio-HeMAB Operational Dashboard</h1>
-        <p class="subtitle">Recruitment, form completion, activity diary, device tracking and data quality monitoring.</p>
+        <p class="subtitle">
+          Recruitment, form completion, activity diary, device tracking,
+          data quality and field-team performance.
+        </p>
       </div>
-      <div class="setup-status" aria-label="Dashboard status">
-        <span class="status-dot"></span>
-        Setup phase
+
+      <div class="header-actions">
+        <div class="live-status" id="liveStatus">
+          <span class="status-dot status-loading"></span>
+          <span>Loading data</span>
+        </div>
+        <button type="button" class="icon-button" id="refreshDashboardBtn" title="Refresh dashboard data">
+          ↻
+          <span class="sr-only">Refresh dashboard</span>
+        </button>
       </div>
     </header>
 
-    <nav class="section-nav" aria-label="Dashboard sections">
+    <section class="freshness-strip" aria-label="Dashboard data freshness">
+      <div class="freshness-item">
+        <span class="freshness-label">Data current to</span>
+        <strong id="dataCurrentTo">Loading…</strong>
+      </div>
+      <div class="freshness-item">
+        <span class="freshness-label">Main REDCap</span>
+        <strong id="mainSourceStatus">Loading…</strong>
+      </div>
+      <div class="freshness-item">
+        <span class="freshness-label">Devices REDCap</span>
+        <strong id="devicesSourceStatus">Loading…</strong>
+      </div>
+      <div class="freshness-item freshness-filter-state">
+        <span class="freshness-label">Active filters</span>
+        <strong id="activeFilterSummary">None</strong>
+      </div>
+    </section>
+
+    <section class="global-filters" aria-label="Dashboard filters">
+      <div class="filter-control">
+        <label for="facilityFilter">Facility</label>
+        <select id="facilityFilter">
+          <option value="">All facilities</option>
+        </select>
+      </div>
+      <div class="filter-control">
+        <label for="collectorFilter">Data Collector</label>
+        <select id="collectorFilter">
+          <option value="">All collectors</option>
+        </select>
+      </div>
+      <div class="filter-control">
+        <label for="dateFromFilter">From date</label>
+        <input id="dateFromFilter" type="date">
+      </div>
+      <div class="filter-control">
+        <label for="dateToFilter">To date</label>
+        <input id="dateToFilter" type="date">
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn btn-secondary" id="clearFiltersBtn">Clear filters</button>
+      </div>
+    </section>
+
+    <nav class="section-nav" aria-label="Physio-HeMAB dashboard sections">
       <button type="button" class="nav-item active" data-section="overview">Overview</button>
       <button type="button" class="nav-item" data-section="recruitment">Recruitment</button>
       <button type="button" class="nav-item" data-section="forms">Forms &amp; Completion</button>
@@ -28,126 +84,106 @@
       <button type="button" class="nav-item" data-section="devices">Devices</button>
       <button type="button" class="nav-item" data-section="quality">Data Quality</button>
       <button type="button" class="nav-item" data-section="sync">Sync Status</button>
+      <button type="button" class="nav-item" data-section="performance">Performance &amp; Targets</button>
     </nav>
 
-    <section id="overview" class="dashboard-section active-section">
-      <div class="kpi-grid">
-        <article class="kpi-card">
-          <span class="kpi-label">Participant target</span>
-          <strong class="kpi-value">200</strong>
-          <span class="kpi-note">Across four health facilities</span>
-        </article>
-        <article class="kpi-card">
-          <span class="kpi-label">Participants enrolled</span>
-          <strong class="kpi-value pending">Pending</strong>
-          <span class="kpi-note">Will populate from REDCap</span>
-        </article>
-        <article class="kpi-card">
-          <span class="kpi-label">Form completeness</span>
-          <strong class="kpi-value pending">Pending</strong>
-          <span class="kpi-note">Will populate after field mapping</span>
-        </article>
-        <article class="kpi-card">
-          <span class="kpi-label">Latest data sync</span>
-          <strong class="kpi-value pending">Not connected</strong>
-          <span class="kpi-note">REDCap connection not configured</span>
-        </article>
-      </div>
-
-      <div class="two-column">
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Recruitment targets</h2>
-            <span>Planned sample</span>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Study arm / facility</th><th>Target</th><th>Enrolled</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Intervention Hospital</td><td>60</td><td>Pending</td></tr>
-              <tr><td>Intervention Center</td><td>40</td><td>Pending</td></tr>
-              <tr><td>Control Hospital</td><td>60</td><td>Pending</td></tr>
-              <tr><td>Control Center</td><td>40</td><td>Pending</td></tr>
-            </tbody>
-          </table>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Data source readiness</h2>
-            <span>No live data exposed</span>
-          </div>
-          <div class="readiness-list">
-            <div class="readiness-row"><span>REDCap Main API (PID 410)</span><strong>Awaiting project token</strong></div>
-            <div class="readiness-row"><span>REDCap Devices API (PID 411)</span><strong>Awaiting project token</strong></div>
-            <div class="readiness-row"><span>PostgreSQL monitoring database</span><strong>Schema prepared</strong></div>
-            <div class="readiness-row"><span>Power BI report</span><strong>Not connected</strong></div>
-            <div class="readiness-row"><span>Device distribution / return source</span><strong>Identified in PID 411</strong></div>
-            <div class="readiness-row"><span>Activity diary phone call source</span><strong>Identified in PID 410</strong></div>
-          </div>
-        </article>
-      </div>
-
-      <article class="panel notice-panel">
-        <h2>Implementation status</h2>
-        <p>This project has been added without changing the existing HeMAB, BRAVE or HDSS dashboards. Values marked Pending are intentionally not estimated. They will be populated only after the Physio-HeMAB REDCap fields and approved data sources are mapped.</p>
-      </article>
-    </section>
-
-    <section id="recruitment" class="dashboard-section">
-      <article class="panel empty-state">
-        <h2>Recruitment monitoring</h2>
-        <p>Planned measures: participants enrolled by facility and data collector, weekly recruitment, cumulative recruitment and progress against target.</p>
-      </article>
-    </section>
-
-    <section id="forms" class="dashboard-section">
-      <article class="panel empty-state">
-        <h2>Forms &amp; Completion</h2>
-        <p>Planned monitoring: Enrollment Form, Maternal Record Book, Physical Examination / Physicians Form and required form completion by participant and facility.</p>
-      </article>
-    </section>
-
-    <section id="diary" class="dashboard-section">
-      <article class="panel empty-state">
-        <h2>Activity Diary</h2>
-        <p>Planned measures: expected diaries, diaries completed on the expected date, late diaries, days late, missing diaries and performance by data collector and facility.</p>
-      </article>
-    </section>
-
-    <section id="devices" class="dashboard-section">
-      <article class="panel empty-state">
-        <h2>Device tracking</h2>
-        <p>Planned measures: device ID, distribution date, facility, participant, expected return date, actual return date and overdue devices. Distribution and return fields have been identified in the HeMAB Ghana Devices REDCap project (PID 411).</p>
-      </article>
-    </section>
-
-    <section id="quality" class="dashboard-section">
-      <article class="panel empty-state">
-        <h2>Data quality</h2>
-        <p>Planned checks: missing required forms, late forms, incomplete records, duplicate or inconsistent records and records requiring follow-up.</p>
-      </article>
-    </section>
-
-    <section id="sync" class="dashboard-section">
-      <article class="panel">
-        <div class="panel-heading">
-          <h2>Data synchronization</h2>
-          <span>Foundation prepared</span>
+    <section id="overview" class="dashboard-section active-section" aria-labelledby="overviewHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="overviewHeading">Overview</h2>
+          <p>Executive view of recruitment, core form completion, diary timeliness and data freshness.</p>
         </div>
-        <table>
-          <tbody>
-            <tr><th>REDCap Main API (PID 410)</th><td>Not configured</td></tr>
-            <tr><th>REDCap Devices API (PID 411)</th><td>Not configured</td></tr>
-            <tr><th>PostgreSQL schema</th><td>Prepared for both source projects</td></tr>
-            <tr><th>Last successful sync</th><td>Not available</td></tr>
-            <tr><th>Records retrieved</th><td>Not available</td></tr>
-            <tr><th>Sync failures</th><td>Not available</td></tr>
-          </tbody>
-        </table>
-      </article>
+      </div>
+      <div id="overviewContent"></div>
     </section>
+
+    <section id="recruitment" class="dashboard-section" aria-labelledby="recruitmentHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="recruitmentHeading">Recruitment</h2>
+          <p>Participant enrollment, facility distribution and field-team workload.</p>
+        </div>
+      </div>
+      <div id="recruitmentContent"></div>
+    </section>
+
+    <section id="forms" class="dashboard-section" aria-labelledby="formsHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="formsHeading">Forms &amp; Completion</h2>
+          <p>Expected versus completed study instruments and operational completion gaps.</p>
+        </div>
+      </div>
+      <div id="formsContent"></div>
+    </section>
+
+    <section id="diary" class="dashboard-section" aria-labelledby="diaryHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="diaryHeading">Activity Diary</h2>
+          <p>Completion, interview timing, delay and call-attempt monitoring.</p>
+        </div>
+      </div>
+      <div id="diaryContent"></div>
+    </section>
+
+    <section id="devices" class="dashboard-section" aria-labelledby="devicesHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="devicesHeading">Devices</h2>
+          <p>Distribution, return completeness, current set status and configurable overdue monitoring.</p>
+        </div>
+        <div class="section-inline-control">
+          <label for="returnWindowFilter">Return window</label>
+          <select id="returnWindowFilter"></select>
+        </div>
+      </div>
+      <div id="devicesContent"></div>
+    </section>
+
+    <section id="quality" class="dashboard-section" aria-labelledby="qualityHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="qualityHeading">Data Quality &amp; Follow-up</h2>
+          <p>Operational exceptions requiring follow-up or configuration.</p>
+        </div>
+      </div>
+      <div id="qualityContent"></div>
+    </section>
+
+    <section id="sync" class="dashboard-section" aria-labelledby="syncHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="syncHeading">Sync Status</h2>
+          <p>Live REDCap connectivity and the current dashboard data timestamp.</p>
+        </div>
+      </div>
+      <div id="syncContent"></div>
+    </section>
+
+    <section id="performance" class="dashboard-section" aria-labelledby="performanceHeading">
+      <div class="section-title-row">
+        <div>
+          <h2 id="performanceHeading">Performance &amp; Targets</h2>
+          <p>Data-collector workload, completion and facility target readiness.</p>
+        </div>
+      </div>
+      <div id="performanceContent"></div>
+    </section>
+
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <strong>Loading Physio-HeMAB WP2</strong>
+        <span>Retrieving the latest approved dashboard fields from REDCap.</span>
+      </div>
+    </div>
+
+    <div id="errorPanel" class="error-panel hidden" role="alert">
+      <strong>Dashboard data could not be loaded.</strong>
+      <span id="errorMessage">Please try again.</span>
+      <button type="button" class="btn btn-primary" id="retryDashboardBtn">Retry</button>
+    </div>
   </main>
 
   <script src="dashboard.js"></script>
