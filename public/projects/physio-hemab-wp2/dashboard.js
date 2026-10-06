@@ -1261,17 +1261,20 @@
       if (
         window.parent &&
         window.parent !== window &&
-        window.parent.functions &&
-        typeof window.parent.functions.httpsCallable === "function"
+        window.parent.nhrcFirebaseFunctions &&
+        typeof window.parent.nhrcFirebaseFunctions.httpsCallable === "function"
       ) {
-        return window.parent.functions.httpsCallable("getPhysioHemabWp2Dashboard");
+        return window.parent.nhrcFirebaseFunctions.httpsCallable("getPhysioHemabWp2Dashboard");
       }
     } catch (error) {
       console.warn("Parent Firebase Functions context is unavailable.", error);
     }
 
-    if (window.functions && typeof window.functions.httpsCallable === "function") {
-      return window.functions.httpsCallable("getPhysioHemabWp2Dashboard");
+    if (
+      window.nhrcFirebaseFunctions &&
+      typeof window.nhrcFirebaseFunctions.httpsCallable === "function"
+    ) {
+      return window.nhrcFirebaseFunctions.httpsCallable("getPhysioHemabWp2Dashboard");
     }
 
     throw new Error(
