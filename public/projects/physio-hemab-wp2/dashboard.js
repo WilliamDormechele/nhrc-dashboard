@@ -29,7 +29,9 @@
       dateTo: ""
     },
     returnWindowDays: null,
-    charts: new Map()
+    charts: new Map(),
+    firestoreUnsubscribe: null,
+    liveListenerStarted: false
   };
 
   const els = {
@@ -333,33 +335,115 @@
     state.charts.set(id, chart);
   }
 
-  function setFacilityFilter(value) {
-    const nextValue = value || "";
-    state.filters.facility =
-      nextValue && state.filters.facility === nextValue ? "" : nextValue;
+  function normalizeFilterValue(value) {
+    return String(value ?? "").trim();
+  }
 
+  function sameFilterValue(left, right) {
+    return normalizeFilterValue(left).localeCompare(
+      normalizeFilterValue(right),
+      undefined,
+      { sensitivity: "base" }
+    ) === 0;
+  }
+
+  function syncFilterControls() {
     els.facilityFilter.value = state.filters.facility;
+    els.collectorFilter.value = state.filters.collector;
+    els.dateFromFilter.value = state.filters.dateFrom;
+    els.dateToFilter.value = state.filters.dateTo;
+  }
+
+  function setDimensionFilter(dimension, value, { toggle = false } = {}) {
+    const nextValue = normalizeFilterValue(value);
+    const currentValue = normalizeFilterValue(state.filters[dimension]);
+
+    state.filters[dimension] =
+      toggle && nextValue && sameFilterValue(currentValue, nextValue)
+        ? ""
+        : nextValue;
+
+    syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
   }
 
-  function setCollectorFilter(value) {
-    const nextValue = value || "";
-    state.filters.collector =
-      nextValue && state.filters.collector === nextValue ? "" : nextValue;
+  function setFacilityFilter(value) {
+    setDimensionFilter("facility", value, { toggle: true });
+  }
 
-    els.collectorFilter.value = state.filters.collector;
+  function setCollectorFilter(value) {
+    setDimensionFilter("collector", value, { toggle: true });
+  }
+
+  function clearSingleFilter(dimension) {
+    if (!Object.prototype.hasOwnProperty.call(state.filters, dimension)) return;
+    state.filters[dimension] = "";
+    syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
   }
 
   function renderActiveFilterSummary() {
-    const parts = [];
-    if (state.filters.facility) parts.push(state.filters.facility);
-    if (state.filters.collector) parts.push(state.filters.collector);
-    if (state.filters.dateFrom) parts.push(`From ${formatDate(state.filters.dateFrom)}`);
-    if (state.filters.dateTo) parts.push(`To ${formatDate(state.filters.dateTo)}`);
-    els.activeFilterSummary.textContent = parts.length ? parts.join(" • ") : "None";
+    const chips = [];
+
+    if (state.filters.facility) {
+      chips.push({
+        dimension: "facility",
+        label: state.filters.facility
+      });
+    }
+
+    if (state.filters.collector) {
+      chips.push({
+        dimension: "collector",
+        label: state.filters.collector
+      });
+    }
+
+    if (state.filters.dateFrom) {
+      chips.push({
+        dimension: "dateFrom",
+        label: `From ${formatDate(state.filters.dateFrom)}`
+      });
+    }
+
+    if (state.filters.dateTo) {
+      chips.push({
+        dimension: "dateTo",
+        label: `To ${formatDate(state.filters.dateTo)}`
+      });
+    }
+
+    if (!chips.length) {
+      els.activeFilterSummary.textContent = "None";
+      return;
+    }
+
+    els.activeFilterSummary.innerHTML = chips
+      .map(
+        (chip) => `
+          <button
+            type="button"
+            class="active-filter-chip"
+            data-clear-filter="${escapeHtml(chip.dimension)}"
+            title="Remove ${escapeHtml(chip.label)} filter"
+          >
+            <span>${escapeHtml(chip.label)}</span>
+            <span class="active-filter-chip-x" aria-hidden="true">×</span>
+          </button>
+        `
+      )
+      .join("");
+
+    els.activeFilterSummary
+      .querySelectorAll("[data-clear-filter]")
+      .forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          clearSingleFilter(button.dataset.clearFilter || "");
+        });
+      });
   }
 
   function populateFilters() {
@@ -1627,13 +1711,19 @@
     document
       .querySelectorAll("tr[data-filter-facility], tr[data-filter-collector]")
       .forEach((row) => {
-        const facility = row.dataset.filterFacility || "";
-        const collector = row.dataset.filterCollector || "";
+        const facility = normalizeFilterValue(row.dataset.filterFacility);
+        const collector = normalizeFilterValue(row.dataset.filterCollector);
+
+        const represented = [
+          facility ? ["facility", facility] : null,
+          collector ? ["collector", collector] : null
+        ].filter(Boolean);
 
         const representedFiltersAreActive =
-          (!facility || state.filters.facility === facility) &&
-          (!collector || state.filters.collector === collector) &&
-          Boolean(facility || collector);
+          represented.length > 0 &&
+          represented.every(([dimension, value]) =>
+            sameFilterValue(state.filters[dimension], value)
+          );
 
         row.classList.toggle("filter-row-active", representedFiltersAreActive);
         row.title = representedFiltersAreActive
@@ -1642,20 +1732,16 @@
 
         row.addEventListener("click", () => {
           const isSameSelection =
-            (!facility || state.filters.facility === facility) &&
-            (!collector || state.filters.collector === collector) &&
-            Boolean(facility || collector);
+            represented.length > 0 &&
+            represented.every(([dimension, value]) =>
+              sameFilterValue(state.filters[dimension], value)
+            );
 
-          if (isSameSelection) {
-            if (facility) state.filters.facility = "";
-            if (collector) state.filters.collector = "";
-          } else {
-            if (facility) state.filters.facility = facility;
-            if (collector) state.filters.collector = collector;
-          }
+          represented.forEach(([dimension, value]) => {
+            state.filters[dimension] = isSameSelection ? "" : value;
+          });
 
-          els.facilityFilter.value = state.filters.facility;
-          els.collectorFilter.value = state.filters.collector;
+          syncFilterControls();
           renderActiveFilterSummary();
           renderCurrentSection();
         });
@@ -1701,46 +1787,111 @@
     );
   }
 
+  function applyProjectSnapshot(snapshot, { fromLiveListener = false } = {}) {
+    if (!snapshot.exists) {
+      throw new Error(
+        "Physio-HeMAB WP2 has not been published to the NHRC dashboard yet."
+      );
+    }
+
+    const projectData = snapshot.data() || {};
+    const publishedSnapshot = projectData.wp2Snapshot || null;
+
+    state.data = publishedSnapshot
+      ? {
+          ...publishedSnapshot,
+          config: {
+            ...(publishedSnapshot.config || {}),
+            ...(projectData.wp2Config || {})
+          }
+        }
+      : null;
+
+    if (!state.data || !Array.isArray(state.data.participants)) {
+      throw new Error(
+        "No current Physio-HeMAB dashboard snapshot is available. Ask the administrator to run the local sync-and-publish process."
+      );
+    }
+
+    populateFilters();
+    renderFreshness();
+    renderActiveFilterSummary();
+    renderCurrentSection();
+
+    if (fromLiveListener) {
+      els.liveStatus.innerHTML =
+        '<span class="status-dot status-good"></span><span>Live • auto-updates enabled</span>';
+    }
+
+    els.errorPanel.classList.add("hidden");
+  }
+
+  function stopLiveDashboardListener() {
+    if (typeof state.firestoreUnsubscribe === "function") {
+      state.firestoreUnsubscribe();
+    }
+
+    state.firestoreUnsubscribe = null;
+    state.liveListenerStarted = false;
+  }
+
+  function startLiveDashboardListener() {
+    if (state.liveListenerStarted) return;
+
+    const firestore = getFirestoreBridge();
+    const projectRef = firestore
+      .collection("projects")
+      .doc("physio-hemab-wp2");
+
+    state.liveListenerStarted = true;
+
+    state.firestoreUnsubscribe = projectRef.onSnapshot(
+      (snapshot) => {
+        try {
+          applyProjectSnapshot(snapshot, { fromLiveListener: true });
+        } catch (error) {
+          console.error("Physio-HeMAB live snapshot apply failed", error);
+          els.errorMessage.textContent =
+            error?.message || "The live Physio-HeMAB snapshot could not be applied.";
+          els.errorPanel.classList.remove("hidden");
+        } finally {
+          els.loading.classList.add("hidden");
+        }
+      },
+      (error) => {
+        console.error("Physio-HeMAB Firestore live listener failed", error);
+        els.errorMessage.textContent =
+          error?.message ||
+          "The Physio-HeMAB live data connection was interrupted.";
+        els.errorPanel.classList.remove("hidden");
+        els.liveStatus.innerHTML =
+          '<span class="status-dot status-warning"></span><span>Live connection interrupted</span>';
+        els.loading.classList.add("hidden");
+        state.firestoreUnsubscribe = null;
+        state.liveListenerStarted = false;
+      }
+    );
+  }
+
   async function loadDashboard(forceRefresh = false) {
-    els.loading.classList.remove("hidden");
     els.errorPanel.classList.add("hidden");
 
     try {
       const firestore = getFirestoreBridge();
-      const snapshot = await firestore
+      const projectRef = firestore
         .collection("projects")
-        .doc("physio-hemab-wp2")
-        .get();
+        .doc("physio-hemab-wp2");
 
-      if (!snapshot.exists) {
-        throw new Error(
-          "Physio-HeMAB WP2 has not been published to the NHRC dashboard yet."
-        );
+      if (!state.liveListenerStarted) {
+        els.loading.classList.remove("hidden");
+        startLiveDashboardListener();
+        return;
       }
 
-      const projectData = snapshot.data() || {};
-      const publishedSnapshot = projectData.wp2Snapshot || null;
-
-      state.data = publishedSnapshot
-        ? {
-            ...publishedSnapshot,
-            config: {
-              ...(publishedSnapshot.config || {}),
-              ...(projectData.wp2Config || {})
-            }
-          }
-        : null;
-
-      if (!state.data || !Array.isArray(state.data.participants)) {
-        throw new Error(
-          "No current Physio-HeMAB dashboard snapshot is available. Ask the administrator to run the local sync-and-publish process."
-        );
+      if (forceRefresh) {
+        const snapshot = await projectRef.get();
+        applyProjectSnapshot(snapshot, { fromLiveListener: false });
       }
-
-      populateFilters();
-      renderFreshness();
-      renderActiveFilterSummary();
-      renderCurrentSection();
     } catch (error) {
       console.error("Physio-HeMAB WP2 dashboard load failed", error);
       els.errorMessage.textContent =
@@ -1749,7 +1900,6 @@
       els.errorPanel.classList.remove("hidden");
       els.liveStatus.innerHTML =
         '<span class="status-dot status-bad"></span><span>Data unavailable</span>';
-    } finally {
       els.loading.classList.add("hidden");
     }
   }
@@ -1761,10 +1911,7 @@
       dateFrom: "",
       dateTo: ""
     };
-    els.facilityFilter.value = "";
-    els.collectorFilter.value = "";
-    els.dateFromFilter.value = "";
-    els.dateToFilter.value = "";
+    syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
   }
@@ -1805,6 +1952,8 @@
   document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);
   document.getElementById("refreshDashboardBtn").addEventListener("click", () => loadDashboard(true));
   document.getElementById("retryDashboardBtn").addEventListener("click", () => loadDashboard(true));
+
+  window.addEventListener("beforeunload", stopLiveDashboardListener);
 
   loadDashboard(false);
 })();
