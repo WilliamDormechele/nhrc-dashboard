@@ -89,8 +89,16 @@ assert(
 assert(
   wp2Styles.includes("--navy: #17324d") &&
     wp2Styles.includes(".global-filters") &&
-    wp2Styles.includes(".kpi-card.problem"),
+    wp2Styles.includes(".kpi-card.problem") &&
+    wp2Styles.includes(".filter-row-active"),
   "Native WP2 executive styling is incomplete."
+);
+
+assert(
+  wp2DashboardJs.includes("state.filters.facility === nextValue ? \"\" : nextValue") &&
+    wp2DashboardJs.includes("state.filters.collector === nextValue ? \"\" : nextValue") &&
+    wp2DashboardJs.includes("isSameSelection"),
+  "Repeat-click chart/table filter clearing is missing."
 );
 
 assert(
