@@ -18,9 +18,10 @@ const projectsJs = read("public/js/projects.js");
 const wp2Html = read("public/projects/physio-hemab-wp2/index.html");
 const wp2DashboardJs = read("public/projects/physio-hemab-wp2/dashboard.js");
 const wp2Styles = read("public/projects/physio-hemab-wp2/styles.css");
-const functionsIndex = read("functions/index.js");
 const firebaseConfigJs = read("public/js/firebase-config.js");
 const nativeDeployScript = read("integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1");
+const snapshotPublisher = read("integrations/physio-hemab-wp2/src/publish_firestore.py");
+const syncPublishScript = read("integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1");
 const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
 const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
 const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
@@ -93,25 +94,36 @@ assert(
 );
 
 assert(
-  functionsIndex.includes("exports.getPhysioHemabWp2Dashboard") &&
-    functionsIndex.includes("exports.savePhysioHemabWp2Config") &&
-    functionsIndex.includes("requirePhysioHemabProjectAccess") &&
-    functionsIndex.includes("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN") &&
-    functionsIndex.includes("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"),
-  "Secure WP2 Firebase data API is incomplete."
+  firebaseConfigJs.includes("window.nhrcFirestore = db") &&
+    wp2DashboardJs.includes("window.parent.nhrcFirestore"),
+  "Same-origin authenticated Firestore bridge is missing."
 );
 
 assert(
-  firebaseConfigJs.includes("window.nhrcFirebaseFunctions = functions") &&
-    wp2DashboardJs.includes("window.parent.nhrcFirebaseFunctions"),
-  "Same-origin authenticated Firebase callable bridge is missing."
+  wp2DashboardJs.includes('collection("projects")') &&
+    wp2DashboardJs.includes('doc("physio-hemab-wp2")') &&
+    wp2DashboardJs.includes("wp2Snapshot"),
+  "Native WP2 dashboard is not reading the project-scoped Firestore snapshot."
 );
 
 assert(
-  nativeDeployScript.includes("functions:getPhysioHemabWp2Dashboard,functions:savePhysioHemabWp2Config") &&
-    nativeDeployScript.includes("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN") &&
-    nativeDeployScript.includes("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"),
-  "Combined native WP2 deployment script is incomplete."
+  snapshotPublisher.includes('PROJECT_CODE = "physio-hemab-wp2"') &&
+    snapshotPublisher.includes("wp2Snapshot") &&
+    snapshotPublisher.includes("MAX_SNAPSHOT_BYTES"),
+  "Free-tier Firestore snapshot publisher is incomplete."
+);
+
+assert(
+  nativeDeployScript.includes("src\\publish_firestore.py") &&
+    !nativeDeployScript.includes("functions:secrets:set") &&
+    !nativeDeployScript.includes("firebase deploy --only functions"),
+  "Native deployment must use the free-tier Firestore snapshot path."
+);
+
+assert(
+  syncPublishScript.includes("src\\sync.py") &&
+    syncPublishScript.includes("src\\publish_firestore.py"),
+  "Repeatable WP2 sync-and-publish script is incomplete."
 );
 
 [
@@ -121,8 +133,8 @@ assert(
   "enroll_address"
 ].forEach((sensitiveField) => {
   assert(
-    !functionsIndex.includes('"' + sensitiveField + '"'),
-    `Sensitive participant field must not be exposed by Firebase API: ${sensitiveField}`
+    !snapshotPublisher.includes('"' + sensitiveField + '"'),
+    `Sensitive participant field must not be published to Firestore: ${sensitiveField}`
   );
 });
 
