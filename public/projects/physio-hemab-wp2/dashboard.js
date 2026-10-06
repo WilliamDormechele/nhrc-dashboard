@@ -210,8 +210,12 @@
     return `<div class="empty-state">${escapeHtml(message)}</div>`;
   }
 
-  function table(headers, rows, rowAttributes = []) {
+  function table(headers, rows, rowAttributes = [], maxRows = 250) {
     if (!rows.length) return emptyState("No records match the current filters.");
+
+    const visibleRows = rows.slice(0, maxRows);
+    const visibleAttributes = rowAttributes.slice(0, maxRows);
+    const truncated = rows.length > visibleRows.length;
 
     return `
       <div class="table-wrap">
@@ -220,13 +224,19 @@
             <tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>
           </thead>
           <tbody>
-            ${rows.map((cells, i) => {
-              const attrs = rowAttributes[i] || "";
+            ${visibleRows.map((cells, i) => {
+              const attrs = visibleAttributes[i] || "";
               return `<tr ${attrs}>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
             }).join("")}
           </tbody>
         </table>
       </div>
+      ${truncated ? `
+        <div class="table-note">
+          Showing the first ${visibleRows.length.toLocaleString()} of ${rows.length.toLocaleString()} rows.
+          Use the dashboard filters to narrow the operational view.
+        </div>
+      ` : ""}
     `;
   }
 
