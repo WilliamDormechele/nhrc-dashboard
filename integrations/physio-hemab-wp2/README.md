@@ -334,7 +334,15 @@ Do not commit any of these values to Git.
 
 ### Deploy
 
-From the repository root:
+The preferred deployment path is the combined script. It reads the existing ignored local `.env`, updates the three Firebase secrets without printing their values, deploys only the new callable function, regenerates the versioned hosting index, and deploys Hosting:
+
+```powershell
+cd D:\Git\nhrc-dashboard
+git pull --ff-only origin feature/physio-hemab-wp2
+.\integrations\physio-hemab-wp2\scripts\deploy-native-dashboard.ps1
+```
+
+The equivalent manual sequence is:
 
 ```powershell
 npm run test:physio-hemab-wp2
