@@ -16,6 +16,9 @@ function assert(condition, message) {
 const projectConfig = read("public/data/project-config.js");
 const projectsJs = read("public/js/projects.js");
 const wp2Html = read("public/projects/physio-hemab-wp2/index.html");
+const wp2DashboardJs = read("public/projects/physio-hemab-wp2/dashboard.js");
+const wp2Styles = read("public/projects/physio-hemab-wp2/styles.css");
+const functionsIndex = read("functions/index.js");
 const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
 const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
 const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
@@ -51,9 +54,60 @@ assert(
 );
 
 assert(
-  wp2Html.includes("Participant target") && wp2Html.includes(">200<"),
-  "Physio-HeMAB WP2 recruitment target is missing from the shell."
+  projectConfig.includes('dashboardMode: "native"'),
+  "Physio-HeMAB WP2 must use the secure native dashboard mode."
 );
+
+[
+  "Overview",
+  "Recruitment",
+  "Forms &amp; Completion",
+  "Activity Diary",
+  "Devices",
+  "Data Quality",
+  "Sync Status",
+  "Performance &amp; Targets"
+].forEach((sectionName) => {
+  assert(
+    wp2Html.includes(sectionName),
+    `Native WP2 dashboard section missing: ${sectionName}`
+  );
+});
+
+assert(
+  wp2DashboardJs.includes("getPhysioHemabWp2Dashboard") &&
+    wp2DashboardJs.includes("setFacilityFilter") &&
+    wp2DashboardJs.includes("setCollectorFilter") &&
+    wp2DashboardJs.includes("returnWindowDays"),
+  "Native WP2 dashboard interactions are incomplete."
+);
+
+assert(
+  wp2Styles.includes("--navy: #17324d") &&
+    wp2Styles.includes(".global-filters") &&
+    wp2Styles.includes(".kpi-card.problem"),
+  "Native WP2 executive styling is incomplete."
+);
+
+assert(
+  functionsIndex.includes("exports.getPhysioHemabWp2Dashboard") &&
+    functionsIndex.includes("requirePhysioHemabProjectAccess") &&
+    functionsIndex.includes("PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN") &&
+    functionsIndex.includes("PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"),
+  "Secure WP2 Firebase data API is incomplete."
+);
+
+[
+  "enroll_name",
+  "enroll_birthday",
+  "enroll_tel",
+  "enroll_address"
+].forEach((sensitiveField) => {
+  assert(
+    !functionsIndex.includes('"' + sensitiveField + '"'),
+    `Sensitive participant field must not be exposed by Firebase API: ${sensitiveField}`
+  );
+});
 
 [
   "PHYSIO_HEMAB_MAIN_REDCAP_API_URL=",
