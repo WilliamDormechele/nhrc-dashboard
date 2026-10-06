@@ -283,3 +283,106 @@ python src\configure_project.py show
 ```
 
 This reports facility-target configuration, collector attribution coverage and available return-window options without exposing participant data.
+
+
+## Native Firebase dashboard deployment
+
+The production user-facing Physio-HeMAB WP2 dashboard is now a native Firebase dashboard rather than a Power BI embed.
+
+This preserves the existing NHRC Firebase login as the only user authentication step. The browser never receives REDCap API tokens and does not connect directly to PostgreSQL or REDCap.
+
+### Production flow
+
+```text
+NHRC Firebase login
+        ↓
+Physio-HeMAB native dashboard
+        ↓
+Firebase callable function
+        ↓
+Firebase user/project authorization
+        ↓
+REDCap Main PID 410 + Devices PID 411
+        ↓
+Privacy-minimised operational payload
+```
+
+The Firebase function checks that the signed-in user is either:
+
+- assigned to `physio-hemab-wp2`, or
+- an administrator/developer.
+
+Only operational dashboard fields are requested. Participant name, date of birth, telephone number, address and unrelated clinical fields are not requested.
+
+### Required Firebase secrets
+
+Set these secrets before deploying the function:
+
+```powershell
+firebase functions:secrets:set PHYSIO_HEMAB_REDCAP_API_URL
+firebase functions:secrets:set PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN
+firebase functions:secrets:set PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN
+```
+
+Use:
+
+- `PHYSIO_HEMAB_REDCAP_API_URL`: the REDCap API endpoint, currently `https://redcap-test.uk-halle.de/api/`
+- `PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN`: PID 410 token
+- `PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN`: PID 411 token
+
+Do not commit any of these values to Git.
+
+### Deploy
+
+From the repository root:
+
+```powershell
+npm run test:physio-hemab-wp2
+
+firebase deploy --only functions:getPhysioHemabWp2Dashboard
+firebase deploy --only hosting
+```
+
+The Power BI report can remain as a private analytical/design copy, but it is no longer required for end-user access.
+
+### Native dashboard capabilities
+
+The native dashboard includes:
+
+- Overview
+- Recruitment
+- Forms & Completion
+- Activity Diary
+- Devices
+- Data Quality & Follow-up
+- Sync Status
+- Performance & Targets
+- synchronized Facility, Data Collector and date filters
+- chart-click cross-filtering
+- row-click cross-filtering
+- configurable device return-window scenarios
+- REDCap data freshness and source status
+- data-collector performance
+- target-configuration gap protection
+
+The dashboard intentionally does not guess the named-facility 60/40/60/40 target mapping. Facility targets remain blank until approved values are added to the Firestore project document under `wp2Config.facilityTargets`.
+
+Optional Firestore project configuration shape:
+
+```json
+{
+  "wp2Config": {
+    "participantTarget": 200,
+    "activityDiariesExpectedPerParticipant": 6,
+    "returnWindowDays": 3,
+    "facilityTargets": {
+      "War Memorial Hospital": {
+        "arm": "Intervention",
+        "target": 60
+      }
+    }
+  }
+}
+```
+
+Only add facility mappings that have been formally confirmed.
