@@ -347,7 +347,7 @@ The equivalent manual sequence is:
 ```powershell
 npm run test:physio-hemab-wp2
 
-firebase deploy --only functions:getPhysioHemabWp2Dashboard
+firebase deploy --only "functions:getPhysioHemabWp2Dashboard,functions:savePhysioHemabWp2Config"
 firebase deploy --only hosting
 ```
 
