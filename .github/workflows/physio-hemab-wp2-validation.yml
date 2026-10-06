@@ -41,6 +41,21 @@ jobs:
           node --check public/projects/physio-hemab-wp2/dashboard.js
           node --check functions/index.js
 
+      - name: Check native dashboard deployment script syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1",
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
