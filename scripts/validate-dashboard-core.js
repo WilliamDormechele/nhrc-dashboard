@@ -22,6 +22,7 @@ const admin = read("public/js/admin.js");
 const monitoring = read("public/js/monitoring.js");
 const styles = read("public/css/styles.css");
 const permissions = read("public/js/permissions.js");
+const roleAccess = read("public/js/role-access.js");
 const worker = read("integrations/admin-ops-worker/worker.js");
 const workerConfig = read("integrations/admin-ops-worker/wrangler.toml");
 const workerDeploy = read("integrations/admin-ops-worker/deploy.ps1");
@@ -98,6 +99,20 @@ assert(
     ui.includes('project_pi: "Project PI"') &&
     ui.includes('.split("_")'),
   "Role presentation in the welcome greeting is incomplete."
+);
+
+assert(
+  template.includes('src="js/role-access.js?v=__APP_VERSION__"') &&
+    template.indexOf('src="js/role-access.js?v=__APP_VERSION__"') >
+      template.indexOf('src="js/app.js?v=__APP_VERSION__"') &&
+    roleAccess.includes("Role Access Matrix") &&
+    roleAccess.includes("applyMatrixToUsers") &&
+    roleAccess.includes("workspaceAccessNotice") &&
+    roleAccess.includes("roleAccessUpdatedAt") &&
+    admin.includes("window.RoleAccessAdmin?.matrixForRole(role)") &&
+    worker.includes("roleAccess?.admin === true") &&
+    styles.includes(".role-access-panel"),
+  "Role access matrix integration is incomplete."
 );
 
 assert(

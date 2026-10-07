@@ -701,6 +701,9 @@ async function saveUserFromAdminForm() {
       fullName,
       email,
       role,
+      roleAccess:
+        window.RoleAccessAdmin?.matrixForRole(role) ||
+        null,
       isActive,
       assignedProjects,
       district,

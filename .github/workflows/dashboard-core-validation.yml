@@ -12,6 +12,7 @@ on:
       - "public/js/auth.js"
       - "public/js/ui.js"
       - "public/js/permissions.js"
+      - "public/js/role-access.js"
       - "public/js/projects.js"
       - "public/js/admin.js"
       - "public/js/monitoring.js"
@@ -28,6 +29,7 @@ on:
       - "public/js/auth.js"
       - "public/js/ui.js"
       - "public/js/permissions.js"
+      - "public/js/role-access.js"
       - "public/js/projects.js"
       - "public/js/admin.js"
       - "public/js/monitoring.js"
@@ -61,6 +63,7 @@ jobs:
           node --check public/js/auth.js
           node --check public/js/ui.js
           node --check public/js/permissions.js
+          node --check public/js/role-access.js
           node --check public/js/projects.js
           node --check public/js/admin.js
           node --check public/js/monitoring.js
