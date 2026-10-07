@@ -15,6 +15,8 @@ function assert(condition, message) {
 
 const template = read("public/index.template.html");
 const app = read("public/js/app.js");
+const auth = read("public/js/auth.js");
+const ui = read("public/js/ui.js");
 const projects = read("public/js/projects.js");
 const admin = read("public/js/admin.js");
 const monitoring = read("public/js/monitoring.js");
@@ -44,6 +46,49 @@ assert(
     app.includes('projectSelect.value = ""') &&
     app.includes('Welcome, ${displayName}'),
   "Explicit project-selection or welcome-name behavior is incomplete."
+);
+
+assert(
+  template.includes('id="appBootOverlay"') &&
+    template.includes('class="app-boot-spinner"') &&
+    template.includes('id="auth-container" class="auth-container" style="display:none;"') &&
+    !template.includes('id="systemInfoBar"') &&
+    styles.includes(".app-boot-overlay") &&
+    styles.includes("@keyframes nhrcSpin"),
+  "Refresh-safe loading experience is incomplete."
+);
+
+assert(
+  template.includes('id="workspaceShell" class="workspace-shell"') &&
+    template.includes('id="appSidebar" class="app-sidebar"') &&
+    template.includes('id="sidebarToggleBtn"') &&
+    template.includes('id="mobileSidebarBtn"') &&
+    template.includes('class="project-switcher"') &&
+    !template.includes('id="roleDisplay"') &&
+    !template.includes('id="nameDisplay"') &&
+    styles.includes(".workspace-shell.sidebar-collapsed") &&
+    ui.includes("nhrcSidebarCollapsed"),
+  "Executive side navigation or project workspace selector is incomplete."
+);
+
+assert(
+  template.includes('src="js/ui.js?v=__APP_VERSION__"') &&
+    auth.includes('setButtonBusy(loginBtn, true, "Signing in")') &&
+    auth.includes('title: "Signing you in"') &&
+    auth.includes('"Sign in unsuccessful"') &&
+    app.includes('title: "Signing you out"') &&
+    app.includes('"Signed out"') &&
+    app.includes('window.NHRCUI?.setupSidebar()') &&
+    styles.includes("#loginBtn:not(:disabled):hover") &&
+    styles.includes(".swal2-popup.nhrc-toast"),
+  "Sign in, sign out, hover or toast experience is incomplete."
+);
+
+assert(
+  app.includes('Welcome, ${displayName} (${roleLabel})') &&
+    ui.includes('project_pi: "Project PI"') &&
+    ui.includes('.split("_")'),
+  "Role presentation in the welcome greeting is incomplete."
 );
 
 assert(
