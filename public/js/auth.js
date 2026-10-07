@@ -359,22 +359,66 @@ function applyAuthPageStateFromUrl() {
 }
 
 async function signInUser() {
-  const email = document.getElementById("emailInput").value.trim().toLowerCase();
-  const password = document.getElementById("passwordInput").value;
+  const emailInput = document.getElementById("emailInput");
+  const passwordInput = document.getElementById("passwordInput");
+  const loginBtn = document.getElementById("loginBtn");
   const authMessage = document.getElementById("authMessage");
 
-  authMessage.textContent = "";
-  authMessage.style.color = "#b91c1c";
+  const email = (emailInput?.value || "").trim().toLowerCase();
+  const password = passwordInput?.value || "";
+
+  if (authMessage) {
+    authMessage.textContent = "";
+    authMessage.style.color = "#b91c1c";
+  }
 
   if (!email || !password) {
-    authMessage.textContent = "Please enter your email and password.";
+    if (authMessage) {
+      authMessage.textContent = "Please enter your email and password.";
+    }
+    window.NHRCUI?.showToast(
+      "warning",
+      "Sign in details required",
+      "Enter both your email address and password to continue."
+    );
     return;
   }
 
   try {
+    sessionStorage.setItem("nhrcAuthAction", "signin");
+
+    window.NHRCUI?.setButtonBusy(loginBtn, true, "Signing in");
+    window.NHRCUI?.showBusy({
+      title: "Signing you in",
+      text: "Verifying your credentials and preparing your secure workspace."
+    });
+
     await auth.signInWithEmailAndPassword(email, password);
   } catch (error) {
-    authMessage.textContent = error.message;
+    sessionStorage.removeItem("nhrcAuthAction");
+
+    window.NHRCUI?.hideBusy();
+    window.NHRCUI?.setButtonBusy(loginBtn, false);
+
+    const rawMessage = String(error?.message || "");
+    const code = String(error?.code || "");
+    const friendlyMessage =
+      code.includes("invalid-credential") ||
+      code.includes("wrong-password") ||
+      code.includes("user-not-found")
+        ? "The email address or password is incorrect."
+        : (rawMessage || "Sign in could not be completed. Please try again.");
+
+    if (authMessage) {
+      authMessage.textContent = friendlyMessage;
+    }
+
+    window.NHRCUI?.showToast(
+      "error",
+      "Sign in unsuccessful",
+      friendlyMessage,
+      { timer: 4200 }
+    );
   }
 }
 
@@ -704,6 +748,15 @@ function setupAuthUI() {
     loginBtn.addEventListener("click", signInUser);
   }
 
+  if (passwordInput) {
+    passwordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        signInUser();
+      }
+    });
+  }
+
   if (forgotPasswordLink) {
     forgotPasswordLink.addEventListener("click", function (e) {
       e.preventDefault();
@@ -804,9 +857,4 @@ if (requestNewResetLinkBtn) {
   });
 }
 
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
-    stopIdleTracking();
-    await logActivity("logout", { page: "header" });
-    await auth.signOut();
-  });
 }
