@@ -126,7 +126,7 @@ const ROLE_PERMISSIONS = {
 function getPermissions(role) {
   const base = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.field_worker;
   return {
-    canViewChat: true,
-    ...base
+    ...base,
+    canViewChat: false
   };
 }
