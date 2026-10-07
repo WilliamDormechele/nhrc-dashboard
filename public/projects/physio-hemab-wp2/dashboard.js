@@ -70,6 +70,21 @@
     return ["administrator", "developer"].includes(currentUserRole());
   }
 
+  function currentUserAssignedProjects() {
+    try {
+      const assigned = window.parent?.currentUserProfile?.assignedProjects;
+      return Array.isArray(assigned)
+        ? assigned.map((code) => String(code || "").trim().toLowerCase())
+        : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function canRefreshData() {
+    return currentUserAssignedProjects().includes("physio-hemab-wp2");
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -1558,7 +1573,7 @@
               value="${escapeHtml(state.refreshEndpoint || "")}"
               placeholder="https://nhrc-physio-hemab-refresh.YOUR-SUBDOMAIN.workers.dev"
             >
-            <small>Free Cloudflare Worker endpoint used only by administrator/developer refresh requests.</small>
+            <small>Free Cloudflare Worker endpoint used by users assigned to Physio-HeMAB WP2.</small>
           </label>
         </div>
 
@@ -1875,7 +1890,7 @@
   function configureRefreshControl() {
     if (!els.refreshButton) return;
 
-    const allowed = isAdminUser();
+    const allowed = canRefreshData();
     els.refreshButton.hidden = !allowed;
 
     if (!allowed) {
@@ -2025,7 +2040,7 @@
   }
 
   async function refreshDataFromRedcap() {
-    if (!isAdminUser() || state.refreshInProgress) {
+    if (!canRefreshData() || state.refreshInProgress) {
       return;
     }
 
