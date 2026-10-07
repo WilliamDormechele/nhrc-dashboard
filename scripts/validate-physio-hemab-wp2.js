@@ -214,7 +214,12 @@ assert(
   refreshEndpointScript.includes("wp2RefreshEndpoint") &&
     refreshEndpointScript.includes("PHYSIO_HEMAB_REFRESH_ENDPOINT") &&
     deployFreeRefreshWorkerScript.includes("wrangler@latest secret put GITHUB_TOKEN") &&
-    deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1"),
+    deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1") &&
+    deployFreeRefreshWorkerScript.includes("workers/subdomain") &&
+    deployFreeRefreshWorkerScript.includes('"auth", "token"') &&
+    deployFreeRefreshWorkerScript.includes("whoami") &&
+    deployFreeRefreshWorkerScript.includes("Ensure-WorkersDevSubdomain") &&
+    deployFreeRefreshWorkerScript.includes('deploy", "--yes"'),
   "Free refresh worker deployment/configuration helpers are incomplete."
 );
 
