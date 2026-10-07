@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Physio-HeMAB WP2 Operational Dashboard</title>
-  <link rel="stylesheet" href="styles.css?v=20261007-free-refresh2">
+  <link rel="stylesheet" href="styles.css?v=20261007-free-refresh3">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -188,6 +188,31 @@
       <div id="performanceContent"></div>
     </section>
 
+    <div id="refreshProgressOverlay" class="refresh-progress-overlay hidden" role="status" aria-live="polite" aria-hidden="true">
+      <div class="refresh-progress-card">
+        <div class="refresh-progress-heading">
+          <div class="refresh-progress-spinner" aria-hidden="true"></div>
+          <div>
+            <span class="refresh-progress-eyebrow">Secure data refresh</span>
+            <strong id="refreshProgressTitle">Refreshing Physio-HeMAB WP2</strong>
+          </div>
+        </div>
+
+        <div class="refresh-progress-track" aria-hidden="true">
+          <span class="refresh-progress-bar"></span>
+        </div>
+
+        <p id="refreshProgressMessage" class="refresh-progress-message">
+          Starting the secure REDCap refresh.
+        </p>
+
+        <div class="refresh-progress-meta">
+          <span id="refreshProgressStage">Starting</span>
+          <span id="refreshProgressElapsed">00:00</span>
+        </div>
+      </div>
+    </div>
+
     <div id="loadingOverlay" class="loading-overlay">
       <div class="loading-card">
         <div class="spinner" aria-hidden="true"></div>
@@ -203,6 +228,6 @@
     </div>
   </main>
 
-  <script src="dashboard.js?v=20261007-free-refresh2"></script>
+  <script src="dashboard.js?v=20261007-free-refresh3"></script>
 </body>
 </html>
