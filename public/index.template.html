@@ -17,14 +17,14 @@
       <div>
         <h1 id="siteTitle">NHRC Projects Dashboard</h1>
         <div class="topbar-subtitle">
-          Secure access to research projects, data, and insights
+          Access to research projects, data, and insights
         </div>
       </div>
     </div>
 
     <div class="topbar-right">
-      <span id="userEmailDisplay">Not signed in</span>
-      <button id="logoutBtn" class="btn btn-light" style="display:none;">Log out</button>
+      <span id="userEmailDisplay" class="topbar-user-greeting">Not signed in</span>
+      <button id="logoutBtn" class="btn btn-logout" style="display:none;"><i class="fas fa-right-from-bracket"></i><span>Log out</span></button>
     </div>
   </header>
 
@@ -493,6 +493,13 @@
           <label for="monitoringFieldworkerFilter">Fieldworker</label>
           <select id="monitoringFieldworkerFilter">
             <option value="">All fieldworkers</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="monitoringTrendUserFilter">Trend user</label>
+          <select id="monitoringTrendUserFilter">
+            <option value="">Top 6 active users</option>
           </select>
         </div>
 
