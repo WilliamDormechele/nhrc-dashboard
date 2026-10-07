@@ -2691,3 +2691,24 @@ body.admin-loading {
     text-align: right;
   }
 }
+
+/* Keep logout treatment authoritative after generic .btn rules. */
+.btn.btn-logout {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: #b42318;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.btn.btn-logout:hover {
+  background: #941c14;
+  color: #ffffff;
+}
