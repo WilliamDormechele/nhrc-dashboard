@@ -1,0 +1,153 @@
+name: Physio-HeMAB WP2 refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Refresh source
+        required: false
+        default: dashboard
+  schedule:
+    # GitHub cron is UTC. Run at both candidate hours, then gate to 21:00 Europe/London.
+    - cron: "0 20 * * *"
+    - cron: "0 21 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: physio-hemab-wp2-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: physio_hemab_wp2
+          POSTGRES_USER: physio_hemab
+          POSTGRES_PASSWORD: physio_refresh_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U physio_hemab -d physio_hemab_wp2"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Gate scheduled run to 21:00 Europe/London
+        id: gate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          event = os.environ["EVENT_NAME"]
+          local = datetime.now(ZoneInfo("Europe/London"))
+          should_run = event != "schedule" or local.hour == 21
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"run={'true' if should_run else 'false'}\n")
+              fh.write(f"local_time={local.isoformat()}\n")
+
+          print(f"Event: {event}")
+          print(f"Europe/London time: {local.isoformat()}")
+          print(f"Run refresh: {should_run}")
+          PY
+
+      - name: Stop duplicate DST candidate run
+        if: steps.gate.outputs.run != 'true'
+        run: echo "This UTC candidate is not 21:00 Europe/London; nothing to do."
+
+      - name: Set up Python
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PostgreSQL client
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install Physio-HeMAB dependencies
+        if: steps.gate.outputs.run == 'true'
+        working-directory: integrations/physio-hemab-wp2
+        run: python -m pip install --upgrade pip -r requirements.txt
+
+      - name: Validate required secrets
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          MAIN_URL: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_URL }}
+          MAIN_TOKEN: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN }}
+          DEVICES_URL: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_URL }}
+          DEVICES_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
+          FIREBASE_JSON: ${{ secrets.PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$MAIN_URL" || { echo "Missing PHYSIO_HEMAB_MAIN_REDCAP_API_URL"; exit 1; }
+          test -n "$MAIN_TOKEN" || { echo "Missing PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN"; exit 1; }
+          test -n "$DEVICES_URL" || { echo "Missing PHYSIO_HEMAB_DEVICES_REDCAP_API_URL"; exit 1; }
+          test -n "$DEVICES_TOKEN" || { echo "Missing PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN"; exit 1; }
+          test -n "$FIREBASE_JSON" || { echo "Missing PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON"; exit 1; }
+
+      - name: Prepare Firebase credential file
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          FIREBASE_JSON: ${{ secrets.PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_JSON" > "$RUNNER_TEMP/physio-firebase-service-account.json"
+
+      - name: Build reporting database
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          PGPASSWORD: physio_refresh_ci
+        run: |
+          psql -h 127.0.0.1 -U physio_hemab -d physio_hemab_wp2 -v ON_ERROR_STOP=1 \
+            -f integrations/physio-hemab-wp2/sql/schema.sql
+          psql -h 127.0.0.1 -U physio_hemab -d physio_hemab_wp2 -v ON_ERROR_STOP=1 \
+            -f integrations/physio-hemab-wp2/sql/views.sql
+
+      - name: Synchronize REDCap and publish Firestore snapshot
+        if: steps.gate.outputs.run == 'true'
+        working-directory: integrations/physio-hemab-wp2
+        env:
+          PHYSIO_HEMAB_MAIN_REDCAP_API_URL: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_URL }}
+          PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN }}
+          PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD || 'record_id' }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_URL: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_URL }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD || 'record_id' }}
+          PHYSIO_HEMAB_DB_HOST: 127.0.0.1
+          PHYSIO_HEMAB_DB_PORT: "5432"
+          PHYSIO_HEMAB_DB_NAME: physio_hemab_wp2
+          PHYSIO_HEMAB_DB_USER: physio_hemab
+          PHYSIO_HEMAB_DB_PASSWORD: physio_refresh_ci
+          PHYSIO_HEMAB_DB_SSLMODE: disable
+          PHYSIO_HEMAB_FIREBASE_CREDENTIALS_FILE: ${{ runner.temp }}/physio-firebase-service-account.json
+          PHYSIO_HEMAB_FIREBASE_PROJECT_ID: nhrc-dashboard
+          PHYSIO_HEMAB_REFRESH_SOURCE: ${{ github.event_name == 'schedule' && 'daily-21:00-Europe/London' || inputs.source || 'dashboard' }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python src/sync.py all
+          python src/publish_firestore.py
+
+      - name: Remove temporary Firebase credential
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/physio-firebase-service-account.json"
