@@ -291,6 +291,23 @@ async function patchFirestoreDocument(env, path, data, accessToken) {
   return response.json();
 }
 
+async function safePatchMonitoringDirectory(env, userId, data, accessToken) {
+  try {
+    await patchFirestoreDocument(
+      env,
+      `monitoring_directory/${encodeURIComponent(userId)}`,
+      data,
+      accessToken
+    );
+  } catch (error) {
+    console.warn(
+      "Monitoring directory sync failed; core user operation will continue.",
+      userId,
+      error?.message || error
+    );
+  }
+}
+
 async function createFirestoreDocument(env, collectionPath, data, accessToken) {
   const response = await fetch(
     `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
@@ -842,9 +859,9 @@ async function handleSetActive(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive,
       isDeleted: isActive ? false : before.isDeleted === true,
@@ -907,9 +924,9 @@ async function handleSoftDelete(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive: false,
       isDeleted: true,
@@ -971,9 +988,9 @@ async function handleRestore(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive: true,
       isDeleted: false,
