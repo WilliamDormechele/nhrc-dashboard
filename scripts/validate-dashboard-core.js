@@ -59,6 +59,15 @@ assert(
 );
 
 assert(
+  !template.includes("Getting Started") &&
+    !template.includes("Sign in using your assigned account") &&
+    !template.includes("Access your allocated projects and reports") &&
+    template.includes("Email (Enter your email address)") &&
+    !template.includes("Email (Enter your NHRC email and password)"),
+  "Simplified sign-in copy is incomplete."
+);
+
+assert(
   template.includes('id="workspaceShell" class="workspace-shell"') &&
     template.includes('id="appSidebar" class="app-sidebar"') &&
     template.includes('id="sidebarToggleBtn"') &&
