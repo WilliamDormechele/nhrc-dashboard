@@ -171,7 +171,7 @@
       <div class="controls-grid">
         <div>
           <label for="projectSelect">Project Name</label>
-          <select id="projectSelect"></select>
+          <select id="projectSelect"><option value="" selected disabled>Select a project</option></select>
         </div>
 
         <div>
@@ -497,9 +497,9 @@
         </div>
 
         <div>
-          <label for="monitoringTrendUserFilter">Trend user</label>
+          <label for="monitoringTrendUserFilter">Trend series</label>
           <select id="monitoringTrendUserFilter">
-            <option value="">Top 6 active users</option>
+            <option value="">All users — aggregate</option>
           </select>
         </div>
 
@@ -573,7 +573,12 @@
   </div>
 
   <div class="chart-card">
-    <h3>Daily Activity Trend</h3>
+    <div class="chart-card-heading">
+      <div>
+        <h3>Daily Activity Trend</h3>
+        <p class="chart-card-subtitle">Executive trend; use Trend series above to drill down to one user.</p>
+      </div>
+    </div>
     <canvas id="dailyChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
@@ -593,7 +598,12 @@
   </div>
 
   <div class="chart-card">
-    <h3>Daily Active Users</h3>
+    <div class="chart-card-heading">
+      <div>
+        <h3>Daily Active Users</h3>
+        <p class="chart-card-subtitle">Unique active users by day; select one user above for individual activity.</p>
+      </div>
+    </div>
     <canvas id="dailyUsersChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 

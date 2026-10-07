@@ -860,20 +860,13 @@ function renderUsersChart(logs) {
  * Daily activity trend.
  */
 
-const MONITORING_TREND_COLORS = [
-  "#17324d",
-  "#2f6f9f",
-  "#16867a",
-  "#2e7d5b",
-  "#c58a1b",
-  "#7c8d9c"
-];
+const MONITORING_TREND_COLOR = "#17324d";
 
 function rebuildMonitoringTrendUserFilter(logs) {
   const select = document.getElementById("monitoringTrendUserFilter");
   if (!select) return;
 
-  const currentValue = select.value || "";
+  const currentValue = (select.value || "").toLowerCase();
   const counts = {};
 
   logs.forEach((log) => {
@@ -893,7 +886,7 @@ function rebuildMonitoringTrendUserFilter(logs) {
     })
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
-  select.innerHTML = '<option value="">Top 6 active users</option>';
+  select.innerHTML = '<option value="">All users — aggregate</option>';
 
   items.forEach((item) => {
     const option = document.createElement("option");
@@ -904,6 +897,8 @@ function rebuildMonitoringTrendUserFilter(logs) {
 
   if ([...select.options].some((option) => option.value === currentValue)) {
     select.value = currentValue;
+  } else {
+    select.value = "";
   }
 }
 
@@ -914,136 +909,198 @@ function logDisplayNameForEmail(logs, email) {
   return match?.fullName || "";
 }
 
-function getMonitoringTrendUsers(logs, limit = 6) {
-  const selectedEmail =
+function getMonitoringTrendSelection(logs) {
+  const email =
     (document.getElementById("monitoringTrendUserFilter")?.value || "")
-      .toLowerCase();
+      .toLowerCase()
+      .trim();
 
-  const counts = {};
-  logs.forEach((log) => {
-    const email = (log.email || "").toLowerCase();
-    if (!email) return;
-    counts[email] = (counts[email] || 0) + 1;
-  });
-
-  let entries = Object.entries(counts)
-    .map(([email, count]) => {
-      const profile = monitoringUsersByEmail[email] || {};
-      return {
-        email,
-        label: profile.fullName || logDisplayNameForEmail(logs, email) || email,
-        count
-      };
-    })
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-
-  if (selectedEmail) {
-    entries = entries.filter((entry) => entry.email === selectedEmail);
-  } else {
-    entries = entries.slice(0, limit);
+  if (!email) {
+    return {
+      email: "",
+      label: "All users"
+    };
   }
 
-  return entries;
+  const profile = monitoringUsersByEmail[email] || {};
+  return {
+    email,
+    label: profile.fullName || logDisplayNameForEmail(logs, email) || email
+  };
 }
 
-function monitoringTrendLegendOptions(datasetCount) {
+function executiveTrendOptions({ subtitle, yTitle, binary = false }) {
   return {
-    display: datasetCount > 1,
-    position: "top",
-    align: "start",
-    labels: {
-      boxWidth: 10,
-      boxHeight: 10,
-      usePointStyle: true,
-      pointStyle: "line",
-      padding: 12,
-      color: "#52697f",
-      font: {
-        size: 10,
-        weight: "600"
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false
+    },
+    plugins: {
+      legend: {
+        display: false
+      },
+      subtitle: {
+        display: true,
+        text: subtitle,
+        align: "start",
+        color: "#64748b",
+        font: {
+          size: 11,
+          weight: "600"
+        },
+        padding: {
+          bottom: 12
+        }
+      },
+      tooltip: {
+        padding: 10,
+        displayColors: false
       }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: "#64748b",
+          maxRotation: 0
+        }
+      },
+      y: binary
+        ? {
+            min: 0,
+            max: 1,
+            ticks: {
+              stepSize: 1,
+              callback(value) {
+                return value === 1 ? "Active" : "No activity";
+              }
+            },
+            grid: {
+              color: "#edf2f7"
+            },
+            title: {
+              display: true,
+              text: yTitle
+            }
+          }
+        : {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            },
+            grid: {
+              color: "#edf2f7"
+            },
+            title: {
+              display: true,
+              text: yTitle
+            }
+          }
     }
   };
 }
+
 function renderDailyChart(logs) {
   const canvas = document.getElementById("dailyChart");
   if (!canvas) return;
 
-  const dailyUserCounts = {};
+  const selection = getMonitoringTrendSelection(logs);
+  const dailyCounts = {};
 
   logs.forEach((log) => {
     if (!log.createdAt || !log.createdAt.toDate) return;
-    const day = log.createdAt.toDate().toISOString().slice(0, 10);
+
     const email = (log.email || "").toLowerCase();
-    if (!email) return;
+    if (selection.email && email !== selection.email) return;
 
-    if (!dailyUserCounts[day]) dailyUserCounts[day] = {};
-    dailyUserCounts[day][email] =
-      (dailyUserCounts[day][email] || 0) + 1;
+    const day = log.createdAt.toDate().toISOString().slice(0, 10);
+    dailyCounts[day] = (dailyCounts[day] || 0) + 1;
   });
 
-  const labels = Object.keys(dailyUserCounts).sort();
-  const trendUsers = getMonitoringTrendUsers(logs);
-
-  const datasets = trendUsers.map((user, index) => {
-    const color = MONITORING_TREND_COLORS[
-      index % MONITORING_TREND_COLORS.length
-    ];
-
-    return {
-      label: user.label,
-      data: labels.map(
-        (day) => dailyUserCounts[day]?.[user.email] || 0
-      ),
-      tension: 0.22,
-      borderColor: color,
-      backgroundColor: color,
-      fill: false,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      borderWidth: 2
-    };
-  });
+  const labels = Object.keys(dailyCounts).sort();
+  const values = labels.map((day) => dailyCounts[day] || 0);
+  const datasetLabel = selection.email
+    ? selection.label
+    : "All users";
 
   destroyChart(dailyChartInstance);
   dailyChartInstance = new Chart(canvas, {
     type: "line",
     data: {
       labels,
-      datasets
+      datasets: [{
+        label: datasetLabel,
+        data: values,
+        tension: 0.22,
+        borderColor: MONITORING_TREND_COLOR,
+        backgroundColor: MONITORING_TREND_COLOR,
+        fill: false,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2.4
+      }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false
-      },
-      plugins: {
-        legend: monitoringTrendLegendOptions(datasets.length),
-        tooltip: {
-          padding: 10,
-          usePointStyle: true
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            display: false
-          }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0
-          },
-          title: {
-            display: true,
-            text: "Logged events"
-          }
-        }
-      }
-    }
+    options: executiveTrendOptions({
+      subtitle: selection.email
+        ? `Selected user: ${selection.label}`
+        : "Aggregate view across all users",
+      yTitle: "Logged events"
+    })
+  });
+}
+
+function renderDailyUsersChart(logs) {
+  const canvas = document.getElementById("dailyUsersChart");
+  if (!canvas) return;
+
+  const selection = getMonitoringTrendSelection(logs);
+  const dailyUsers = {};
+
+  logs.forEach((log) => {
+    if (!log.createdAt || !log.createdAt.toDate) return;
+
+    const email = (log.email || "").toLowerCase();
+    if (!email) return;
+
+    const day = log.createdAt.toDate().toISOString().slice(0, 10);
+    if (!dailyUsers[day]) dailyUsers[day] = new Set();
+    dailyUsers[day].add(email);
+  });
+
+  const labels = Object.keys(dailyUsers).sort();
+
+  const values = selection.email
+    ? labels.map((day) => dailyUsers[day]?.has(selection.email) ? 1 : 0)
+    : labels.map((day) => dailyUsers[day]?.size || 0);
+
+  destroyChart(dailyUsersChartInstance);
+  dailyUsersChartInstance = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: selection.email ? selection.label : "Unique active users",
+        data: values,
+        tension: 0.18,
+        borderColor: MONITORING_TREND_COLOR,
+        backgroundColor: MONITORING_TREND_COLOR,
+        fill: false,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2.4
+      }]
+    },
+    options: executiveTrendOptions({
+      subtitle: selection.email
+        ? `Selected user: ${selection.label}`
+        : "Aggregate unique users active each day",
+      yTitle: selection.email ? "User activity" : "Unique active users",
+      binary: Boolean(selection.email)
+    })
   });
 }
 
@@ -1074,90 +1131,6 @@ function renderEngagedUsersChart(logs) {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false
-    }
-  });
-}
-
-function renderDailyUsersChart(logs) {
-  const canvas = document.getElementById("dailyUsersChart");
-  if (!canvas) return;
-
-  const dailyUsers = {};
-  logs.forEach((log) => {
-    if (!log.createdAt || !log.createdAt.toDate) return;
-    const day = log.createdAt.toDate().toISOString().slice(0, 10);
-    const email = (log.email || "").toLowerCase();
-    if (!email) return;
-
-    if (!dailyUsers[day]) dailyUsers[day] = new Set();
-    dailyUsers[day].add(email);
-  });
-
-  const labels = Object.keys(dailyUsers).sort();
-  const trendUsers = getMonitoringTrendUsers(logs);
-
-  const datasets = trendUsers.map((user, index) => {
-    const color = MONITORING_TREND_COLORS[
-      index % MONITORING_TREND_COLORS.length
-    ];
-
-    return {
-      label: user.label,
-      data: labels.map((day) =>
-        dailyUsers[day]?.has(user.email) ? 1 : 0
-      ),
-      tension: 0.18,
-      borderColor: color,
-      backgroundColor: color,
-      fill: false,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      borderWidth: 2
-    };
-  });
-
-  destroyChart(dailyUsersChartInstance);
-  dailyUsersChartInstance = new Chart(canvas, {
-    type: "line",
-    data: {
-      labels,
-      datasets
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false
-      },
-      plugins: {
-        legend: monitoringTrendLegendOptions(datasets.length),
-        tooltip: {
-          padding: 10,
-          usePointStyle: true
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            display: false
-          }
-        },
-        y: {
-          min: 0,
-          max: 1,
-          ticks: {
-            stepSize: 1,
-            callback(value) {
-              return value === 1 ? "Active" : "";
-            }
-          },
-          title: {
-            display: true,
-            text: "User activity"
-          }
-        }
-      }
     }
   });
 }

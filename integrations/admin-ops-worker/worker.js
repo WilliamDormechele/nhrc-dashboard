@@ -291,6 +291,23 @@ async function patchFirestoreDocument(env, path, data, accessToken) {
   return response.json();
 }
 
+async function safePatchMonitoringDirectory(env, userId, data, accessToken) {
+  try {
+    await patchFirestoreDocument(
+      env,
+      `monitoring_directory/${encodeURIComponent(userId)}`,
+      data,
+      accessToken
+    );
+  } catch (error) {
+    console.warn(
+      "Monitoring directory sync failed; core user operation will continue.",
+      userId,
+      error?.message || error
+    );
+  }
+}
+
 async function createFirestoreDocument(env, collectionPath, data, accessToken) {
   const response = await fetch(
     `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
@@ -636,7 +653,7 @@ async function sendViaResend(env, toEmail, subject, html) {
 
   if (!response.ok) {
     console.error("Resend send failed", response.status, data);
-    throw new Error(data?.message || "EMAIL_SEND_FAILED");
+    throw new Error("EMAIL_SEND_FAILED");
   }
 
   return {
@@ -842,9 +859,9 @@ async function handleSetActive(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive,
       isDeleted: isActive ? false : before.isDeleted === true,
@@ -907,9 +924,9 @@ async function handleSoftDelete(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive: false,
       isDeleted: true,
@@ -971,9 +988,9 @@ async function handleRestore(env, actor, payload, accessToken) {
     accessToken
   );
 
-  await patchFirestoreDocument(
+  await safePatchMonitoringDirectory(
     env,
-    `monitoring_directory/${encodeURIComponent(userId)}`,
+    userId,
     {
       isActive: true,
       isDeleted: false,
@@ -1115,7 +1132,8 @@ function mapError(error) {
     TARGET_EMAIL_MISSING: [400, "The selected user does not have an email address."],
     SELF_DEACTIVATE_BLOCKED: [409, "You cannot deactivate your own account."],
     SELF_DELETE_BLOCKED: [409, "You cannot delete your own account."],
-    EMAIL_PROVIDER_NOT_CONFIGURED: [503, "Email provider is not configured."],
+    EMAIL_PROVIDER_NOT_CONFIGURED: [503, "Email provider is not configured on the admin service."],
+    EMAIL_SEND_FAILED: [502, "The notification email provider rejected the message."],
     PASSWORD_RESET_LINK_FAILED: [502, "A password reset link could not be generated."],
     AUTH_ADMIN_UPDATE_FAILED: [502, "Firebase Authentication could not update the user."],
     AUTH_ADMIN_DELETE_FAILED: [502, "Firebase Authentication could not delete the user."],
@@ -1152,7 +1170,10 @@ export default {
         200,
         {
           ok: true,
-          service: "nhrc-admin-ops"
+          service: "nhrc-admin-ops",
+          firebaseAdminConfigured: Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON),
+          emailConfigured: Boolean(env.RESEND_API_KEY),
+          senderConfigured: Boolean(env.RESEND_FROM_EMAIL)
         },
         origin,
         env

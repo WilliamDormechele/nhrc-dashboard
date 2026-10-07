@@ -8,6 +8,8 @@ $ErrorActionPreference = "Stop"
 $WorkerRoot = Resolve-Path $PSScriptRoot
 $RepoRoot = Resolve-Path (Join-Path $WorkerRoot "..\..")
 $Config = Join-Path $WorkerRoot "wrangler.toml"
+$EnvFile = Join-Path $RepoRoot ".env"
+$WorkerUrl = "https://nhrc-admin-ops.nhrc-dashboard-wp2.workers.dev"
 
 if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
     throw "Node.js/npm is required."
@@ -56,6 +58,36 @@ function Set-WorkerSecret {
     Write-Host "Configured Worker secret: $Name" -ForegroundColor Green
 }
 
+function Read-DotEnv {
+    param([string]$Path)
+
+    $values = @{}
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $values
+    }
+
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith("#")) { continue }
+        $index = $trimmed.IndexOf("=")
+        if ($index -lt 1) { continue }
+
+        $name = $trimmed.Substring(0, $index).Trim()
+        $value = $trimmed.Substring($index + 1).Trim()
+
+        if (
+            ($value.StartsWith('"') -and $value.EndsWith('"')) -or
+            ($value.StartsWith("'") -and $value.EndsWith("'"))
+        ) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        $values[$name] = $value
+    }
+
+    return $values
+}
+
 Push-Location $WorkerRoot
 try {
     $env:NO_COLOR = "1"
@@ -84,57 +116,67 @@ try {
     }
 
     if (-not $SkipResendSecret) {
-        Write-Host ""
-        Write-Host "Enter a CURRENT Resend API key." -ForegroundColor Yellow
-        Write-Host "Use a newly rotated key if an older key was ever exposed. Do not paste it into chat." -ForegroundColor Yellow
+        $envValues = Read-DotEnv -Path $EnvFile
+        $resendKey = [string]$envValues["RESEND_API_KEY"]
 
-        $secureKey = Read-Host "RESEND_API_KEY" -AsSecureString
-        $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+        if ([string]::IsNullOrWhiteSpace($resendKey)) {
+            Write-Host ""
+            Write-Host "A Resend API key is required for account/access notification emails." -ForegroundColor Yellow
+            Write-Host "Enter a CURRENT key. Do not paste it into ChatGPT or commit it." -ForegroundColor Yellow
+            $secureKey = Read-Host "RESEND_API_KEY" -AsSecureString
+            $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
 
-        try {
-            $resendKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-            if ([string]::IsNullOrWhiteSpace($resendKey)) {
-                throw "RESEND_API_KEY cannot be empty."
+            try {
+                $resendKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
             }
+            finally {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+            }
+        }
 
-            Set-WorkerSecret -Name "RESEND_API_KEY" -Value $resendKey
+        if ([string]::IsNullOrWhiteSpace($resendKey)) {
+            throw "RESEND_API_KEY cannot be empty."
         }
-        finally {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-            $resendKey = $null
-        }
+
+        Set-WorkerSecret -Name "RESEND_API_KEY" -Value $resendKey
+        $resendKey = $null
     }
 
     Write-Host ""
     Write-Host "Deploying admin operations Worker..." -ForegroundColor Cyan
     Invoke-Wrangler @("deploy", "--config", $Config)
 
-    $workerUrl = "https://nhrc-admin-ops.nhrc-dashboard-wp2.workers.dev"
-
     Write-Host ""
-    Write-Host "Checking Worker health..." -ForegroundColor Cyan
-    $healthy = $false
+    Write-Host "Checking Worker health and required capabilities..." -ForegroundColor Cyan
+    $health = $null
 
     for ($attempt = 1; $attempt -le 12; $attempt++) {
         try {
-            $health = Invoke-RestMethod -Method Get -Uri "$workerUrl/health" -TimeoutSec 15
-            if ($health.ok -eq $true) {
-                $healthy = $true
-                break
-            }
+            $health = Invoke-RestMethod -Method Get -Uri "$WorkerUrl/health" -TimeoutSec 15
+            if ($health.ok -eq $true) { break }
         }
         catch {
+            $health = $null
         }
-
         Start-Sleep -Seconds 5
     }
 
-    if (-not $healthy) {
+    if (-not $health -or $health.ok -ne $true) {
         throw "Admin operations Worker health check failed."
     }
 
-    Write-Host "Admin operations Worker health check passed." -ForegroundColor Green
-    Write-Host "Worker URL: $workerUrl" -ForegroundColor Green
+    if ($health.firebaseAdminConfigured -ne $true) {
+        throw "Admin Worker is live but Firebase Admin credentials are not configured."
+    }
+
+    if ($health.emailConfigured -ne $true) {
+        throw "Admin Worker is live but RESEND_API_KEY is not configured."
+    }
+
+    Write-Host "Admin operations Worker is healthy." -ForegroundColor Green
+    Write-Host "Firebase Admin: configured" -ForegroundColor Green
+    Write-Host "Email provider: configured" -ForegroundColor Green
+    Write-Host "Worker URL: $WorkerUrl" -ForegroundColor Green
 }
 finally {
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue

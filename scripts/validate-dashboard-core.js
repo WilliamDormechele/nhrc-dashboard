@@ -37,7 +37,8 @@ assert(
 );
 
 assert(
-  projects.includes('placeholder.textContent = "Select a project"') &&
+  template.includes('<option value="" selected disabled>Select a project</option>') &&
+    projects.includes('placeholder.textContent = "Select a project"') &&
     projects.includes("clearProjectSelectionView") &&
     app.includes('projectSelect.value = ""') &&
     app.includes('Welcome, ${displayName}'),
@@ -73,11 +74,16 @@ assert(
 
 assert(
   template.includes('id="monitoringTrendUserFilter"') &&
-    monitoring.includes("MONITORING_TREND_COLORS") &&
-    monitoring.includes("Top 6 active users") &&
-    monitoring.includes("getMonitoringTrendUsers") &&
-    monitoring.includes("monitoringTrendLegendOptions"),
-  "Strategic Oversight professional trend filtering is incomplete."
+    template.includes("Trend series") &&
+    template.includes("All users — aggregate") &&
+    monitoring.includes("MONITORING_TREND_COLOR") &&
+    monitoring.includes("getMonitoringTrendSelection") &&
+    monitoring.includes("executiveTrendOptions") &&
+    monitoring.includes("Aggregate view across all users") &&
+    monitoring.includes("Aggregate unique users active each day") &&
+    !monitoring.includes("Top 6 active users") &&
+    !monitoring.includes("monitoringTrendLegendOptions"),
+  "Strategic Oversight executive trend filtering is incomplete."
 );
 
 [
@@ -94,6 +100,9 @@ assert(
   worker.includes('["administrator", "developer"].includes(role)') &&
     worker.includes("FIREBASE_SERVICE_ACCOUNT_JSON") &&
     worker.includes("RESEND_API_KEY") &&
+    worker.includes("firebaseAdminConfigured") &&
+    worker.includes("emailConfigured") &&
+    worker.includes("safePatchMonitoringDirectory") &&
     worker.includes("timestampValue") &&
     workerConfig.includes('name = "nhrc-admin-ops"'),
   "Admin Worker security/email configuration is incomplete."
@@ -102,6 +111,9 @@ assert(
 assert(
   workerDeploy.includes("FIREBASE_SERVICE_ACCOUNT_JSON") &&
     workerDeploy.includes("RESEND_API_KEY") &&
+    workerDeploy.includes("Read-DotEnv") &&
+    workerDeploy.includes("firebaseAdminConfigured") &&
+    workerDeploy.includes("emailConfigured") &&
     workerDeploy.includes('wrangler@latest') &&
     workerDeploy.includes('"deploy", "--config"'),
   "Admin Worker deployment helper is incomplete."
