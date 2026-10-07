@@ -12,6 +12,7 @@ on:
       - "scripts/validate-physio-hemab-wp2.js"
       - "package.json"
       - ".github/workflows/physio-hemab-wp2-validation.yml"
+      - ".github/workflows/physio-hemab-wp2-refresh.yml"
   workflow_dispatch:
 
 permissions:
@@ -39,6 +40,7 @@ jobs:
       - name: Check native dashboard JavaScript syntax
         run: |
           node --check public/projects/physio-hemab-wp2/dashboard.js
+          node --check integrations/physio-hemab-wp2/refresh-worker/worker.js
 
       - name: Check native dashboard PowerShell syntax
         shell: pwsh
@@ -46,7 +48,11 @@ jobs:
           $scripts = @(
             "integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1",
             "integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1",
-            "integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1"
+            "integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1",
+            "integrations/physio-hemab-wp2/scripts/disable-auto-refresh-task.ps1",
+            "integrations/physio-hemab-wp2/scripts/configure-github-refresh-secrets.ps1",
+            "integrations/physio-hemab-wp2/scripts/configure-refresh-endpoint.ps1",
+            "integrations/physio-hemab-wp2/scripts/deploy-free-refresh-worker.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null

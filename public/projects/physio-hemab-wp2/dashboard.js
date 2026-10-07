@@ -30,8 +30,11 @@
     },
     returnWindowDays: null,
     charts: new Map(),
-    firestoreUnsubscribe: null,
-    liveListenerStarted: false
+    refreshEndpoint: "",
+    refreshState: {},
+    refreshInProgress: false,
+    refreshCooldownUntil: 0,
+    refreshCooldownTimer: null
   };
 
   const els = {
@@ -39,6 +42,8 @@
     errorPanel: document.getElementById("errorPanel"),
     errorMessage: document.getElementById("errorMessage"),
     liveStatus: document.getElementById("liveStatus"),
+    refreshButton: document.getElementById("refreshDashboardBtn"),
+    refreshStatusMessage: document.getElementById("refreshStatusMessage"),
     dataCurrentTo: document.getElementById("dataCurrentTo"),
     mainStatus: document.getElementById("mainSourceStatus"),
     devicesStatus: document.getElementById("devicesSourceStatus"),
@@ -548,7 +553,7 @@
 
     els.liveStatus.innerHTML = `
       <span class="status-dot ${bothSuccess ? "status-good" : "status-warning"}"></span>
-      <span>${bothSuccess ? "Live REDCap data" : "Partial data"}</span>
+      <span>${bothSuccess ? "Latest snapshot loaded" : "Partial data"}</span>
     `;
   }
 
@@ -1544,6 +1549,17 @@
               `).join("")}
             </select>
           </label>
+
+          <label class="config-wide-field">
+            <span>Manual refresh service URL</span>
+            <input
+              id="configRefreshEndpoint"
+              type="url"
+              value="${escapeHtml(state.refreshEndpoint || "")}"
+              placeholder="https://nhrc-physio-hemab-refresh.YOUR-SUBDOMAIN.workers.dev"
+            >
+            <small>Free Cloudflare Worker endpoint used only by administrator/developer refresh requests.</small>
+          </label>
         </div>
 
         <div class="config-facility-grid">
@@ -1568,7 +1584,18 @@
     const participantTarget = Number(document.getElementById("configParticipantTarget")?.value);
     const expectedDiaries = Number(document.getElementById("configExpectedDiaries")?.value);
     const returnWindowRaw = document.getElementById("configReturnWindow")?.value || "";
+    const refreshEndpointRaw =
+      document.getElementById("configRefreshEndpoint")?.value?.trim() || "";
     const facilityTargets = {};
+
+    if (refreshEndpointRaw && !/^https:\/\//i.test(refreshEndpointRaw)) {
+      const message = document.getElementById("wp2ConfigMessage");
+      if (message) {
+        message.className = "config-message error";
+        message.textContent = "Refresh service URL must use HTTPS.";
+      }
+      return;
+    }
 
     FACILITIES.forEach((facility, index) => {
       const arm = document.querySelector(`.config-arm-input[data-facility-index="${index}"]`)?.value || "";
@@ -1600,7 +1627,8 @@
           activityDiariesExpectedPerParticipant: expectedDiaries,
           returnWindowDays: returnWindowRaw ? Number(returnWindowRaw) : null,
           facilityTargets
-        }
+        },
+        wp2RefreshEndpoint: refreshEndpointRaw
       };
 
       if (serverTimestamp) {
@@ -1844,7 +1872,60 @@
     );
   }
 
-  function applyProjectSnapshot(snapshot, { fromLiveListener = false } = {}) {
+  function configureRefreshControl() {
+    if (!els.refreshButton) return;
+
+    const allowed = isAdminUser();
+    els.refreshButton.hidden = !allowed;
+
+    if (!allowed) {
+      return;
+    }
+
+    const cooldownRemaining = Math.max(
+      0,
+      state.refreshCooldownUntil - Date.now()
+    );
+
+    els.refreshButton.disabled =
+      state.refreshInProgress || cooldownRemaining > 0;
+
+    els.refreshButton.textContent = state.refreshInProgress
+      ? "Refreshing from REDCap…"
+      : "↻ Refresh data";
+
+    if (!state.refreshEndpoint) {
+      els.refreshButton.title =
+        "Configure the free manual refresh service URL in Performance & Targets.";
+    } else if (cooldownRemaining > 0) {
+      els.refreshButton.title =
+        "A short refresh cooldown is active.";
+    } else {
+      els.refreshButton.title =
+        "Securely fetch fresh REDCap data and update this dashboard.";
+    }
+
+    if (state.refreshCooldownTimer) {
+      clearTimeout(state.refreshCooldownTimer);
+      state.refreshCooldownTimer = null;
+    }
+
+    if (!state.refreshInProgress && cooldownRemaining > 0) {
+      state.refreshCooldownTimer = setTimeout(() => {
+        state.refreshCooldownTimer = null;
+        configureRefreshControl();
+      }, cooldownRemaining + 100);
+    }
+  }
+
+  function setRefreshMessage(message = "", type = "") {
+    if (!els.refreshStatusMessage) return;
+    els.refreshStatusMessage.textContent = message;
+    els.refreshStatusMessage.className =
+      `refresh-status-message${type ? ` ${type}` : ""}`;
+  }
+
+  function applyProjectSnapshot(snapshot) {
     if (!snapshot.exists) {
       throw new Error(
         "Physio-HeMAB WP2 has not been published to the NHRC dashboard yet."
@@ -1853,6 +1934,11 @@
 
     const projectData = snapshot.data() || {};
     const publishedSnapshot = projectData.wp2Snapshot || null;
+
+    state.refreshEndpoint = String(
+      projectData.wp2RefreshEndpoint || ""
+    ).trim();
+    state.refreshState = projectData.wp2RefreshState || {};
 
     state.data = publishedSnapshot
       ? {
@@ -1866,7 +1952,7 @@
 
     if (!state.data || !Array.isArray(state.data.participants)) {
       throw new Error(
-        "No current Physio-HeMAB dashboard snapshot is available. Ask the administrator to run the local sync-and-publish process."
+        "No current Physio-HeMAB dashboard snapshot is available."
       );
     }
 
@@ -1874,81 +1960,25 @@
     renderFreshness();
     renderActiveFilterSummary();
     renderCurrentSection();
-
-    if (fromLiveListener) {
-      els.liveStatus.innerHTML =
-        '<span class="status-dot status-good"></span><span>Live view • REDCap refresh every 5 min</span>';
-    }
-
+    configureRefreshControl();
     els.errorPanel.classList.add("hidden");
   }
 
-  function stopLiveDashboardListener() {
-    if (typeof state.firestoreUnsubscribe === "function") {
-      state.firestoreUnsubscribe();
+  async function loadDashboard(showLoading = false) {
+    if (showLoading) {
+      els.loading.classList.remove("hidden");
     }
 
-    state.firestoreUnsubscribe = null;
-    state.liveListenerStarted = false;
-  }
-
-  function startLiveDashboardListener() {
-    if (state.liveListenerStarted) return;
-
-    const firestore = getFirestoreBridge();
-    const projectRef = firestore
-      .collection("projects")
-      .doc("physio-hemab-wp2");
-
-    state.liveListenerStarted = true;
-
-    state.firestoreUnsubscribe = projectRef.onSnapshot(
-      (snapshot) => {
-        try {
-          applyProjectSnapshot(snapshot, { fromLiveListener: true });
-        } catch (error) {
-          console.error("Physio-HeMAB live snapshot apply failed", error);
-          els.errorMessage.textContent =
-            error?.message || "The live Physio-HeMAB snapshot could not be applied.";
-          els.errorPanel.classList.remove("hidden");
-        } finally {
-          els.loading.classList.add("hidden");
-        }
-      },
-      (error) => {
-        console.error("Physio-HeMAB Firestore live listener failed", error);
-        els.errorMessage.textContent =
-          error?.message ||
-          "The Physio-HeMAB live data connection was interrupted.";
-        els.errorPanel.classList.remove("hidden");
-        els.liveStatus.innerHTML =
-          '<span class="status-dot status-warning"></span><span>Live connection interrupted</span>';
-        els.loading.classList.add("hidden");
-        state.firestoreUnsubscribe = null;
-        state.liveListenerStarted = false;
-      }
-    );
-  }
-
-  async function loadDashboard(forceRefresh = false) {
     els.errorPanel.classList.add("hidden");
 
     try {
       const firestore = getFirestoreBridge();
-      const projectRef = firestore
+      const snapshot = await firestore
         .collection("projects")
-        .doc("physio-hemab-wp2");
+        .doc("physio-hemab-wp2")
+        .get();
 
-      if (!state.liveListenerStarted) {
-        els.loading.classList.remove("hidden");
-        startLiveDashboardListener();
-        return;
-      }
-
-      if (forceRefresh) {
-        const snapshot = await projectRef.get();
-        applyProjectSnapshot(snapshot, { fromLiveListener: false });
-      }
+      applyProjectSnapshot(snapshot);
     } catch (error) {
       console.error("Physio-HeMAB WP2 dashboard load failed", error);
       els.errorMessage.textContent =
@@ -1957,7 +1987,157 @@
       els.errorPanel.classList.remove("hidden");
       els.liveStatus.innerHTML =
         '<span class="status-dot status-bad"></span><span>Data unavailable</span>';
+    } finally {
       els.loading.classList.add("hidden");
+    }
+  }
+
+  function sleep(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  async function waitForPublishedRefresh(previousFetchedAt) {
+    const firestore = getFirestoreBridge();
+    const projectRef = firestore
+      .collection("projects")
+      .doc("physio-hemab-wp2");
+
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      await sleep(4000);
+
+      const snapshot = await projectRef.get();
+      if (!snapshot.exists) continue;
+
+      const projectData = snapshot.data() || {};
+      const nextFetchedAt =
+        projectData.wp2Snapshot?.fetchedAt || "";
+
+      if (
+        nextFetchedAt &&
+        nextFetchedAt !== previousFetchedAt
+      ) {
+        applyProjectSnapshot(snapshot);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async function refreshDataFromRedcap() {
+    if (!isAdminUser() || state.refreshInProgress) {
+      return;
+    }
+
+    if (!state.refreshEndpoint) {
+      setRefreshMessage(
+        "Refresh service is not configured yet. Add its URL in Performance & Targets.",
+        "warning"
+      );
+      configureRefreshControl();
+      return;
+    }
+
+    const cooldownRemaining = state.refreshCooldownUntil - Date.now();
+    if (cooldownRemaining > 0) {
+      setRefreshMessage(
+        "Please wait briefly before requesting another refresh.",
+        "warning"
+      );
+      configureRefreshControl();
+      return;
+    }
+
+    const parentFirebase = window.parent?.firebase || window.firebase;
+    const currentUser = parentFirebase?.auth?.()?.currentUser;
+
+    if (!currentUser) {
+      setRefreshMessage(
+        "Your login session is not available. Sign in again and retry.",
+        "error"
+      );
+      return;
+    }
+
+    const previousFetchedAt = state.data?.fetchedAt || "";
+    state.refreshInProgress = true;
+    configureRefreshControl();
+    setRefreshMessage("Refreshing from REDCap…", "working");
+    els.liveStatus.innerHTML =
+      '<span class="status-dot status-loading"></span><span>Refreshing from REDCap…</span>';
+
+    try {
+      const idToken = await currentUser.getIdToken(true);
+      const endpoint = state.refreshEndpoint.replace(/\/+$/, "");
+
+      const response = await fetch(`${endpoint}/refresh`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          project: "physio-hemab-wp2"
+        })
+      });
+
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = {};
+      }
+
+      if (response.status === 409) {
+        const retryAfterSeconds = Math.max(
+          30,
+          Number(payload.retryAfterSeconds || 60)
+        );
+        state.refreshCooldownUntil =
+          Date.now() + retryAfterSeconds * 1000;
+        throw new Error(
+          payload.error || "A refresh is already running. Please try again shortly."
+        );
+      }
+
+      if (!response.ok || payload.accepted !== true) {
+        throw new Error(
+          payload.error ||
+          "The secure refresh service could not start the REDCap refresh."
+        );
+      }
+
+      const cooldownSeconds = Math.max(
+        60,
+        Number(payload.cooldownSeconds || 120)
+      );
+      state.refreshCooldownUntil =
+        Date.now() + cooldownSeconds * 1000;
+
+      const updated = await waitForPublishedRefresh(previousFetchedAt);
+
+      if (updated) {
+        setRefreshMessage(
+          `Last refreshed: ${formatDate(state.data?.fetchedAt, true)}`,
+          "success"
+        );
+      } else {
+        await loadDashboard(false);
+        setRefreshMessage(
+          "Refresh started successfully but is taking longer than expected. The latest completed snapshot is shown.",
+          "warning"
+        );
+      }
+    } catch (error) {
+      console.error("Physio-HeMAB manual REDCap refresh failed", error);
+      setRefreshMessage(
+        error?.message || "The REDCap refresh could not be completed.",
+        "error"
+      );
+      renderFreshness();
+    } finally {
+      state.refreshInProgress = false;
+      configureRefreshControl();
     }
   }
 
@@ -2008,10 +2188,9 @@
 
   document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);
   els.clearAllActiveFiltersBtn?.addEventListener("click", clearFilters);
-  document.getElementById("refreshDashboardBtn").addEventListener("click", () => loadDashboard(true));
+  els.refreshButton?.addEventListener("click", refreshDataFromRedcap);
   document.getElementById("retryDashboardBtn").addEventListener("click", () => loadDashboard(true));
 
-  window.addEventListener("beforeunload", stopLiveDashboardListener);
-
-  loadDashboard(false);
+  configureRefreshControl();
+  loadDashboard(true);
 })();

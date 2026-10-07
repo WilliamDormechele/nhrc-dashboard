@@ -399,55 +399,108 @@ The Power BI report can remain as a private analytical/design copy, but it is no
 
 
 
-### Five-minute automatic refresh
+### No-cost cloud refresh model
 
-The production refresh model is near-real-time on the free Firebase setup:
+The production refresh model is designed to work even when the development PC is off, without upgrading Firebase to Blaze.
 
 ```text
-Windows Scheduled Task every 5 minutes
+Daily at 21:00 Europe/London
         ↓
-sync-and-publish.ps1
+GitHub Actions (public-repository standard runner)
         ↓
 REDCap PID 410 + PID 411
         ↓
-local PostgreSQL reporting views
+ephemeral PostgreSQL 16 reporting layer
         ↓
-Firestore wp2Snapshot
+privacy-minimised Firestore wp2Snapshot
         ↓
-Firestore onSnapshot listener
-        ↓
-open dashboard re-renders automatically
+NHRC Firebase-authenticated dashboard
 ```
 
-Install or refresh the Windows task with:
+The same GitHub Actions workflow also supports an administrator/developer-triggered manual refresh.
+
+```text
+Administrator clicks Refresh data
+        ↓
+Firebase ID token
+        ↓
+free Cloudflare Worker
+        ↓ verifies NHRC role + WP2 assignment
+GitHub Actions workflow_dispatch
+        ↓
+REDCap → PostgreSQL → Firestore
+        ↓
+dashboard polls until the new snapshot is available
+```
+
+The dashboard no longer uses a continuous Firestore `onSnapshot` listener. It loads the current snapshot when opened and after a completed manual refresh.
+
+#### Daily 9 PM schedule
+
+GitHub Actions cron is UTC, so the workflow has candidate schedules at 20:00 and 21:00 UTC and gates execution using `Europe/London`. This keeps the actual refresh at 21:00 local time across BST/GMT changes.
+
+#### Manual refresh permissions
+
+Only users whose NHRC profile:
+
+- is active and not deleted;
+- has role `administrator` or `developer`; and
+- is assigned to `physio-hemab-wp2`
+
+can trigger the secure manual refresh endpoint.
+
+The browser never receives a REDCap API token, Firebase service-account key, or GitHub token.
+
+The manual refresh worker also checks for an already-running/recent workflow and applies a short cooldown. GitHub Actions has its own concurrency guard as a second layer.
+
+#### Disable the legacy Windows five-minute task
+
+After the cloud path has been tested successfully:
 
 ```powershell
 cd D:\Git\nhrc-dashboard
-.\integrations\physio-hemab-wp2\scripts\install-auto-refresh-task.ps1
+.\integrations\physio-hemab-wp2\scripts\disable-auto-refresh-task.ps1
 ```
 
-The task is named:
+The old installer is retained only as a rollback/reference artifact. The normal dashboard deployment script no longer installs or re-enables it.
 
-```text
-NHRC Physio-HeMAB WP2 - 5 Minute Sync
+#### Configure GitHub Actions secrets
+
+The repository does not contain REDCap tokens or the Firebase service-account JSON. Configure them from the existing local `.env` and ignored service-account file:
+
+```powershell
+cd D:\Git\nhrc-dashboard
+.\integrations\physio-hemab-wp2\scripts\configure-github-refresh-secrets.ps1
 ```
 
-It runs every five minutes while the Windows user is signed in, including while the workstation is locked. The sync runner uses a named mutex and the Scheduled Task is configured to ignore overlapping instances.
+The helper uses GitHub CLI and does not print secret values.
 
-The live dashboard uses a Firestore `onSnapshot` listener. When a new snapshot is published, users who already have the dashboard open receive the update automatically without refreshing the browser.
+#### Deploy the free manual-refresh worker
 
-Automatic refresh therefore depends on:
+Create/sign in to a free Cloudflare account, then run:
 
-- this Windows workstation being powered on;
-- the Windows user session remaining signed in;
-- Docker Desktop/PostgreSQL being available;
-- internet access to REDCap and Firebase.
-
-A local status log is written to:
-
-```text
-D:\Git\nhrc-dashboard\logs\physio-hemab-wp2-auto-sync.log
+```powershell
+cd D:\Git\nhrc-dashboard\integrations\physio-hemab-wp2
+.\scripts\deploy-free-refresh-worker.ps1
 ```
+
+The script uses Wrangler, stores the GitHub fine-grained token as a Cloudflare Worker secret, deploys the Worker, and tries to save its `workers.dev` URL into the WP2 Firestore project configuration automatically.
+
+The GitHub token used by the Worker should be a fine-grained token restricted to `WilliamDormechele/nhrc-dashboard` with **Actions: Read and write**. Never commit or paste that token into chat.
+
+If automatic endpoint detection does not work, configure it explicitly:
+
+```powershell
+.\scripts\configure-refresh-endpoint.ps1 -Url "https://YOUR-WORKER.workers.dev"
+```
+
+The same endpoint can also be entered by an administrator under **Performance & Targets → Administrator Configuration → Manual refresh service URL**.
+
+#### Data processing
+
+The GitHub-hosted refresh job requests only the privacy-minimised REDCap fields already defined by `sync.py`; it does not request participant name, date of birth, telephone number or address. The job uses an ephemeral PostgreSQL database that is destroyed with the runner.
+
+The Cloudflare Worker does not process study records. It only verifies the signed-in Firebase user and requests the GitHub refresh workflow.
 
 ### Toggle filtering
 

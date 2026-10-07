@@ -23,6 +23,13 @@ const nativeDeployScript = read("integrations/physio-hemab-wp2/scripts/deploy-na
 const snapshotPublisher = read("integrations/physio-hemab-wp2/src/publish_firestore.py");
 const syncPublishScript = read("integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1");
 const autoRefreshInstaller = read("integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1");
+const disableAutoRefreshScript = read("integrations/physio-hemab-wp2/scripts/disable-auto-refresh-task.ps1");
+const githubRefreshSecretsScript = read("integrations/physio-hemab-wp2/scripts/configure-github-refresh-secrets.ps1");
+const refreshEndpointScript = read("integrations/physio-hemab-wp2/scripts/configure-refresh-endpoint.ps1");
+const deployFreeRefreshWorkerScript = read("integrations/physio-hemab-wp2/scripts/deploy-free-refresh-worker.ps1");
+const cloudRefreshWorker = read("integrations/physio-hemab-wp2/refresh-worker/worker.js");
+const cloudRefreshWorkerConfig = read("integrations/physio-hemab-wp2/refresh-worker/wrangler.toml");
+const cloudRefreshWorkflow = read(".github/workflows/physio-hemab-wp2-refresh.yml");
 const envTemplate = read("integrations/physio-hemab-wp2/config.example.env");
 const mainFieldMap = read("integrations/physio-hemab-wp2/field-map.main.json");
 const devicesFieldMap = read("integrations/physio-hemab-wp2/field-map.devices.json");
@@ -106,16 +113,21 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-10-07.4"),
+    wp2Html.includes("WP2 UI build 2026-10-07.5"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
 assert(
-  wp2DashboardJs.includes(".onSnapshot(") &&
-    wp2DashboardJs.includes("startLiveDashboardListener") &&
-    wp2DashboardJs.includes("stopLiveDashboardListener") &&
-    wp2DashboardJs.includes("Live view • REDCap refresh every 5 min"),
-  "Firestore live dashboard updates are missing."
+  !wp2DashboardJs.includes(".onSnapshot(") &&
+    !wp2DashboardJs.includes("startLiveDashboardListener") &&
+    wp2DashboardJs.includes("refreshDataFromRedcap") &&
+    wp2DashboardJs.includes("Refreshing from REDCap…") &&
+    wp2DashboardJs.includes("wp2RefreshEndpoint") &&
+    wp2DashboardJs.includes("refreshCooldownUntil") &&
+    wp2DashboardJs.includes("isAdminUser()") &&
+    wp2Html.includes("Refresh data") &&
+    wp2Html.includes("Last refreshed"),
+  "Admin-only manual REDCap refresh UI is incomplete or live snapshot listening is still enabled."
 );
 
 assert(
@@ -153,16 +165,57 @@ assert(
 );
 
 assert(
-  autoRefreshInstaller.includes("RepetitionInterval") &&
-    autoRefreshInstaller.includes("New-TimeSpan -Minutes 5") &&
-    autoRefreshInstaller.includes("sync-and-publish.ps1") &&
-    autoRefreshInstaller.includes("MultipleInstances IgnoreNew"),
-  "Five-minute WP2 automatic refresh task installer is incomplete."
+  autoRefreshInstaller.includes("New-TimeSpan -Minutes 5"),
+  "Legacy five-minute task installer is unexpectedly missing; retain it only for rollback/reference."
 );
 
 assert(
-  nativeDeployScript.includes("install-auto-refresh-task.ps1"),
-  "Native deployment does not install the five-minute automatic refresh task."
+  disableAutoRefreshScript.includes("Disable-ScheduledTask") &&
+    disableAutoRefreshScript.includes("NHRC Physio-HeMAB WP2 - 5 Minute Sync"),
+  "Legacy Windows five-minute task disable script is incomplete."
+);
+
+assert(
+  !nativeDeployScript.includes("install-auto-refresh-task.ps1"),
+  "Native deployment must not reinstall the legacy five-minute Windows task."
+);
+
+assert(
+  cloudRefreshWorkflow.includes("workflow_dispatch:") &&
+    cloudRefreshWorkflow.includes('cron: "0 20 * * *"') &&
+    cloudRefreshWorkflow.includes('cron: "0 21 * * *"') &&
+    cloudRefreshWorkflow.includes('ZoneInfo("Europe/London")') &&
+    cloudRefreshWorkflow.includes("python src/sync.py all") &&
+    cloudRefreshWorkflow.includes("python src/publish_firestore.py") &&
+    cloudRefreshWorkflow.includes("PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON"),
+  "Free GitHub Actions daily/manual refresh workflow is incomplete."
+);
+
+assert(
+  githubRefreshSecretsScript.includes("gh secret set") &&
+    githubRefreshSecretsScript.includes("PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON") &&
+    !githubRefreshSecretsScript.includes("Write-Host $Value"),
+  "GitHub refresh secret configuration script is incomplete or unsafe."
+);
+
+assert(
+  cloudRefreshWorker.includes("accounts:lookup") &&
+    cloudRefreshWorker.includes("administrator") &&
+    cloudRefreshWorker.includes("developer") &&
+    cloudRefreshWorker.includes("assignedProjects") &&
+    cloudRefreshWorker.includes("GITHUB_WORKFLOW") &&
+    cloudRefreshWorker.includes("/dispatches") &&
+    cloudRefreshWorker.includes("COOLDOWN_SECONDS") &&
+    cloudRefreshWorkerConfig.includes('ALLOWED_ORIGIN = "https://nhrc-dashboard.web.app"'),
+  "Free authenticated manual refresh worker is incomplete."
+);
+
+assert(
+  refreshEndpointScript.includes("wp2RefreshEndpoint") &&
+    refreshEndpointScript.includes("PHYSIO_HEMAB_REFRESH_ENDPOINT") &&
+    deployFreeRefreshWorkerScript.includes("wrangler@latest secret put GITHUB_TOKEN") &&
+    deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1"),
+  "Free refresh worker deployment/configuration helpers are incomplete."
 );
 
 [
