@@ -25,6 +25,8 @@ const syncPublishScript = read("integrations/physio-hemab-wp2/scripts/sync-and-p
 const autoRefreshInstaller = read("integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1");
 const disableAutoRefreshScript = read("integrations/physio-hemab-wp2/scripts/disable-auto-refresh-task.ps1");
 const githubRefreshSecretsScript = read("integrations/physio-hemab-wp2/scripts/configure-github-refresh-secrets.ps1");
+const refreshEndpointScript = read("integrations/physio-hemab-wp2/scripts/configure-refresh-endpoint.ps1");
+const deployFreeRefreshWorkerScript = read("integrations/physio-hemab-wp2/scripts/deploy-free-refresh-worker.ps1");
 const cloudRefreshWorker = read("integrations/physio-hemab-wp2/refresh-worker/worker.js");
 const cloudRefreshWorkerConfig = read("integrations/physio-hemab-wp2/refresh-worker/wrangler.toml");
 const cloudRefreshWorkflow = read(".github/workflows/physio-hemab-wp2-refresh.yml");
@@ -122,7 +124,7 @@ assert(
     wp2DashboardJs.includes("Refreshing from REDCap…") &&
     wp2DashboardJs.includes("wp2RefreshEndpoint") &&
     wp2DashboardJs.includes("refreshCooldownUntil") &&
-    wp2DashboardJs.includes("Only an administrator") === false &&
+    wp2DashboardJs.includes("isAdminUser()") &&
     wp2Html.includes("Refresh data") &&
     wp2Html.includes("Last refreshed"),
   "Admin-only manual REDCap refresh UI is incomplete or live snapshot listening is still enabled."
@@ -206,6 +208,14 @@ assert(
     cloudRefreshWorker.includes("COOLDOWN_SECONDS") &&
     cloudRefreshWorkerConfig.includes('ALLOWED_ORIGIN = "https://nhrc-dashboard.web.app"'),
   "Free authenticated manual refresh worker is incomplete."
+);
+
+assert(
+  refreshEndpointScript.includes("wp2RefreshEndpoint") &&
+    refreshEndpointScript.includes("PHYSIO_HEMAB_REFRESH_ENDPOINT") &&
+    deployFreeRefreshWorkerScript.includes("wrangler@latest secret put GITHUB_TOKEN") &&
+    deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1"),
+  "Free refresh worker deployment/configuration helpers are incomplete."
 );
 
 [
