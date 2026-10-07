@@ -1,0 +1,104 @@
+name: Physio-HeMAB WP2 validation
+
+on:
+  pull_request:
+    paths:
+      - "firebase.json"
+      - "public/data/project-config.js"
+      - "public/js/projects.js"
+      - "public/js/firebase-config.js"
+      - "public/projects/physio-hemab-wp2/**"
+      - "integrations/physio-hemab-wp2/**"
+      - "scripts/validate-physio-hemab-wp2.js"
+      - "package.json"
+      - ".github/workflows/physio-hemab-wp2-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Validate dashboard integration
+        run: npm run test:physio-hemab-wp2
+
+      - name: Check native dashboard JavaScript syntax
+        run: |
+          node --check public/projects/physio-hemab-wp2/dashboard.js
+
+      - name: Check native dashboard PowerShell syntax
+        shell: pwsh
+        run: |
+          $scripts = @(
+            "integrations/physio-hemab-wp2/scripts/deploy-native-dashboard.ps1",
+            "integrations/physio-hemab-wp2/scripts/sync-and-publish.ps1",
+            "integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1"
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error ("{0}: {1}" -f $script, $_.Message) }
+              exit 1
+            }
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python syntax
+        run: python -m py_compile integrations/physio-hemab-wp2/src/*.py
+
+      - name: Validate field-map JSON
+        run: |
+          python -m json.tool integrations/physio-hemab-wp2/field-map.main.json > /dev/null
+          python -m json.tool integrations/physio-hemab-wp2/field-map.devices.json > /dev/null
+
+      - name: Validate PostgreSQL schema and reporting views
+        run: |
+          docker run --name wp2-pg-test \
+            -e POSTGRES_PASSWORD=test \
+            -e POSTGRES_DB=physio_hemab_wp2 \
+            -d -p 55432:5432 postgres:16-alpine
+          for i in {1..30}; do
+            if docker exec wp2-pg-test pg_isready -U postgres -d physio_hemab_wp2; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/schema.sql
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/views.sql
+          # Re-apply to prove reporting views are upgrade/idempotency safe.
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            < integrations/physio-hemab-wp2/sql/views.sql
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT * FROM physio_hemab_wp2.vw_overview_metrics ORDER BY metric_code;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_facility_target_attainment;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_data_collector_performance;"
+          docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
+            -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_device_overdue_scenarios;"

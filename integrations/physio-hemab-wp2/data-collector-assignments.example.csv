@@ -1,0 +1,5 @@
+record_id,instrument,repeat_instance,data_collector
+1,enrollment_form,,
+1,maternal_record_book_baseline,,
+1,physical_examination_form,,
+1,activity_diary,1,

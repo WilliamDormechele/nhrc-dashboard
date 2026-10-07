@@ -41,6 +41,18 @@ const PROJECTS = {
     ]
   },
 
+  "physio-hemab-wp2": {
+    code: "physio-hemab-wp2",
+    name: "Physio-HeMAB WP2",
+    description: "Secure native Physio-HeMAB Work Package 2 operational monitoring dashboard.",
+    dashboardMode: "native",
+    dashboardEmbedUrl: "projects/physio-hemab-wp2/index.html",
+    dashboardPdf: "",
+    dashboardPpt: "",
+    reports: [],
+    queries: []
+  },
+
   hdss: {
     code: "hdss",
     name: "HDSS",

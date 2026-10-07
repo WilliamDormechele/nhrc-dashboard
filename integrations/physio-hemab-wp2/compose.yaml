@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: physio-hemab-wp2-postgres
+    restart: unless-stopped
+    ports:
+      - "${PHYSIO_HEMAB_DB_PORT:-5437}:5432"
+    environment:
+      POSTGRES_DB: "${PHYSIO_HEMAB_DB_NAME:-physio_hemab_wp2}"
+      POSTGRES_USER: "${PHYSIO_HEMAB_DB_USER:-physio_hemab}"
+      POSTGRES_PASSWORD: "${PHYSIO_HEMAB_DB_PASSWORD:?Set PHYSIO_HEMAB_DB_PASSWORD in the repository root .env file}"
+    volumes:
+      - physio_hemab_wp2_pgdata:/var/lib/postgresql/data
+      - ./sql:/opt/physio-hemab/sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "${PHYSIO_HEMAB_DB_USER:-physio_hemab}" -d "${PHYSIO_HEMAB_DB_NAME:-physio_hemab_wp2}"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  physio_hemab_wp2_pgdata:

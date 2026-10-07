@@ -87,3 +87,16 @@ token.json
 # =====================================================
 # Do NOT ignore all JSON files — your project uses JSON
 # Avoid patterns like *.json (breaks functionality)
+# Python local environments and caches
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Windows Explorer metadata
+desktop.ini
+Desktop.ini
+
+# Physio-HeMAB local configuration files
+*.local.csv

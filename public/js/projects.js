@@ -44,6 +44,15 @@ hdss: {
 };
 
 /**
+ * Projects that are intentionally available from the version-controlled
+ * fallback configuration before a Firestore project document is created.
+ *
+ * Admin/developer users can see these immediately. Other users see them only
+ * when the project code is present in their assignedProjects array.
+ */
+const LOCAL_PROJECT_CODES = ["physio-hemab-wp2"];
+
+/**
  * Fetch JSON safely.
  */
 /**
@@ -287,11 +296,21 @@ async function loadProjectsRegistry() {
     });
   }
 
-  if (Object.keys(firestoreProjects).length > 0) {
-    window.projectRegistry = firestoreProjects;
-  } else {
-    window.projectRegistry = PROJECTS;
-  }
+  const resolvedRegistry = Object.keys(firestoreProjects).length > 0
+    ? { ...firestoreProjects }
+    : { ...PROJECTS };
+
+  LOCAL_PROJECT_CODES.forEach((projectCode) => {
+    const fallbackProject = PROJECTS[projectCode];
+    const canExposeProject =
+      canReadAllProjects || assignedProjects.includes(projectCode);
+
+    if (fallbackProject && canExposeProject && !resolvedRegistry[projectCode]) {
+      resolvedRegistry[projectCode] = { ...fallbackProject };
+    }
+  });
+
+  window.projectRegistry = resolvedRegistry;
 }
 
 /**
@@ -301,7 +320,24 @@ function populateProjectSelect(assignedProjects) {
   const projectSelect = document.getElementById("projectSelect");
   projectSelect.innerHTML = "";
 
-  (assignedProjects || []).forEach((projectCode) => {
+  const role = window.currentUserProfile?.role || "";
+  const canReadAllProjects = role === "administrator" || role === "developer";
+  const selectableProjectCodes = Array.isArray(assignedProjects)
+    ? [...assignedProjects]
+    : [];
+
+  if (canReadAllProjects) {
+    LOCAL_PROJECT_CODES.forEach((projectCode) => {
+      if (
+        window.projectRegistry[projectCode] &&
+        !selectableProjectCodes.includes(projectCode)
+      ) {
+        selectableProjectCodes.push(projectCode);
+      }
+    });
+  }
+
+  selectableProjectCodes.forEach((projectCode) => {
     const project = window.projectRegistry[projectCode];
     if (!project) return;
 
@@ -1672,16 +1708,49 @@ async function loadProject(projectCode) {
 
   document.getElementById("dashboardTitle").textContent = `${project.name} Dashboard`;
   document.getElementById("dashboardDescription").textContent = project.description || "";
-  document.getElementById("dashboardFrame").src = project.dashboardEmbedUrl || "";
+
+  const dashboardFrame = document.getElementById("dashboardFrame");
+  const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
+  const dashboardHelpBar = document.getElementById("dashboardHelpBar");
+  const powerBiHintFooter = document.getElementById("powerBiHintFooter");
+  const dashboardInstructions = document.querySelector(".dashboard-instructions");
+  const isNativeDashboard = project.dashboardMode === "native";
+
+  if (dashboardFrame) {
+    dashboardFrame.src = project.dashboardEmbedUrl || "";
+    dashboardFrame.title = `${project.name} Dashboard`;
+  }
+
+  if (dashboardFrameWrap) {
+    dashboardFrameWrap.classList.toggle("native-dashboard-container", isNativeDashboard);
+    dashboardFrameWrap.style.height = isNativeDashboard ? "88vh" : "";
+  }
+
+  if (dashboardHelpBar) {
+    dashboardHelpBar.style.display = isNativeDashboard ? "none" : "";
+  }
+
+  if (powerBiHintFooter) {
+    powerBiHintFooter.style.display = "none";
+  }
+
+  if (dashboardInstructions) {
+    dashboardInstructions.textContent = isNativeDashboard
+      ? "Use the filters and page tabs inside the dashboard below. Your NHRC login controls access to the live data."
+      : "Use the project dropdown ABOVE to switch between projects you are assigned to.";
+  }
+
   const downloadPdfBtn = document.getElementById("downloadPdfBtn");
   const downloadPptBtn = document.getElementById("downloadPptBtn");
 
   if (downloadPdfBtn) {
     downloadPdfBtn.href = project.dashboardPdf || "#";
+    downloadPdfBtn.style.display = project.dashboardPdf ? "" : "none";
   }
 
   if (downloadPptBtn) {
     downloadPptBtn.href = project.dashboardPpt || "#";
+    downloadPptBtn.style.display = project.dashboardPpt ? "" : "none";
   }
 
   await loadProjectUsersDirectory();

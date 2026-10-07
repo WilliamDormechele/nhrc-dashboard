@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "build:version": "node update-version.js",
-    "deploy:hosting": "npm run build:version && firebase deploy --only hosting"
+    "deploy:hosting": "npm run build:version && firebase deploy --only hosting",
+    "test:physio-hemab-wp2": "node scripts/validate-physio-hemab-wp2.js"
   },
   "dependencies": {
     "firebase-admin": "^13.7.0"

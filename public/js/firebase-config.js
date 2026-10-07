@@ -25,6 +25,11 @@ db.settings({
 
 const functions = firebase.app().functions("us-central1");
 
+// Same-origin native project dashboards read project-scoped snapshots through
+// the already authenticated Firestore client. No REDCap token is exposed.
+window.nhrcFirestore = db;
+
+
 let secondaryApp;
 try {
   secondaryApp = firebase.app("secondary-admin-app");
