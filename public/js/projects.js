@@ -372,10 +372,6 @@ function clearProjectSelectionView() {
   const description = document.getElementById("dashboardDescription");
   const dashboardFrame = document.getElementById("dashboardFrame");
   const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
-
-  if (dashboardFrameWrap) {
-    dashboardFrameWrap.style.display = "";
-  }
   const downloadPdfBtn = document.getElementById("downloadPdfBtn");
   const downloadPptBtn = document.getElementById("downloadPptBtn");
   const reportsContainer = document.getElementById("reportsContainer");
@@ -1764,6 +1760,10 @@ async function loadProject(projectCode) {
 
   const dashboardFrame = document.getElementById("dashboardFrame");
   const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
+
+  if (dashboardFrameWrap) {
+    dashboardFrameWrap.style.display = "";
+  }
   const dashboardHelpBar = document.getElementById("dashboardHelpBar");
   const powerBiHintFooter = document.getElementById("powerBiHintFooter");
   const dashboardInstructions = document.querySelector(".dashboard-instructions");
