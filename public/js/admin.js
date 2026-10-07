@@ -635,14 +635,22 @@ async function callAdminOps(path, payload = {}) {
   }
 
   const idToken = await currentUser.getIdToken(true);
-  const response = await fetch(`${ADMIN_OPS_ENDPOINT}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+
+  let response;
+  try {
+    response = await fetch(`${ADMIN_OPS_ENDPOINT}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    throw new Error(
+      "The secure admin service is unavailable. Check the admin backend deployment and try again."
+    );
+  }
 
   let body = {};
   try {
@@ -826,7 +834,7 @@ async function saveUserFromAdminForm() {
     setAdminMessage(
       "adminUserMessage",
       emailSent
-        ? "New user created successfully. Test onboarding email sent with set-password and login buttons."
+        ? "New user created successfully. Onboarding email sent with set-password and login buttons."
         : onboardingEmailWarning
     );
 
