@@ -258,7 +258,7 @@ try {
     Write-Host ""
     Write-Host "Deploying free refresh worker..." -ForegroundColor Cyan
 
-    $deploy = Invoke-WranglerCaptured -Arguments @("deploy", "--yes")
+    $deploy = Invoke-WranglerCaptured -Arguments @("deploy", "--config", $WranglerConfig)
     $deploy.Lines | ForEach-Object { Write-Host $_ }
 
     if ($deploy.ExitCode -ne 0) {
