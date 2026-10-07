@@ -1,0 +1,10 @@
+name = "nhrc-admin-ops"
+main = "worker.js"
+compatibility_date = "2026-10-07"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "https://nhrc-dashboard.web.app"
+FIREBASE_PROJECT_ID = "nhrc-dashboard"
+FIREBASE_API_KEY = "AIzaSyA0adImDqEu_5XvmclE6UrhkHeX9ZyKEiQ"
+RESEND_FROM_EMAIL = "noreply@navrongo-hrc.org"
