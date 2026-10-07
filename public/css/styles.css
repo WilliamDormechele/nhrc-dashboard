@@ -60,7 +60,54 @@ body {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.topbar-user-greeting {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 4px;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: #b42318;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(127, 29, 29, 0.2);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.btn-logout:hover {
+  background: #941c14;
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(127, 29, 29, 0.28);
+}
+
+.btn-logout:focus-visible {
+  outline: 3px solid rgba(254, 202, 202, 0.7);
+  outline-offset: 2px;
+}
+
+.btn-logout i {
+  font-size: 0.9rem;
 }
 
 .info-bar {
@@ -2622,4 +2669,46 @@ body.admin-loading {
 
 .admin-sortable.sort-desc::after {
   content: "\f063"; /* fa-arrow-down */
+}
+/* Strategic Oversight: keep high-density trend controls executive-friendly. */
+#monitoringTrendUserFilter {
+  min-width: 190px;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .topbar-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .topbar-user-greeting {
+    white-space: normal;
+    text-align: right;
+  }
+}
+
+/* Keep logout treatment authoritative after generic .btn rules. */
+.btn.btn-logout {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: #b42318;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.btn.btn-logout:hover {
+  background: #941c14;
+  color: #ffffff;
 }

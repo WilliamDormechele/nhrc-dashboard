@@ -620,13 +620,45 @@ function setAdminLoading(elementId, message = "Processing...") {
 }
 
 /**
- * Callable functions
+ * Free-tier secure admin operations backend.
+ * These actions used to depend on Firebase callable functions, which are not
+ * available in the current Spark/hosting-only deployment.
  */
-const setUserActiveStateCallable = functions.httpsCallable("setUserActiveState");
-const softDeleteUserCallable = functions.httpsCallable("softDeleteUser");
-const restoreDeletedUserCallable = functions.httpsCallable("restoreDeletedUser");
-const hardDeleteUserCallable = functions.httpsCallable("hardDeleteUser");
-const sendUserLifecycleEmailCallable = functions.httpsCallable("sendUserLifecycleEmail");
+const ADMIN_OPS_ENDPOINT =
+  "https://nhrc-admin-ops.nhrc-dashboard-wp2.workers.dev";
+
+async function callAdminOps(path, payload = {}) {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("Your login session is not available. Please sign in again.");
+  }
+
+  const idToken = await currentUser.getIdToken(true);
+  const response = await fetch(`${ADMIN_OPS_ENDPOINT}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  let body = {};
+  try {
+    body = await response.json();
+  } catch (error) {
+    body = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      body.error || "The secure admin service could not complete this action."
+    );
+  }
+
+  return body;
+}
 
 /**
  * Create a new user profile or update an existing one.
@@ -693,6 +725,18 @@ async function saveUserFromAdminForm() {
         window.suppressSelfAccessChangeLogout = true;
       }
 
+      if (activeChanged) {
+        setAdminLoading(
+          "adminUserMessage",
+          isActive ? "Activating user..." : "Deactivating user..."
+        );
+
+        await callAdminOps("/users/set-active", {
+          userId: editingUserId,
+          isActive
+        });
+      }
+
       await db.collection("users").doc(editingUserId).update(userPayload);
       await saveMonitoringDirectoryRecord(editingUserId, userPayload);
 
@@ -707,7 +751,7 @@ async function saveUserFromAdminForm() {
       if (roleChanged || projectsChanged || activeChanged || supervisorChanged) {
         setAdminLoading("adminUserMessage", "Updating access and notifying user...");
         try {
-          await sendUserLifecycleEmailCallable({
+          await callAdminOps("/email/lifecycle", {
             eventType: "role_updated",
             userId: editingUserId,
             context: {
@@ -768,7 +812,7 @@ async function saveUserFromAdminForm() {
 
     setAdminLoading("adminUserMessage", "Sending onboarding email...");
     try {
-      await sendUserLifecycleEmailCallable({
+      await callAdminOps("/email/lifecycle", {
         eventType: "created",
         userId: newUid
       });
@@ -839,7 +883,7 @@ async function sendPasswordResetForUser(userId) {
 
     setAdminLoading("adminUserMessage", "Sending password reset email...");
 
-    await sendUserLifecycleEmailCallable({
+    await callAdminOps("/email/lifecycle", {
       eventType: "password_reset",
       userId
     });
@@ -1097,7 +1141,7 @@ async function toggleUserActiveStatus(userId, email, nextIsActive) {
 
     setAdminLoading("adminUserMessage", nextIsActive ? "Activating user..." : "Deactivating user...");
 
-    await setUserActiveStateCallable({
+    await callAdminOps("/users/set-active", {
       userId,
       isActive: nextIsActive
     });
@@ -1151,7 +1195,7 @@ async function softDeleteUserFromAdmin(userId, email) {
 
     setAdminLoading("adminUserMessage", "Soft deleting user...");
 
-    await softDeleteUserCallable({ userId });
+    await callAdminOps("/users/soft-delete", { userId });
 
     await logActivity("admin_soft_delete_user", {
       page: "admin",
@@ -1197,7 +1241,7 @@ async function restoreDeletedUserFromAdmin(userId, email) {
 
     setAdminLoading("adminUserMessage", "Restoring user...");
 
-    await restoreDeletedUserCallable({ userId });
+    await callAdminOps("/users/restore", { userId });
 
     await logActivity("admin_restore_deleted_user", {
       page: "admin",
@@ -1245,7 +1289,7 @@ async function deleteUserCompletelyFromAdmin(userId, email) {
 
     setAdminLoading("adminUserMessage", "Permanently deleting user...");
 
-    await hardDeleteUserCallable({ userId });
+    await callAdminOps("/users/hard-delete", { userId });
 
     await logActivity("admin_hard_delete_user", {
       page: "admin",
@@ -1991,15 +2035,23 @@ function repopulateProjectsForCurrentUser() {
   populateProjectSelect(window.currentUserProfile.assignedProjects || []);
 
   const assigned = window.currentUserProfile.assignedProjects || [];
-  if (assigned.length > 0) {
-    const select = document.getElementById("projectSelect");
-    if (window.currentProjectCode && assigned.includes(window.currentProjectCode)) {
-      select.value = window.currentProjectCode;
-      loadProject(window.currentProjectCode);
-    } else {
-      select.value = assigned[0];
-      loadProject(assigned[0]);
-    }
+  const select = document.getElementById("projectSelect");
+
+  if (
+    window.currentProjectCode &&
+    assigned.includes(window.currentProjectCode) &&
+    window.projectRegistry?.[window.currentProjectCode]
+  ) {
+    select.value = window.currentProjectCode;
+    loadProject(window.currentProjectCode);
+    return;
+  }
+
+  select.value = "";
+  window.currentProjectCode = "";
+
+  if (typeof window.clearProjectSelectionView === "function") {
+    window.clearProjectSelectionView();
   }
 }
 

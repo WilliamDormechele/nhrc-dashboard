@@ -1,0 +1,59 @@
+name: Dashboard core validation
+
+on:
+  pull_request:
+    paths:
+      - "public/index.template.html"
+      - "public/index.html"
+      - "public/css/styles.css"
+      - "public/js/app.js"
+      - "public/js/projects.js"
+      - "public/js/admin.js"
+      - "public/js/monitoring.js"
+      - "integrations/admin-ops-worker/**"
+      - "scripts/validate-dashboard-core.js"
+      - ".github/workflows/dashboard-core-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate core integration
+        run: node scripts/validate-dashboard-core.js
+
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check public/js/app.js
+          node --check public/js/projects.js
+          node --check public/js/admin.js
+          node --check public/js/monitoring.js
+          node --check integrations/admin-ops-worker/worker.js
+
+      - name: Check admin Worker deploy script syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "integrations/admin-ops-worker/deploy.ps1",
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
