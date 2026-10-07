@@ -26,6 +26,7 @@ const autoRefreshInstaller = read("integrations/physio-hemab-wp2/scripts/install
 const disableAutoRefreshScript = read("integrations/physio-hemab-wp2/scripts/disable-auto-refresh-task.ps1");
 const githubRefreshSecretsScript = read("integrations/physio-hemab-wp2/scripts/configure-github-refresh-secrets.ps1");
 const refreshEndpointScript = read("integrations/physio-hemab-wp2/scripts/configure-refresh-endpoint.ps1");
+const refreshEndpointConfigurator = read("integrations/physio-hemab-wp2/src/configure_refresh_endpoint.py");
 const deployFreeRefreshWorkerScript = read("integrations/physio-hemab-wp2/scripts/deploy-free-refresh-worker.ps1");
 const cloudRefreshWorker = read("integrations/physio-hemab-wp2/refresh-worker/worker.js");
 const cloudRefreshWorkerConfig = read("integrations/physio-hemab-wp2/refresh-worker/wrangler.toml");
@@ -211,8 +212,11 @@ assert(
 );
 
 assert(
-  refreshEndpointScript.includes("wp2RefreshEndpoint") &&
-    refreshEndpointScript.includes("PHYSIO_HEMAB_REFRESH_ENDPOINT") &&
+  refreshEndpointScript.includes("configure_refresh_endpoint.py") &&
+    refreshEndpointScript.includes("--url") &&
+    refreshEndpointConfigurator.includes('PROJECT_CODE = "physio-hemab-wp2"') &&
+    refreshEndpointConfigurator.includes('"wp2RefreshEndpoint"') &&
+    refreshEndpointConfigurator.includes("urlparse") &&
     deployFreeRefreshWorkerScript.includes("wrangler@latest secret put GITHUB_TOKEN") &&
     deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1") &&
     deployFreeRefreshWorkerScript.includes("workers/subdomain") &&
