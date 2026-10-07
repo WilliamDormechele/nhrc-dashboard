@@ -135,10 +135,7 @@ const authContainer = document.getElementById("auth-container");
 const appContainer = document.getElementById("app-container");
 const userEmailDisplay = document.getElementById("userEmailDisplay");
 const logoutBtn = document.getElementById("logoutBtn");
-const roleDisplay = document.getElementById("roleDisplay");
-const nameDisplay = document.getElementById("nameDisplay");
 const projectSelect = document.getElementById("projectSelect");
-const systemInfoBar = document.getElementById("systemInfoBar");
 
 const getAssignmentOverviewCallable = functions.httpsCallable("getAssignmentOverview");
 
@@ -873,6 +870,18 @@ function setupProjectChange() {
     if (typeof window.refreshChatContext === "function") {
       await window.refreshChatContext();
     }
+
+    const activeProject =
+      window.projectRegistry?.[selectedProject]?.name ||
+      window.projectRegistry?.[selectedProject]?.title ||
+      selectedProject;
+
+    window.NHRCUI?.showToast(
+      "success",
+      "Project ready",
+      `${activeProject} is now active.`,
+      { timer: 2400 }
+    );
   });
 }
 
@@ -889,6 +898,13 @@ function setupDownloadTracking() {
       return;
     }
 
+    window.NHRCUI?.showToast(
+      "info",
+      "Preparing PDF",
+      "Your dashboard PDF will open in a new tab.",
+      { timer: 2200 }
+    );
+
     await logActivity("download_dashboard_pdf", {
       page: "dashboard",
       target: this.href
@@ -903,6 +919,13 @@ function setupDownloadTracking() {
       alert("You do not have permission to download dashboard files.");
       return;
     }
+
+    window.NHRCUI?.showToast(
+      "info",
+      "Preparing PowerPoint",
+      "Your dashboard presentation will open in a new tab.",
+      { timer: 2200 }
+    );
 
     await logActivity("download_dashboard_ppt", {
       page: "dashboard",
@@ -1284,12 +1307,13 @@ function showApp(profile) {
   logoutBtn.style.display = "inline-flex";
 
   const displayName = profile.fullName || profile.email || "User";
-  userEmailDisplay.textContent = `Welcome, ${displayName}`;
-  userEmailDisplay.title = profile.email || "";
-  roleDisplay.value = profile.role || "";
-  nameDisplay.value = profile.fullName || "";
+  const roleLabel =
+    window.NHRCUI?.formatRole(profile.role) ||
+    assignmentRoleLabel(profile.role) ||
+    "User";
 
-  systemInfoBar.textContent = `Signed in as ${displayName} • Role: ${profile.role}`;
+  userEmailDisplay.textContent = `Welcome, ${displayName} (${roleLabel})`;
+  userEmailDisplay.title = [profile.email, roleLabel].filter(Boolean).join(" • ");
 }
 
 /**
@@ -1300,7 +1324,11 @@ function showLogin() {
   appContainer.style.display = "none";
   logoutBtn.style.display = "none";
   userEmailDisplay.textContent = "Not signed in";
-  systemInfoBar.textContent = "Secure access enabled. Please sign in.";
+  userEmailDisplay.title = "";
+
+  window.NHRCUI?.setButtonBusy(document.getElementById("loginBtn"), false);
+  window.NHRCUI?.setButtonBusy(logoutBtn, false);
+  window.NHRCUI?.closeMobileSidebar();
 }
 
 /**
@@ -1320,10 +1348,32 @@ auth.onAuthStateChanged(async (user) => {
     window.currentProjectCode = null;
     assignmentOverviewCache = null;
     showLogin();
+    window.NHRCUI?.hideBusy();
+
+    const completedAuthAction = sessionStorage.getItem("nhrcAuthAction");
+    sessionStorage.removeItem("nhrcAuthAction");
+
+    if (completedAuthAction === "signout") {
+      window.NHRCUI?.showToast(
+        "success",
+        "Signed out",
+        "Your session has been closed securely."
+      );
+    }
+
     return;
   }
 
   try {
+    const pendingAuthAction = sessionStorage.getItem("nhrcAuthAction");
+
+    window.NHRCUI?.showBusy({
+      title: pendingAuthAction === "signin" ? "Signing you in" : "Restoring your workspace",
+      text: pendingAuthAction === "signin"
+        ? "Loading your profile, permissions and assigned projects."
+        : "Restoring your secure session and assigned workspace."
+    });
+
     const profile = await fetchUserProfile(user.uid);
 
     if (!profile.isActive) {
@@ -1386,12 +1436,33 @@ auth.onAuthStateChanged(async (user) => {
     // Refresh-schedule popup intentionally disabled.
     // await showDashboardRefreshNotice();
 
+    window.NHRCUI?.hideBusy();
+
+    if (pendingAuthAction === "signin") {
+      sessionStorage.removeItem("nhrcAuthAction");
+      window.NHRCUI?.showToast(
+        "success",
+        "Signed in",
+        `Welcome back, ${profile.fullName || profile.email || "User"}.`
+      );
+    }
+
     if (permissions.canMonitorUsers) {
-      await loadMonitoringData();
+      loadMonitoringData().catch((error) => {
+        console.error("Background monitoring load failed:", error);
+      });
     }
 
   } catch (error) {
     console.error(error);
+    sessionStorage.removeItem("nhrcAuthAction");
+    window.NHRCUI?.hideBusy();
+    window.NHRCUI?.showToast(
+      "error",
+      "Workspace unavailable",
+      error?.message || "The workspace could not be loaded. Please try again.",
+      { timer: 4500 }
+    );
     alert(error.message);
     await auth.signOut();
   }
@@ -1402,6 +1473,7 @@ auth.onAuthStateChanged(async (user) => {
  */
 window.addEventListener("DOMContentLoaded", function () {
   setupAuthUI();
+  window.NHRCUI?.setupSidebar();
   setupTabs();
   setupProjectChange();
   setupDownloadTracking();
@@ -1419,15 +1491,36 @@ window.addEventListener("DOMContentLoaded", function () {
   // ✅ ADD THIS BLOCK
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
+      if (logoutBtn.disabled) return;
+
+      sessionStorage.setItem("nhrcAuthAction", "signout");
+
+      window.NHRCUI?.setButtonBusy(logoutBtn, true, "Signing out");
+      window.NHRCUI?.showBusy({
+        title: "Signing you out",
+        text: "Closing your secure session safely."
+      });
+
       try {
+        stopIdleTracking();
+
+        await logActivity("logout", { page: "header" });
+
         await setUserPresenceOffline(
           window.currentUserProfile?.uid || auth.currentUser?.uid
         );
-      } catch (e) {
-        console.error("Presence update before logout failed:", e);
-      }
 
-      await auth.signOut();
+        await auth.signOut();
+      } catch (error) {
+        console.error("Logout failed:", error);
+        sessionStorage.removeItem("nhrcAuthAction");
+        window.NHRCUI?.hideBusy();
+        window.NHRCUI?.setButtonBusy(logoutBtn, false);
+        window.NHRCUI?.showToast(
+          "error",
+          "Sign out unsuccessful",
+          "Your session could not be closed. Please try again."
+        );
+      }
     });
-  }
-});
+  }});
