@@ -427,6 +427,11 @@ def main() -> int:
     with database_connection(database_settings) as connection:
         snapshot = _build_snapshot(connection, project_document or {})
 
+    refresh_source = (
+        os.getenv("PHYSIO_HEMAB_REFRESH_SOURCE", "").strip()
+        or "local-manual"
+    )
+
     project_ref.set(
         {
             "code": PROJECT_CODE,
@@ -440,6 +445,10 @@ def main() -> int:
             "enabled": True,
             "wp2Snapshot": snapshot,
             "wp2SnapshotUpdatedAt": firestore.SERVER_TIMESTAMP,
+            "wp2RefreshState": {
+                "lastSuccessAt": firestore.SERVER_TIMESTAMP,
+                "lastSource": refresh_source,
+            },
         },
         merge=True,
     )
