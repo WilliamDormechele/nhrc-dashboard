@@ -134,6 +134,20 @@ assert(
 );
 
 assert(
+  wp2Html.includes('id="refreshProgressOverlay"') &&
+    wp2Html.includes('id="refreshProgressElapsed"') &&
+    wp2DashboardJs.includes("showRefreshProgress") &&
+    wp2DashboardJs.includes("updateRefreshProgress") &&
+    wp2DashboardJs.includes("hideRefreshProgress") &&
+    wp2DashboardJs.includes("Refresh complete") &&
+    wp2DashboardJs.includes("Workflow running") &&
+    wp2Styles.includes(".refresh-progress-overlay") &&
+    wp2Styles.includes(".refresh-progress-spinner") &&
+    wp2Styles.includes("@keyframes refreshProgressSpin"),
+  "Executive manual refresh progress experience is incomplete."
+);
+
+assert(
   firebaseConfigJs.includes("window.nhrcFirestore = db") &&
     wp2DashboardJs.includes("window.parent.nhrcFirestore"),
   "Same-origin authenticated Firestore bridge is missing."
