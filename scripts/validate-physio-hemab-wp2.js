@@ -114,7 +114,7 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-10-07.5"),
+    wp2Html.includes("WP2 UI build 2026-10-07.6"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
@@ -125,10 +125,12 @@ assert(
     wp2DashboardJs.includes("Refreshing from REDCap…") &&
     wp2DashboardJs.includes("wp2RefreshEndpoint") &&
     wp2DashboardJs.includes("refreshCooldownUntil") &&
-    wp2DashboardJs.includes("isAdminUser()") &&
+    wp2DashboardJs.includes("canRefreshData") &&
+    wp2DashboardJs.includes("currentUserAssignedProjects") &&
+    wp2DashboardJs.includes('"physio-hemab-wp2"') &&
     wp2Html.includes("Refresh data") &&
     wp2Html.includes("Last refreshed"),
-  "Admin-only manual REDCap refresh UI is incomplete or live snapshot listening is still enabled."
+  "Assigned-user manual REDCap refresh UI is incomplete or live snapshot listening is still enabled."
 );
 
 assert(
@@ -201,9 +203,10 @@ assert(
 
 assert(
   cloudRefreshWorker.includes("accounts:lookup") &&
-    cloudRefreshWorker.includes("administrator") &&
-    cloudRefreshWorker.includes("developer") &&
     cloudRefreshWorker.includes("assignedProjects") &&
+    cloudRefreshWorker.includes('assignedProjects.includes("physio-hemab-wp2")') &&
+    !cloudRefreshWorker.includes('!["administrator", "developer"].includes(role)') &&
+    cloudRefreshWorker.includes("Only an active NHRC user assigned to Physio-HeMAB WP2") &&
     cloudRefreshWorker.includes("GITHUB_WORKFLOW") &&
     cloudRefreshWorker.includes("/dispatches") &&
     cloudRefreshWorker.includes("COOLDOWN_SECONDS") &&
