@@ -80,7 +80,6 @@ async function authenticateFirebaseUser(idToken, env) {
   if (
     !isActive ||
     isDeleted ||
-    !["administrator", "developer"].includes(role) ||
     !assignedProjects.includes("physio-hemab-wp2")
   ) {
     throw new Error("FORBIDDEN");
@@ -249,7 +248,7 @@ export default {
       if (code === "FORBIDDEN") {
         return json(
           403,
-          { error: "Only an administrator or developer assigned to Physio-HeMAB WP2 can refresh REDCap data." },
+          { error: "Only an active NHRC user assigned to Physio-HeMAB WP2 can refresh REDCap data." },
           origin,
           env
         );
