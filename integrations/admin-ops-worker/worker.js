@@ -392,12 +392,12 @@ async function authenticateAdmin(idToken, env) {
   const role = firestoreString(fields.role).trim().toLowerCase();
   const isActive = firestoreBoolean(fields.isActive, true);
   const isDeleted = firestoreBoolean(fields.isDeleted, false);
+  const roleAccess = fromFirestoreValue(fields.roleAccess) || {};
+  const hasAdminAccess =
+    ["administrator", "developer"].includes(role) ||
+    roleAccess?.admin === true;
 
-  if (
-    !isActive ||
-    isDeleted ||
-    !["administrator", "developer"].includes(role)
-  ) {
+  if (!isActive || isDeleted || !hasAdminAccess) {
     throw new Error("FORBIDDEN");
   }
 
