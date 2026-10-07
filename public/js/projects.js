@@ -318,7 +318,15 @@ async function loadProjectsRegistry() {
  */
 function populateProjectSelect(assignedProjects) {
   const projectSelect = document.getElementById("projectSelect");
+  const previousValue = String(window.currentProjectCode || "").trim();
   projectSelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select a project";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  projectSelect.appendChild(placeholder);
 
   const role = window.currentUserProfile?.role || "";
   const canReadAllProjects = role === "administrator" || role === "developer";
@@ -346,7 +354,52 @@ function populateProjectSelect(assignedProjects) {
     option.textContent = project.name;
     projectSelect.appendChild(option);
   });
+
+  if (
+    previousValue &&
+    [...projectSelect.options].some((option) => option.value === previousValue)
+  ) {
+    projectSelect.value = previousValue;
+  } else {
+    projectSelect.value = "";
+  }
 }
+
+function clearProjectSelectionView() {
+  window.currentProjectCode = "";
+
+  const title = document.getElementById("dashboardTitle");
+  const description = document.getElementById("dashboardDescription");
+  const dashboardFrame = document.getElementById("dashboardFrame");
+  const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
+
+  if (dashboardFrameWrap) {
+    dashboardFrameWrap.style.display = "";
+  }
+  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+  const downloadPptBtn = document.getElementById("downloadPptBtn");
+  const reportsContainer = document.getElementById("reportsContainer");
+  const queriesContainer = document.getElementById("queriesContainer");
+
+  if (title) title.textContent = "Project Dashboard";
+  if (description) description.textContent = "Select a project to view its dashboard.";
+  if (dashboardFrame) dashboardFrame.removeAttribute("src");
+  if (dashboardFrameWrap) dashboardFrameWrap.style.display = "none";
+  if (downloadPdfBtn) downloadPdfBtn.style.display = "none";
+  if (downloadPptBtn) downloadPptBtn.style.display = "none";
+
+  if (reportsContainer) {
+    reportsContainer.innerHTML =
+      '<div class="placeholder-box">Select a project to view reports.</div>';
+  }
+
+  if (queriesContainer) {
+    queriesContainer.innerHTML =
+      '<div class="placeholder-box">Select a project to view data queries.</div>';
+  }
+}
+
+window.clearProjectSelectionView = clearProjectSelectionView;
 
 /**
  * Return a file type label from a file path.
