@@ -200,7 +200,7 @@
           <span>Reports</span>
         </button>
 
-        <button class="tab-button" data-tab="tab-chat" id="chatTabBtn">
+        <button class="tab-button" data-tab="tab-chat" id="chatTabBtn" style="display:none;" aria-hidden="true">
           <i class="fas fa-comments"></i>
           <span>Live Chat</span>
           <span id="chatTabUnreadBadge" class="assignment-count-badge hidden" style="margin-left:8px;">0</span>
@@ -344,7 +344,7 @@
       <div id="reportsContainer" class="reports-layout"></div>
     </section>
 
-<section id="tab-chat" class="tab-content panel chat-tab-panel">
+<section id="tab-chat" class="tab-content panel chat-tab-panel" style="display:none;" aria-hidden="true">
   <div class="chat-mobile-shell" id="chatRoot">
     <div class="chat-mobile-sidebar">
       <div class="chat-mobile-topbar">
@@ -1202,7 +1202,6 @@
 <script src="js/auth.js?v=20260508154302"></script>
 <script src="js/admin.js?v=20260508154302"></script>
 <script src="js/monitoring.js?v=20260508154302"></script>
-<script src="js/chat.js?v=20260508154302"></script>
 <script src="js/app.js?v=20260508154302"></script>
 </body>
 
