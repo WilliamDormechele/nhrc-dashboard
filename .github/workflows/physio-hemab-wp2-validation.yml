@@ -1,6 +1,22 @@
 name: Physio-HeMAB WP2 validation
 
 on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "firebase.json"
+      - "public/data/project-config.js"
+      - "public/js/projects.js"
+      - "public/js/firebase-config.js"
+      - "public/projects/physio-hemab-wp2/**"
+      - "integrations/physio-hemab-wp2/**"
+      - "scripts/validate-physio-hemab-wp2.js"
+      - "package.json"
+      - ".github/workflows/physio-hemab-wp2-validation.yml"
+      - ".github/workflows/physio-hemab-wp2-refresh.yml"
+
+
   pull_request:
     paths:
       - "firebase.json"
