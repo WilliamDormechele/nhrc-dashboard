@@ -849,6 +849,16 @@ function setupProjectChange() {
   projectSelect.addEventListener("change", async function () {
     const selectedProject = String(this.value || "").trim();
 
+    if (!selectedProject) {
+      window.currentProjectCode = "";
+      assignmentOverviewCache = null;
+      if (typeof window.clearProjectSelectionView === "function") {
+        window.clearProjectSelectionView();
+      }
+      updateHdssOnlySections();
+      return;
+    }
+
     window.currentProjectCode = selectedProject;
 
     await loadProject(selectedProject);
@@ -1271,13 +1281,15 @@ function setupDashboardGuideUI() {
 function showApp(profile) {
   authContainer.style.display = "none";
   appContainer.style.display = "block";
-  logoutBtn.style.display = "inline-block";
+  logoutBtn.style.display = "inline-flex";
 
-  userEmailDisplay.textContent = profile.email;
+  const displayName = profile.fullName || profile.email || "User";
+  userEmailDisplay.textContent = `Welcome, ${displayName}`;
+  userEmailDisplay.title = profile.email || "";
   roleDisplay.value = profile.role || "";
   nameDisplay.value = profile.fullName || "";
 
-  systemInfoBar.textContent = `Signed in as ${profile.fullName || profile.email} • Role: ${profile.role}`;
+  systemInfoBar.textContent = `Signed in as ${displayName} • Role: ${profile.role}`;
 }
 
 /**
@@ -1342,22 +1354,24 @@ auth.onAuthStateChanged(async (user) => {
 
     populateProjectSelect(profile.assignedProjects);
 
-    const firstProject = profile.assignedProjects.find((code) => window.projectRegistry[code]);
-    if (!firstProject) {
+    const availableProject = profile.assignedProjects.find(
+      (code) => window.projectRegistry[code]
+    );
+    if (!availableProject) {
       alert("None of your assigned projects are currently configured.");
       await auth.signOut();
       return;
     }
 
-    projectSelect.value = firstProject;
-    window.currentProjectCode = String(firstProject || "").trim();
+    projectSelect.value = "";
+    window.currentProjectCode = "";
+    assignmentOverviewCache = null;
 
-    await loadProject(window.currentProjectCode);
-    updateHdssOnlySections();
-
-    if (String(window.currentProjectCode || "").toLowerCase() === "hdss") {
-      await loadAssignmentOverview();
+    if (typeof window.clearProjectSelectionView === "function") {
+      window.clearProjectSelectionView();
     }
+
+    updateHdssOnlySections();
 
     const permissions = getPermissions(profile.role);
 
