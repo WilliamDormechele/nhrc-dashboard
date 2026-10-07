@@ -636,7 +636,7 @@ async function sendViaResend(env, toEmail, subject, html) {
 
   if (!response.ok) {
     console.error("Resend send failed", response.status, data);
-    throw new Error(data?.message || "EMAIL_SEND_FAILED");
+    throw new Error("EMAIL_SEND_FAILED");
   }
 
   return {
@@ -1115,7 +1115,8 @@ function mapError(error) {
     TARGET_EMAIL_MISSING: [400, "The selected user does not have an email address."],
     SELF_DEACTIVATE_BLOCKED: [409, "You cannot deactivate your own account."],
     SELF_DELETE_BLOCKED: [409, "You cannot delete your own account."],
-    EMAIL_PROVIDER_NOT_CONFIGURED: [503, "Email provider is not configured."],
+    EMAIL_PROVIDER_NOT_CONFIGURED: [503, "Email provider is not configured on the admin service."],
+    EMAIL_SEND_FAILED: [502, "The notification email provider rejected the message."],
     PASSWORD_RESET_LINK_FAILED: [502, "A password reset link could not be generated."],
     AUTH_ADMIN_UPDATE_FAILED: [502, "Firebase Authentication could not update the user."],
     AUTH_ADMIN_DELETE_FAILED: [502, "Firebase Authentication could not delete the user."],
@@ -1152,7 +1153,10 @@ export default {
         200,
         {
           ok: true,
-          service: "nhrc-admin-ops"
+          service: "nhrc-admin-ops",
+          firebaseAdminConfigured: Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON),
+          emailConfigured: Boolean(env.RESEND_API_KEY),
+          senderConfigured: Boolean(env.RESEND_FROM_EMAIL)
         },
         origin,
         env
