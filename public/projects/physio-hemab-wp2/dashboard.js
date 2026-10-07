@@ -2111,7 +2111,7 @@
       status: "working"
     });
 
-    for (let attempt = 0; attempt < 45; attempt += 1) {
+    for (let attempt = 0; attempt < 180; attempt += 1) {
       await sleep(4000);
 
       if (attempt === 5) {
@@ -2126,6 +2126,13 @@
           title: "Refresh in progress",
           message: "The secure refresh is still running. Waiting for the latest completed snapshot to be published.",
           stage: "Waiting for snapshot",
+          status: "working"
+        });
+      } else if (attempt === 60) {
+        updateRefreshProgress({
+          title: "Refresh still running",
+          message: "The data workflow is taking longer than usual, but the dashboard is continuing to wait for completion.",
+          stage: "Secure processing",
           status: "working"
         });
       }
