@@ -1523,4 +1523,5 @@ window.addEventListener("DOMContentLoaded", function () {
         );
       }
     });
-  }});
+  }
+});
