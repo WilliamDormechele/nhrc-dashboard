@@ -216,7 +216,7 @@ assert(
     deployFreeRefreshWorkerScript.includes("wrangler@latest secret put GITHUB_TOKEN") &&
     deployFreeRefreshWorkerScript.includes("configure-refresh-endpoint.ps1") &&
     deployFreeRefreshWorkerScript.includes("workers/subdomain") &&
-    deployFreeRefreshWorkerScript.includes("auth token") &&
+    deployFreeRefreshWorkerScript.includes('"auth", "token"') &&
     deployFreeRefreshWorkerScript.includes("whoami") &&
     deployFreeRefreshWorkerScript.includes("Ensure-WorkersDevSubdomain") &&
     deployFreeRefreshWorkerScript.includes('deploy", "--yes"'),
