@@ -69,6 +69,26 @@ assert(
 );
 
 assert(
+  styles.includes("#app-container.app-container") &&
+    styles.includes("background: linear-gradient(180deg, #162a3a 0%, #112331 100%)") &&
+    styles.includes("border-radius: 0;") &&
+    styles.includes("#app-container + .footer") &&
+    ui.includes("--nhrc-topbar-height"),
+  "Integrated full-height side navigation is incomplete."
+);
+
+assert(
+  projects.includes("enableNativeDashboardAutoHeight") &&
+    projects.includes("ResizeObserver") &&
+    projects.includes('dashboardFrameWrap.style.height = isNativeDashboard ? "auto" : ""') &&
+    !projects.includes('dashboardFrameWrap.style.height = isNativeDashboard ? "88vh" : ""') &&
+    projects.includes("native-dashboard-shell") &&
+    styles.includes(".native-dashboard-container") &&
+    styles.includes("#tab-dashboard.native-dashboard-shell"),
+  "Native dashboard long-page flow is incomplete."
+);
+
+assert(
   template.includes('id="workspaceShell" class="workspace-shell"') &&
     template.includes('id="appSidebar" class="app-sidebar"') &&
     template.includes('id="sidebarToggleBtn"') &&

@@ -32,6 +32,7 @@ html {
 body {
   margin: 0;
   background: var(--page);
+  overflow: visible;
 }
 
 button,
@@ -57,7 +58,7 @@ input:focus-visible {
 .wp2-dashboard {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: 0;
   padding: 20px;
 }
 

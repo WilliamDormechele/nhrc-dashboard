@@ -365,7 +365,126 @@ function populateProjectSelect(assignedProjects) {
   }
 }
 
+let nativeDashboardResizeObserver = null;
+let nativeDashboardResizeTimer = null;
+let nativeDashboardObservedFrame = null;
+
+function stopNativeDashboardAutoHeight() {
+  if (nativeDashboardResizeObserver) {
+    nativeDashboardResizeObserver.disconnect();
+    nativeDashboardResizeObserver = null;
+  }
+
+  if (nativeDashboardResizeTimer) {
+    clearInterval(nativeDashboardResizeTimer);
+    nativeDashboardResizeTimer = null;
+  }
+
+  if (nativeDashboardObservedFrame) {
+    nativeDashboardObservedFrame.onload = null;
+    nativeDashboardObservedFrame = null;
+  }
+}
+
+function measureNativeDashboardHeight(frame) {
+  try {
+    const doc = frame?.contentDocument;
+    if (!doc) return 0;
+
+    const body = doc.body;
+    const html = doc.documentElement;
+
+    return Math.max(
+      body?.scrollHeight || 0,
+      body?.offsetHeight || 0,
+      html?.scrollHeight || 0,
+      html?.offsetHeight || 0
+    );
+  } catch (error) {
+    console.warn("Native dashboard height could not be measured.", error);
+    return 0;
+  }
+}
+
+function resizeNativeDashboardFrame(frame) {
+  const height = measureNativeDashboardHeight(frame);
+  if (!frame || height < 200) return;
+
+  const currentHeight = parseInt(frame.style.height || "0", 10) || 0;
+  if (Math.abs(currentHeight - height) > 2) {
+    frame.style.height = `${height}px`;
+  }
+}
+
+function enableNativeDashboardAutoHeight(frame) {
+  stopNativeDashboardAutoHeight();
+  if (!frame) return;
+
+  nativeDashboardObservedFrame = frame;
+  frame.setAttribute("scrolling", "no");
+  frame.style.overflow = "hidden";
+
+  const bind = () => {
+    resizeNativeDashboardFrame(frame);
+
+    try {
+      const doc = frame.contentDocument;
+      if (typeof ResizeObserver !== "undefined" && doc) {
+        nativeDashboardResizeObserver = new ResizeObserver(() => {
+          resizeNativeDashboardFrame(frame);
+        });
+
+        if (doc.documentElement) {
+          nativeDashboardResizeObserver.observe(doc.documentElement);
+        }
+        if (doc.body) {
+          nativeDashboardResizeObserver.observe(doc.body);
+        }
+      }
+    } catch (error) {
+      console.warn("Native dashboard resize observer could not start.", error);
+    }
+
+    let checks = 0;
+    nativeDashboardResizeTimer = setInterval(() => {
+      resizeNativeDashboardFrame(frame);
+      checks += 1;
+
+      if (checks >= 60) {
+        clearInterval(nativeDashboardResizeTimer);
+        nativeDashboardResizeTimer = null;
+      }
+    }, 500);
+  };
+
+  frame.onload = bind;
+}
+
+function clearNativeDashboardLayout() {
+  stopNativeDashboardAutoHeight();
+
+  const dashboardSection = document.getElementById("tab-dashboard");
+  const dashboardFrame = document.getElementById("dashboardFrame");
+  const dashboardFrameWrap = document.getElementById("dashboardFrameWrap");
+
+  document.body.classList.remove("native-dashboard-page");
+  dashboardSection?.classList.remove("native-dashboard-shell");
+  dashboardFrameWrap?.classList.remove("native-dashboard-container");
+
+  if (dashboardFrame) {
+    dashboardFrame.removeAttribute("scrolling");
+    dashboardFrame.style.removeProperty("height");
+    dashboardFrame.style.removeProperty("overflow");
+    dashboardFrame.onload = null;
+  }
+
+  if (dashboardFrameWrap) {
+    dashboardFrameWrap.style.removeProperty("height");
+  }
+}
+
 function clearProjectSelectionView() {
+  clearNativeDashboardLayout();
   window.currentProjectCode = "";
 
   const title = document.getElementById("dashboardTitle");
@@ -1767,16 +1886,31 @@ async function loadProject(projectCode) {
   const dashboardHelpBar = document.getElementById("dashboardHelpBar");
   const powerBiHintFooter = document.getElementById("powerBiHintFooter");
   const dashboardInstructions = document.querySelector(".dashboard-instructions");
+  const dashboardSection = document.getElementById("tab-dashboard");
   const isNativeDashboard = project.dashboardMode === "native";
 
+  stopNativeDashboardAutoHeight();
+  document.body.classList.toggle("native-dashboard-page", isNativeDashboard);
+  dashboardSection?.classList.toggle("native-dashboard-shell", isNativeDashboard);
+
   if (dashboardFrame) {
-    dashboardFrame.src = project.dashboardEmbedUrl || "";
     dashboardFrame.title = `${project.name} Dashboard`;
+
+    if (isNativeDashboard) {
+      enableNativeDashboardAutoHeight(dashboardFrame);
+    } else {
+      dashboardFrame.removeAttribute("scrolling");
+      dashboardFrame.style.removeProperty("height");
+      dashboardFrame.style.removeProperty("overflow");
+      dashboardFrame.onload = null;
+    }
+
+    dashboardFrame.src = project.dashboardEmbedUrl || "";
   }
 
   if (dashboardFrameWrap) {
     dashboardFrameWrap.classList.toggle("native-dashboard-container", isNativeDashboard);
-    dashboardFrameWrap.style.height = isNativeDashboard ? "88vh" : "";
+    dashboardFrameWrap.style.height = isNativeDashboard ? "auto" : "";
   }
 
   if (dashboardHelpBar) {

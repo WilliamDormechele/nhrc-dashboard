@@ -119,7 +119,20 @@
     if (mobileButton) mobileButton.setAttribute("aria-expanded", "false");
   }
 
+  function syncTopbarHeight() {
+    const topbar = document.querySelector(".topbar");
+    if (!topbar) return;
+
+    const height = Math.ceil(topbar.getBoundingClientRect().height);
+    document.documentElement.style.setProperty(
+      "--nhrc-topbar-height",
+      `${height}px`
+    );
+  }
+
   function setupSidebar() {
+    syncTopbarHeight();
+
     const shell = document.getElementById("workspaceShell");
     const sidebar = document.getElementById("appSidebar");
     const toggle = document.getElementById("sidebarToggleBtn");
@@ -196,6 +209,8 @@
     });
 
     window.addEventListener("resize", () => {
+      syncTopbarHeight();
+
       if (!window.matchMedia("(max-width: 900px)").matches) {
         closeMobileSidebar();
       }
@@ -209,6 +224,7 @@
     hideBusy,
     setButtonBusy,
     setupSidebar,
-    closeMobileSidebar
+    closeMobileSidebar,
+    syncTopbarHeight
   };
 })();

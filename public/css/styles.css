@@ -3565,3 +3565,172 @@ body.admin-loading {
     justify-content: center;
   }
 }
+
+
+/* =========================
+   Integrated application rail and native dashboard flow
+   ========================= */
+
+#app-container.app-container {
+  padding: 0;
+  background: #eef2f6;
+}
+
+.workspace-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 0;
+  align-items: stretch;
+  min-height: calc(100vh - var(--nhrc-topbar-height, 86px));
+  background: linear-gradient(180deg, #162a3a 0%, #112331 100%);
+}
+
+.workspace-shell.sidebar-collapsed {
+  grid-template-columns: 74px minmax(0, 1fr);
+}
+
+.app-sidebar {
+  position: sticky;
+  top: var(--nhrc-topbar-height, 86px);
+  align-self: start;
+  width: 100%;
+  height: calc(100vh - var(--nhrc-topbar-height, 86px));
+  min-height: calc(100vh - var(--nhrc-topbar-height, 86px));
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #162a3a 0%, #112331 100%);
+  box-shadow: none;
+}
+
+.sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.sidebar-eyebrow {
+  color: #8fa7ba;
+}
+
+.app-sidebar .tab-button {
+  border-radius: 0;
+  color: #c3d0dc;
+}
+
+.app-sidebar .tab-button:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.app-sidebar .tab-button.active {
+  background: #224b6c;
+  box-shadow: inset 3px 0 0 #7eb2dc;
+}
+
+.app-sidebar .tab-button.active::after,
+.app-sidebar .tab-button:hover::after {
+  display: none;
+}
+
+.app-sidebar .tab-button.active i {
+  color: #b8d8ef;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  border-top-color: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.workspace-body {
+  min-width: 0;
+  min-height: calc(100vh - var(--nhrc-topbar-height, 86px));
+  padding: 16px 20px 30px;
+  background: #eef2f6;
+}
+
+#app-container + .footer {
+  margin-top: 0;
+}
+
+#tab-dashboard.native-dashboard-shell {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+#tab-dashboard.native-dashboard-shell > .section-header {
+  padding: 18px 20px 10px;
+  margin: 0;
+}
+
+#tab-dashboard.native-dashboard-shell > .dashboard-instructions {
+  margin: 0 20px 12px;
+}
+
+.native-dashboard-container {
+  width: 100%;
+  height: auto !important;
+  min-height: 0;
+  overflow: visible !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.native-dashboard-container iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 720px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+}
+
+body.native-dashboard-page .workspace-body {
+  padding-bottom: 0;
+}
+
+@media (max-width: 1100px) {
+  .workspace-shell {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .workspace-shell.sidebar-collapsed {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  #app-container.app-container {
+    padding: 0;
+  }
+
+  .workspace-body {
+    padding: 14px;
+  }
+
+  .app-sidebar {
+    top: 0;
+    height: 100vh;
+    min-height: 100vh;
+    border-radius: 0 14px 14px 0;
+  }
+
+  #tab-dashboard.native-dashboard-shell > .section-header {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  #tab-dashboard.native-dashboard-shell > .dashboard-instructions {
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+
+  .native-dashboard-container iframe {
+    min-height: 640px;
+  }
+}
