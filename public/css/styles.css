@@ -2623,3 +2623,4 @@ body.admin-loading {
 .admin-sortable.sort-desc::after {
   content: "\f063"; /* fa-arrow-down */
 }
+/* UX polish test */
