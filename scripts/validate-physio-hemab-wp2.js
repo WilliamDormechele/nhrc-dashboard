@@ -219,7 +219,7 @@ assert(
     deployFreeRefreshWorkerScript.includes('"auth", "token"') &&
     deployFreeRefreshWorkerScript.includes("whoami") &&
     deployFreeRefreshWorkerScript.includes("Ensure-WorkersDevSubdomain") &&
-    deployFreeRefreshWorkerScript.includes('deploy", "--yes"'),
+    deployFreeRefreshWorkerScript.includes('"deploy", "--config", $WranglerConfig'),
   "Free refresh worker deployment/configuration helpers are incomplete."
 );
 
