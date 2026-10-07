@@ -11,6 +11,17 @@
 </head>
 
 <body>
+  <div id="appBootOverlay" class="app-boot-overlay" role="status" aria-live="polite" aria-hidden="false">
+    <div class="app-boot-card">
+      <div class="app-boot-brand">
+        <img src="images/nhrc-logo.png" alt="" class="app-boot-logo" />
+      </div>
+      <div class="app-boot-spinner" aria-hidden="true"></div>
+      <div id="appBootTitle" class="app-boot-title">Preparing your workspace</div>
+      <div id="appBootMessage" class="app-boot-message">Checking your secure session and loading your assigned workspace.</div>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="topbar-left">
       <img src="images/nhrc-logo.png" alt="NHRC Logo" class="topbar-logo" />
@@ -28,13 +39,9 @@
     </div>
   </header>
 
-  <div id="systemInfoBar" class="info-bar">
-    Secure access enabled. Please sign in.
-  </div>
-
   <!-- LOGIN -->
   <!-- LOGIN -->
-  <main id="auth-container" class="auth-container">
+  <main id="auth-container" class="auth-container" style="display:none;">
     <div class="auth-card">
       <div class="auth-banner">
         <strong>Getting Started</strong>
@@ -91,7 +98,7 @@
         </div>
 
         <div id="signInActions">
-          <button id="loginBtn" class="btn btn-primary full-width">Sign in</button>
+          <button id="loginBtn" class="btn btn-primary full-width"><span class="login-button-content"><i class="fas fa-right-to-bracket"></i><span>Sign in</span></span></button>
 
           <div class="forgot-line">
             <a href="#" id="forgotPasswordLink">Forgot password?</a>
@@ -166,63 +173,79 @@
 
   <!-- APP -->
   <main id="app-container" class="app-container" style="display:none;">
-    <!-- Top controls -->
-    <section class="panel">
-      <div class="controls-grid">
-        <div>
-          <label for="projectSelect">Project Name</label>
-          <select id="projectSelect"><option value="" selected disabled>Select a project</option></select>
+    <div id="workspaceShell" class="workspace-shell">
+      <aside id="appSidebar" class="app-sidebar" aria-label="Primary navigation">
+        <div class="sidebar-header">
+          <div class="sidebar-heading">
+            <span class="sidebar-eyebrow">Workspace</span>
+            <strong>Navigation</strong>
+          </div>
+          <button type="button" id="sidebarToggleBtn" class="sidebar-toggle" aria-label="Collapse navigation" aria-expanded="true" title="Collapse navigation">
+            <i class="fas fa-angles-left"></i>
+          </button>
         </div>
 
-        <div>
-          <label for="roleDisplay">Role</label>
-          <input type="text" id="roleDisplay" readonly />
+        <nav class="tab-bar sidebar-nav" aria-label="Dashboard sections">
+          <button class="tab-button active" data-tab="tab-dashboard" title="Dashboard">
+            <i class="fas fa-house"></i>
+            <span>Dashboard</span>
+          </button>
+
+          <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn" title="Reports">
+            <i class="fas fa-file-lines"></i>
+            <span>Reports</span>
+          </button>
+
+          <button class="tab-button" data-tab="tab-chat" id="chatTabBtn" style="display:none;" aria-hidden="true" title="Live Chat">
+            <i class="fas fa-comments"></i>
+            <span>Live Chat</span>
+            <span id="chatTabUnreadBadge" class="assignment-count-badge hidden">0</span>
+          </button>
+
+          <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn" title="Data Queries">
+            <i class="fas fa-database"></i>
+            <span>Data Queries</span>
+          </button>
+
+          <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn" title="Strategic Oversight">
+            <i class="fas fa-chart-line"></i>
+            <span>Strategic Oversight</span>
+          </button>
+
+          <button class="tab-button" data-tab="tab-admin" id="adminTabBtn" title="Administration">
+            <i class="fas fa-user-shield"></i>
+            <span>Admin</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <i class="fas fa-shield-halved"></i>
+          <span>Secure project access</span>
         </div>
+      </aside>
 
-        <div>
-          <label for="nameDisplay">Full name</label>
-          <input type="text" id="nameDisplay" readonly />
+      <button type="button" id="sidebarBackdrop" class="sidebar-backdrop" aria-label="Close navigation"></button>
+
+      <div class="workspace-body">
+        <div class="workspace-toolbar">
+          <button type="button" id="mobileSidebarBtn" class="mobile-sidebar-btn" aria-label="Open navigation" aria-expanded="false">
+            <i class="fas fa-bars"></i>
+          </button>
+
+          <div class="project-switcher">
+            <div class="project-switcher-icon" aria-hidden="true">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="project-switcher-copy">
+              <span class="project-switcher-label">Project workspace</span>
+              <span class="project-switcher-hint">Choose an assigned project</span>
+            </div>
+            <div class="project-switcher-control">
+              <label for="projectSelect" class="sr-only">Project workspace</label>
+              <select id="projectSelect"><option value="" selected disabled>Select a project</option></select>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
-
-    <!-- Tabs -->
-    <section class="panel">
-      <div class="tab-bar">
-
-        <button class="tab-button active" data-tab="tab-dashboard">
-          <i class="fas fa-home"></i>
-          <span>Dashboard</span>
-        </button>
-
-        <button class="tab-button" data-tab="tab-reports" id="reportsTabBtn">
-          <i class="fas fa-file-alt"></i>
-          <span>Reports</span>
-        </button>
-
-        <button class="tab-button" data-tab="tab-chat" id="chatTabBtn" style="display:none;" aria-hidden="true">
-          <i class="fas fa-comments"></i>
-          <span>Live Chat</span>
-          <span id="chatTabUnreadBadge" class="assignment-count-badge hidden" style="margin-left:8px;">0</span>
-        </button>
-
-        <button class="tab-button" data-tab="tab-queries" id="queriesTabBtn">
-          <i class="fas fa-question-circle"></i>
-          <span>Data Queries</span>
-        </button>
-
-        <button class="tab-button" data-tab="tab-monitoring" id="monitoringTabBtn">
-          <i class="fas fa-chart-line"></i>
-          <span>Strategic Oversight</span>
-        </button>
-
-        <button class="tab-button" data-tab="tab-admin" id="adminTabBtn">
-          <i class="fas fa-user-shield"></i>
-          <span>Admin</span>
-        </button>
-
-      </div>
-    </section>
 
     <!-- Dashboard -->
     <section id="tab-dashboard" class="tab-content active panel">
@@ -237,7 +260,7 @@
 </div>
 
 <div class="dashboard-instructions">
-  Use the project dropdown ABOVE to switch between projects you are assigned to.
+  Use the Project workspace selector above to switch between projects you are assigned to.
 </div>
 
 <div id="dashboardHelpBar" class="panel inner-panel" style="margin-top:14px;">
@@ -1156,6 +1179,8 @@
         </div>
       </div>
     </section>
+      </div>
+    </div>
   </main>
 
   <footer class="footer">
@@ -1208,6 +1233,7 @@
 <script src="data/project-config.js?v=__APP_VERSION__"></script>
 <script src="js/permissions.js?v=__APP_VERSION__"></script>
 <script src="js/tracker.js?v=__APP_VERSION__"></script>
+<script src="js/ui.js?v=__APP_VERSION__"></script>
 <script src="js/projects.js?v=__APP_VERSION__"></script>
 <script src="js/auth.js?v=__APP_VERSION__"></script>
 <script src="js/admin.js?v=__APP_VERSION__"></script>
