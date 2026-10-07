@@ -34,7 +34,9 @@
     refreshState: {},
     refreshInProgress: false,
     refreshCooldownUntil: 0,
-    refreshCooldownTimer: null
+    refreshCooldownTimer: null,
+    refreshStartedAt: 0,
+    refreshElapsedTimer: null
   };
 
   const els = {
@@ -44,6 +46,11 @@
     liveStatus: document.getElementById("liveStatus"),
     refreshButton: document.getElementById("refreshDashboardBtn"),
     refreshStatusMessage: document.getElementById("refreshStatusMessage"),
+    refreshProgressOverlay: document.getElementById("refreshProgressOverlay"),
+    refreshProgressTitle: document.getElementById("refreshProgressTitle"),
+    refreshProgressMessage: document.getElementById("refreshProgressMessage"),
+    refreshProgressStage: document.getElementById("refreshProgressStage"),
+    refreshProgressElapsed: document.getElementById("refreshProgressElapsed"),
     dataCurrentTo: document.getElementById("dataCurrentTo"),
     mainStatus: document.getElementById("mainSourceStatus"),
     devicesStatus: document.getElementById("devicesSourceStatus"),
@@ -1905,9 +1912,9 @@
     els.refreshButton.disabled =
       state.refreshInProgress || cooldownRemaining > 0;
 
-    els.refreshButton.textContent = state.refreshInProgress
-      ? "Refreshing from REDCap…"
-      : "↻ Refresh data";
+    els.refreshButton.innerHTML = state.refreshInProgress
+      ? '<span class="refresh-button-spinner" aria-hidden="true"></span><span>Refreshing data</span>'
+      : '<span class="refresh-button-icon" aria-hidden="true">↻</span><span>Refresh data</span>';
 
     if (!state.refreshEndpoint) {
       els.refreshButton.title =
@@ -1938,6 +1945,86 @@
     els.refreshStatusMessage.textContent = message;
     els.refreshStatusMessage.className =
       `refresh-status-message${type ? ` ${type}` : ""}`;
+  }
+
+  function formatRefreshElapsed(milliseconds) {
+    const totalSeconds = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function updateRefreshElapsed() {
+    if (!els.refreshProgressElapsed || !state.refreshStartedAt) return;
+    els.refreshProgressElapsed.textContent =
+      formatRefreshElapsed(Date.now() - state.refreshStartedAt);
+  }
+
+  function updateRefreshProgress({
+    title = "Refreshing Physio-HeMAB WP2",
+    message = "Refreshing from REDCap…",
+    stage = "Processing",
+    status = "working"
+  } = {}) {
+    if (els.refreshProgressTitle) {
+      els.refreshProgressTitle.textContent = title;
+    }
+    if (els.refreshProgressMessage) {
+      els.refreshProgressMessage.textContent = message;
+    }
+    if (els.refreshProgressStage) {
+      els.refreshProgressStage.textContent = stage;
+    }
+    if (els.refreshProgressOverlay) {
+      els.refreshProgressOverlay.dataset.status = status;
+    }
+  }
+
+  function showRefreshProgress() {
+    if (!els.refreshProgressOverlay) return;
+
+    state.refreshStartedAt = Date.now();
+
+    updateRefreshProgress({
+      title: "Refreshing Physio-HeMAB WP2",
+      message: "Starting the secure REDCap refresh.",
+      stage: "Starting",
+      status: "working"
+    });
+
+    updateRefreshElapsed();
+
+    if (state.refreshElapsedTimer) {
+      clearInterval(state.refreshElapsedTimer);
+    }
+
+    state.refreshElapsedTimer = setInterval(updateRefreshElapsed, 1000);
+
+    els.refreshProgressOverlay.classList.remove("hidden");
+    els.refreshProgressOverlay.setAttribute("aria-hidden", "false");
+  }
+
+  function hideRefreshProgress() {
+    if (state.refreshElapsedTimer) {
+      clearInterval(state.refreshElapsedTimer);
+      state.refreshElapsedTimer = null;
+    }
+
+    state.refreshStartedAt = 0;
+
+    if (els.refreshProgressOverlay) {
+      els.refreshProgressOverlay.classList.add("hidden");
+      els.refreshProgressOverlay.setAttribute("aria-hidden", "true");
+      els.refreshProgressOverlay.dataset.status = "";
+    }
+  }
+
+  function showDashboardToast(icon, title, text) {
+    try {
+      window.parent?.NHRCUI?.showToast?.(icon, title, text, { timer: 3600 });
+    } catch (error) {
+      console.debug("Parent dashboard toast is unavailable.", error);
+    }
   }
 
   function applyProjectSnapshot(snapshot) {
@@ -2017,8 +2104,31 @@
       .collection("projects")
       .doc("physio-hemab-wp2");
 
+    updateRefreshProgress({
+      title: "Refresh in progress",
+      message: "The secure refresh has started. Waiting for the updated dashboard snapshot.",
+      stage: "Workflow running",
+      status: "working"
+    });
+
     for (let attempt = 0; attempt < 45; attempt += 1) {
       await sleep(4000);
+
+      if (attempt === 5) {
+        updateRefreshProgress({
+          title: "Refresh in progress",
+          message: "REDCap data is still being processed. The dashboard will update automatically when the new snapshot is ready.",
+          stage: "Processing data",
+          status: "working"
+        });
+      } else if (attempt === 18) {
+        updateRefreshProgress({
+          title: "Refresh in progress",
+          message: "The secure refresh is still running. Waiting for the latest completed snapshot to be published.",
+          stage: "Waiting for snapshot",
+          status: "working"
+        });
+      }
 
       const snapshot = await projectRef.get();
       if (!snapshot.exists) continue;
@@ -2031,6 +2141,13 @@
         nextFetchedAt &&
         nextFetchedAt !== previousFetchedAt
       ) {
+        updateRefreshProgress({
+          title: "Refresh complete",
+          message: "The latest REDCap snapshot has been published and is now being displayed.",
+          stage: "Complete",
+          status: "success"
+        });
+
         applyProjectSnapshot(snapshot);
         return true;
       }
@@ -2076,14 +2193,29 @@
 
     const previousFetchedAt = state.data?.fetchedAt || "";
     state.refreshInProgress = true;
+    showRefreshProgress();
     configureRefreshControl();
     setRefreshMessage("Refreshing from REDCap…", "working");
     els.liveStatus.innerHTML =
       '<span class="status-dot status-loading"></span><span>Refreshing from REDCap…</span>';
 
     try {
+      updateRefreshProgress({
+        title: "Authorising refresh",
+        message: "Verifying your secure session before starting the REDCap refresh.",
+        stage: "Authorising",
+        status: "working"
+      });
+
       const idToken = await currentUser.getIdToken(true);
       const endpoint = state.refreshEndpoint.replace(/\/+$/, "");
+
+      updateRefreshProgress({
+        title: "Starting secure refresh",
+        message: "Submitting the refresh request to the protected data service.",
+        stage: "Starting workflow",
+        status: "working"
+      });
 
       const response = await fetch(`${endpoint}/refresh`, {
         method: "POST",
@@ -2136,22 +2268,52 @@
           `Last refreshed: ${formatDate(state.data?.fetchedAt, true)}`,
           "success"
         );
+        showDashboardToast(
+          "success",
+          "Data refresh complete",
+          "The latest Physio-HeMAB WP2 data is now available."
+        );
+        await sleep(750);
       } else {
+        updateRefreshProgress({
+          title: "Refresh still processing",
+          message: "The secure refresh is taking longer than expected. The latest completed snapshot will remain visible.",
+          stage: "Continuing securely",
+          status: "warning"
+        });
+
         await loadDashboard(false);
         setRefreshMessage(
           "Refresh started successfully but is taking longer than expected. The latest completed snapshot is shown.",
           "warning"
         );
+        showDashboardToast(
+          "warning",
+          "Refresh is still processing",
+          "The latest completed snapshot remains visible while the refresh continues."
+        );
+        await sleep(900);
       }
     } catch (error) {
       console.error("Physio-HeMAB manual REDCap refresh failed", error);
-      setRefreshMessage(
-        error?.message || "The REDCap refresh could not be completed.",
-        "error"
-      );
+
+      const message =
+        error?.message || "The REDCap refresh could not be completed.";
+
+      updateRefreshProgress({
+        title: "Refresh could not complete",
+        message,
+        stage: "Attention required",
+        status: "error"
+      });
+
+      setRefreshMessage(message, "error");
+      showDashboardToast("error", "Data refresh unsuccessful", message);
       renderFreshness();
+      await sleep(1000);
     } finally {
       state.refreshInProgress = false;
+      hideRefreshProgress();
       configureRefreshControl();
     }
   }
