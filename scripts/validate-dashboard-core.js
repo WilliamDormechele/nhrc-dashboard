@@ -19,6 +19,7 @@ const projects = read("public/js/projects.js");
 const admin = read("public/js/admin.js");
 const monitoring = read("public/js/monitoring.js");
 const styles = read("public/css/styles.css");
+const permissions = read("public/js/permissions.js");
 const worker = read("integrations/admin-ops-worker/worker.js");
 const workerConfig = read("integrations/admin-ops-worker/wrangler.toml");
 const workerDeploy = read("integrations/admin-ops-worker/deploy.ps1");
@@ -43,6 +44,14 @@ assert(
     app.includes('projectSelect.value = ""') &&
     app.includes('Welcome, ${displayName}'),
   "Explicit project-selection or welcome-name behavior is incomplete."
+);
+
+assert(
+  template.includes('id="chatTabBtn" style="display:none;" aria-hidden="true"') &&
+    template.includes('id="tab-chat" class="tab-content panel chat-tab-panel" style="display:none;" aria-hidden="true"') &&
+    !template.includes('src="js/chat.js') &&
+    permissions.includes("canViewChat: false"),
+  "Live chat is not fully disabled."
 );
 
 [
