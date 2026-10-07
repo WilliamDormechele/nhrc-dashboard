@@ -417,15 +417,15 @@ privacy-minimised Firestore wp2Snapshot
 NHRC Firebase-authenticated dashboard
 ```
 
-The same GitHub Actions workflow also supports an administrator/developer-triggered manual refresh.
+The same GitHub Actions workflow also supports a manual refresh triggered by any active NHRC user assigned to Physio-HeMAB WP2.
 
 ```text
-Administrator clicks Refresh data
+Assigned WP2 user clicks Refresh data
         ↓
 Firebase ID token
         ↓
 free Cloudflare Worker
-        ↓ verifies NHRC role + WP2 assignment
+        ↓ verifies active NHRC profile + WP2 assignment
 GitHub Actions workflow_dispatch
         ↓
 REDCap → PostgreSQL → Firestore
@@ -441,13 +441,12 @@ GitHub Actions cron is UTC, so the workflow has candidate schedules at 20:00 and
 
 #### Manual refresh permissions
 
-Only users whose NHRC profile:
+Any user whose NHRC profile:
 
-- is active and not deleted;
-- has role `administrator` or `developer`; and
+- is active and not deleted; and
 - is assigned to `physio-hemab-wp2`
 
-can trigger the secure manual refresh endpoint.
+can trigger the secure manual refresh endpoint. Administrator/developer status is still required for changing WP2 configuration, but not for refreshing data.
 
 The browser never receives a REDCap API token, Firebase service-account key, or GitHub token.
 
