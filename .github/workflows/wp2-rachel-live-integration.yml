@@ -73,8 +73,8 @@ jobs:
           SELECT device_set, current_status, current_return_completeness, missing_components
           FROM physio_hemab_wp2.vw_device_set_status
           ORDER BY device_set;
-          SELECT facility, COUNT(*) AS returned
+          SELECT return_facility, COUNT(*) AS returned
           FROM physio_hemab_wp2.vw_device_returns
-          GROUP BY facility
-          ORDER BY facility;
+          GROUP BY return_facility
+          ORDER BY return_facility;
           SQL
