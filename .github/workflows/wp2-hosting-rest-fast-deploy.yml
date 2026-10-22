@@ -1,0 +1,158 @@
+name: Firebase Hosting fast REST deploy
+
+on:
+  push:
+    branches:
+      - "deploy/wp2-device-empty-state-rest-fast-20261022"
+    paths:
+      - ".github/workflows/wp2-hosting-rest-fast-deploy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build versioned site
+        run: npm run build:version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deploy Firebase Hosting
+        env:
+          FIREBASE_JSON: ${{ secrets.PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python -m pip install google-auth requests
+          python - <<'PY'
+          import concurrent.futures
+          import gzip
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          import requests
+          from google.auth.transport.requests import Request
+          from google.oauth2 import service_account
+
+          SITE_ID = "nhrc-dashboard"
+          PUBLIC_DIR = Path("public")
+
+          info = json.loads(os.environ["FIREBASE_JSON"])
+          creds = service_account.Credentials.from_service_account_info(
+              info,
+              scopes=["https://www.googleapis.com/auth/cloud-platform"],
+          )
+          creds.refresh(Request())
+          auth = {"Authorization": f"Bearer {creds.token}"}
+          json_headers = {**auth, "Content-Type": "application/json"}
+
+          config = {
+              "config": {
+                  "headers": [
+                      {"glob": "projects/physio-hemab-wp2/**", "headers": {"Cache-Control": "no-cache, no-store, must-revalidate"}},
+                      {"glob": "projects/physio-hemab-wp2/index.html", "headers": {"Cache-Control": "no-cache, no-store, must-revalidate"}},
+                      {"glob": "index.html", "headers": {"Cache-Control": "no-cache, no-store, must-revalidate"}},
+                      {"glob": "**/*.@(js|css)", "headers": {"Cache-Control": "public, max-age=31536000, immutable"}},
+                      {"glob": "**/*.@(png|jpg|jpeg|gif|svg|webp|ico)", "headers": {"Cache-Control": "public, max-age=31536000, immutable"}},
+                  ]
+              }
+          }
+
+          base = f"https://firebasehosting.googleapis.com/v1beta1/sites/{SITE_ID}"
+          r = requests.post(f"{base}/versions", headers=json_headers, json=config, timeout=60)
+          print("create=", r.status_code)
+          if r.status_code not in (200, 201):
+              print(r.text[:4000])
+              raise SystemExit(1)
+          version_name = r.json()["name"]
+          version_id = version_name.rsplit("/", 1)[-1]
+          print("version=", version_name)
+
+          files = {}
+          compressed = {}
+          for path in sorted(PUBLIC_DIR.rglob("*")):
+              if not path.is_file():
+                  continue
+              rel_parts = path.relative_to(PUBLIC_DIR).parts
+              if any(part.startswith(".") for part in rel_parts) or "node_modules" in rel_parts:
+                  continue
+              rel = "/" + path.relative_to(PUBLIC_DIR).as_posix()
+              data = gzip.compress(path.read_bytes(), compresslevel=9, mtime=0)
+              digest = hashlib.sha256(data).hexdigest()
+              files[rel] = digest
+              compressed[digest] = data
+
+          required = set()
+          upload_url = None
+          items = list(files.items())
+          for start in range(0, len(items), 1000):
+              r = requests.post(
+                  f"{base}/versions/{version_id}:populateFiles",
+                  headers=json_headers,
+                  json={"files": dict(items[start:start+1000])},
+                  timeout=120,
+              )
+              print("populate=", r.status_code, start)
+              if r.status_code != 200:
+                  print(r.text[:4000])
+                  raise SystemExit(1)
+              payload = r.json()
+              required.update(payload.get("uploadRequiredHashes", []))
+              upload_url = payload.get("uploadUrl") or upload_url
+
+          print("files=", len(files), "uploads_required=", len(required))
+
+          def upload(digest):
+              r = requests.post(
+                  f"{upload_url}/{digest}",
+                  headers={**auth, "Content-Type": "application/octet-stream"},
+                  data=compressed[digest],
+                  timeout=120,
+              )
+              if r.status_code not in (200, 201):
+                  return digest, r.status_code, r.text[:1000]
+              return digest, r.status_code, ""
+
+          failures = []
+          if required:
+              with concurrent.futures.ThreadPoolExecutor(max_workers=32) as pool:
+                  for idx, result in enumerate(pool.map(upload, sorted(required)), start=1):
+                      digest, status, body = result
+                      if status not in (200, 201):
+                          failures.append((digest, status, body))
+                      if idx % 100 == 0 or idx == len(required):
+                          print(f"uploaded={idx}/{len(required)}")
+          if failures:
+              print("upload_failures=", failures[:5])
+              raise SystemExit(1)
+
+          r = requests.patch(
+              f"{base}/versions/{version_id}?update_mask=status",
+              headers=json_headers,
+              json={"status": "FINALIZED"},
+              timeout=60,
+          )
+          print("finalize=", r.status_code)
+          if r.status_code != 200:
+              print(r.text[:4000])
+              raise SystemExit(1)
+
+          r = requests.post(
+              f"{base}/releases",
+              headers=auth,
+              params={"versionName": version_name},
+              timeout=60,
+          )
+          print("release=", r.status_code)
+          if r.status_code not in (200, 201):
+              print(r.text[:4000])
+              raise SystemExit(1)
+
+          print("DEPLOYED https://nhrc-dashboard.web.app")
+          PY
