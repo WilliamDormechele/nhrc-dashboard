@@ -114,7 +114,7 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-10-07.6"),
+    wp2Html.includes("WP2 UI build 2026-10-22.1"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
@@ -276,9 +276,43 @@ assert(
 
 assert(
   devicesFieldMap.includes('"pid": 411') &&
-    devicesFieldMap.includes('"devices_date"') &&
-    devicesFieldMap.includes('"devices_return"'),
+    devicesFieldMap.includes('"device_sets"') &&
+    devicesFieldMap.includes('"A10"') &&
+    devicesFieldMap.includes('"B10"') &&
+    devicesFieldMap.includes('"return_log_new"') &&
+    devicesFieldMap.includes('"returned_a1"') &&
+    devicesFieldMap.includes('"complete_b10"') &&
+    devicesFieldMap.includes('"missings_b10"'),
   "Devices REDCap field mapping is incomplete."
+);
+
+assert(
+  syncPy.includes("DEVICE_SET_SUFFIXES") &&
+    syncPy.includes('f"distributed_{suffix}"') &&
+    syncPy.includes('f"facility_{suffix}"') &&
+    syncPy.includes('f"returned_{suffix}"') &&
+    syncPy.includes('f"ret_facility_{suffix}"') &&
+    syncPy.includes('f"complete_{suffix}"') &&
+    syncPy.includes('f"missings_{suffix}"'),
+  "Twenty-set device synchronization is incomplete."
+);
+
+assert(
+  views.includes("return_log_new") &&
+    views.includes("return_completeness_status") &&
+    views.includes("missing_components") &&
+    views.includes("'Sirigu Health Centre'"),
+  "New device return/completeness reporting logic is incomplete."
+);
+
+assert(
+  wp2DashboardJs.includes("Mean Call Attempts per Participant by Week") &&
+    wp2DashboardJs.includes("Interview Held on Same Day") &&
+    wp2DashboardJs.includes("Activity Diaries Recorded per Week") &&
+    wp2DashboardJs.includes("Devices Returned by Facility") &&
+    wp2DashboardJs.includes("Current Device Return Status") &&
+    wp2DashboardJs.includes("Missing Components"),
+  "Rachel feedback dashboard visuals are incomplete."
 );
 
 assert(

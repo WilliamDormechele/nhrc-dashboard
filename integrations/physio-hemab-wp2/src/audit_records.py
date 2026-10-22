@@ -223,57 +223,67 @@ def main() -> None:
             print("data_collector_metadata=NOT_FOUND")
 
     elif settings.project_key == "devices":
+        suffixes = [
+            "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10",
+            "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10",
+        ]
+
         print(
             "distribution_rows_with_date="
             + str(sum(nonblank(row.get("devices_date")) for row in records))
         )
         print(
             "return_rows_with_date="
-            + str(sum(nonblank(row.get("date_devices_return")) for row in records))
+            + str(sum(nonblank(row.get("return_date")) for row in records))
         )
 
-        distribution_fields = [
-            "devices_war",
-            "devices_paga",
-            "devices_pungu",
-            "devices_sirigu",
-        ]
+        for suffix in suffixes:
+            label = suffix.upper()
+            distributed_field = f"distributed_{suffix}"
+            returned_field = f"returned_{suffix}"
+            complete_field = f"complete_{suffix}"
+            missing_field = f"missings_{suffix}"
 
-        for field in distribution_fields:
-            counts = checkbox_key_counts(records, field)
-            labels = choice_label_map(metadata_map.get(field))
-            print(
-                f"{field}_selected_counts="
-                + render_counter(counts, labels)
+            distributed_labels = choice_label_map(metadata_map.get(distributed_field))
+            returned_labels = choice_label_map(metadata_map.get(returned_field))
+            complete_labels = choice_label_map(metadata_map.get(complete_field))
+            missing_labels = choice_label_map(metadata_map.get(missing_field))
+
+            distributed_counts = Counter(
+                str(row.get(distributed_field, "")).strip()
+                for row in records
+                if nonblank(row.get(distributed_field))
             )
-
-        returned_sets = checkbox_key_counts(records, "devices_return")
-        returned_labels = choice_label_map(metadata_map.get("devices_return"))
-        print(
-            "devices_return_selected_counts="
-            + render_counter(returned_sets, returned_labels)
-        )
-
-        for field in [
-            "set_a1",
-            "set_a2",
-            "set_a3",
-            "set_a4",
-            "set_a5",
-            "set_b1",
-            "set_b2",
-            "set_b3",
-            "set_b4",
-            "set_b5",
-        ]:
-            counts = checkbox_key_counts(records, field)
-            if not counts:
-                continue
-            labels = choice_label_map(metadata_map.get(field))
-            print(
-                f"{field}_component_counts="
-                + render_counter(counts, labels)
+            returned_counts = Counter(
+                str(row.get(returned_field, "")).strip()
+                for row in records
+                if nonblank(row.get(returned_field))
             )
+            complete_counts = Counter(
+                str(row.get(complete_field, "")).strip()
+                for row in records
+                if nonblank(row.get(complete_field))
+            )
+            missing_counts = checkbox_key_counts(records, missing_field)
+
+            print(
+                f"{label}_distributed_counts="
+                + render_counter(distributed_counts, distributed_labels)
+            )
+            print(
+                f"{label}_returned_counts="
+                + render_counter(returned_counts, returned_labels)
+            )
+            print(
+                f"{label}_complete_counts="
+                + render_counter(complete_counts, complete_labels)
+            )
+            if missing_counts:
+                print(
+                    f"{label}_missing_components="
+                    + render_counter(missing_counts, missing_labels)
+                )
+
 
 
 if __name__ == "__main__":
