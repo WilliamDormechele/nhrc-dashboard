@@ -77,8 +77,8 @@ def main() -> None:
                 """
                 SELECT
                     COUNT(*)::integer,
-                    COUNT(*) FILTER (WHERE all_components_returned)::integer,
-                    COUNT(*) FILTER (WHERE NOT all_components_returned)::integer
+                    COUNT(*) FILTER (WHERE all_components_returned IS TRUE)::integer,
+                    COUNT(*) FILTER (WHERE all_components_returned IS FALSE)::integer
                 FROM physio_hemab_wp2.vw_device_returns
                 """
             )
