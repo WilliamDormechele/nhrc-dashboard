@@ -1,0 +1,84 @@
+name: WP2 REDCap field audit
+
+on:
+  push:
+    branches:
+      - "audit/wp2-redcap-field-audit-20261022"
+    paths:
+      - ".github/workflows/wp2-redcap-field-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install WP2 dependencies
+        working-directory: integrations/physio-hemab-wp2
+        run: python -m pip install --upgrade pip -r requirements.txt
+
+      - name: Inspect live REDCap metadata
+        working-directory: integrations/physio-hemab-wp2
+        env:
+          PHYSIO_HEMAB_MAIN_REDCAP_API_URL: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_URL }}
+          PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN }}
+          PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD || 'record_id' }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_URL: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_URL }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD || 'record_id' }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          python - <<'PY'
+          import re
+          from config import load_redcap_settings
+          from redcap_client import RedcapClient
+
+          def choices_count(raw):
+              items=[x.strip() for x in str(raw or "").split("|") if x.strip()]
+              return len(items)
+
+          def inspect(project_key):
+              settings=load_redcap_settings(project_key, require_record_id=True)
+              client=RedcapClient(
+                  api_url=settings.api_url,
+                  api_token=settings.api_token,
+                  timeout_seconds=settings.request_timeout_seconds,
+              )
+              metadata=client.export_metadata()
+              print(f"## PROJECT {project_key} PID={settings.pid} fields={len(metadata)}")
+
+              wanted_forms={"activity_diary"} if project_key=="main" else {"distribution_log","return_log"}
+              for field in metadata:
+                  name=str(field.get("field_name","")).strip()
+                  form=str(field.get("form_name","")).strip()
+                  label=str(field.get("field_label","")).strip().replace("\n"," ")
+                  ftype=str(field.get("field_type","")).strip()
+                  raw_choices=str(field.get("select_choices_or_calculations","") or "")
+                  keyword=bool(re.search(r"(device|return|complete|incomplete|missing|component|call|diar|set)", f"{name} {label}", re.I))
+                  if form in wanted_forms or keyword:
+                      print(
+                          "FIELD|"
+                          + "|".join([
+                              project_key,
+                              form,
+                              name,
+                              ftype,
+                              f"choices={choices_count(raw_choices)}",
+                              label.replace("|","/"),
+                              raw_choices.replace("|",";").replace("\n"," "),
+                          ])
+                      )
+
+          inspect("main")
+          inspect("devices")
+          PY
