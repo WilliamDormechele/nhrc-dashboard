@@ -37,7 +37,7 @@ jobs:
           )
           creds.refresh(Request())
           headers={"Authorization":f"Bearer {creds.token}"}
-          url="https://firebasehosting.googleapis.com/v1beta1/sites/nhrc-dashboard"
+          url="https://firebasehosting.googleapis.com/v1beta1/projects/nhrc-dashboard/sites"
           r=requests.get(url,headers=headers,timeout=30)
           print("status=",r.status_code)
           print(r.text[:2000])
