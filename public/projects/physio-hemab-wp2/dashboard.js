@@ -150,7 +150,8 @@
   }
 
   function deviceMatches(row) {
-    if (state.filters.facility && row.latestFacility !== state.filters.facility) return false;
+    const facility = row.latestReturnFacility || row.latestFacility || "";
+    if (state.filters.facility && facility !== state.filters.facility) return false;
     return true;
   }
 
@@ -174,7 +175,10 @@
   }
 
   function filteredReturns() {
-    return (state.data?.deviceReturns || []).filter((row) => dateInRange(row.returnDate));
+    return (state.data?.deviceReturns || []).filter((row) => {
+      if (state.filters.facility && row.returnFacility !== state.filters.facility) return false;
+      return dateInRange(row.returnDate);
+    });
   }
 
   function unique(values) {
@@ -973,28 +977,58 @@
     const calls = sumBy(diaries, "callsMade");
     const avgCalls = average(diaries.map((r) => r.callsMade));
     const avgDelay = average(diaries.map((r) => r.delayDays));
-    const maxDelay = Math.max(0, ...diaries.map((r) => Number(r.delayDays)).filter(Number.isFinite));
+    const maxDelay = Math.max(
+      0,
+      ...diaries.map((r) => Number(r.delayDays)).filter(Number.isFinite)
+    );
 
-    const callsByFacility = FACILITIES.map((facility) => ({
-      facility,
-      calls: sumBy(diaries.filter((r) => r.facility === facility), "callsMade")
-    }));
-    const instanceMap = countBy(diaries, "diaryInstance");
+    const participantWeekCalls = new Map();
+    diaries.forEach((row, index) => {
+      const week = weekStartMonday(row.diaryDate);
+      const callsMade = Number(row.callsMade);
+      if (!week || !Number.isFinite(callsMade)) return;
+
+      const participantKey =
+        String(row.studyId || "").trim() ||
+        `unidentified-${index}`;
+      const key = `${week}::${participantKey}`;
+
+      participantWeekCalls.set(
+        key,
+        (participantWeekCalls.get(key) || 0) + callsMade
+      );
+    });
+
+    const callsByWeek = new Map();
+    participantWeekCalls.forEach((callsMade, key) => {
+      const week = key.split("::", 1)[0];
+      if (!callsByWeek.has(week)) callsByWeek.set(week, []);
+      callsByWeek.get(week).push(callsMade);
+    });
+
+    const meanCallsByWeek = [...callsByWeek.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([week, values]) => ({
+        week,
+        meanCalls: average(values) || 0
+      }));
+
+    const diariesByWeek = weeklyCounts(diaries, "diaryDate");
 
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
         ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}`)}
-        ${kpiCard("On-Time", `${number(percent(sameDay, complete), 1)}%`, "positive", `${sameDay} same-day interviews`)}
-        ${kpiCard("Delayed", `${number(percent(delayed, complete), 1)}%`, delayed ? "problem" : "positive", `${delayed} delayed interviews`)}
+        ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, complete), 1)}%`, "positive", `${sameDay} Yes`)}
+        ${kpiCard("Delayed Interviews", `${number(percent(delayed, complete), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
         ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} total calls`)}
         ${kpiCard("Avg Delay", number(avgDelay, 2), avgDelay > 0 ? "warning" : "positive", "Days")}
         ${kpiCard("Max Delay", number(maxDelay), maxDelay > 0 ? "problem" : "positive", "Days")}
       </div>
 
       <div class="dashboard-grid">
-        ${panel("Call Attempts by Facility", chartCanvas("diaryCalls", true), 4)}
-        ${panel("Interview Timing", chartCanvas("diaryTiming", true), 4)}
-        ${panel("Diary Instances Recorded", chartCanvas("diaryInstances", true), 4)}
+        ${panel("Mean Call Attempts per Participant by Week", chartCanvas("diaryCalls", true), 4)}
+        ${panel("Interview Held on Same Day", chartCanvas("diaryTiming", true), 4)}
+        ${panel("Activity Diaries Recorded per Week", chartCanvas("diaryInstances", true), 4)}
         ${panel(
           "Activity Diary Operational Detail",
           table(
@@ -1018,23 +1052,30 @@
       </div>
     `;
 
-    buildChart(
-      "diaryCalls",
-      {
-        type: "bar",
-        data: {
-          labels: callsByFacility.map((r) => r.facility),
-          datasets: [{
-            label: "Call Attempts",
-            data: callsByFacility.map((r) => r.calls),
-            backgroundColor: COLORS.blue,
-            borderRadius: 5
-          }]
-        },
-        options: { plugins: { legend: { display: false } } }
+    buildChart("diaryCalls", {
+      type: "line",
+      data: {
+        labels: meanCallsByWeek.map((row) => formatDate(row.week)),
+        datasets: [{
+          label: "Mean Call Attempts",
+          data: meanCallsByWeek.map((row) => row.meanCalls),
+          borderColor: COLORS.blue,
+          backgroundColor: COLORS.blue,
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          tension: 0.25
+        }]
       },
-      (label) => setFacilityFilter(label)
-    );
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 1 }
+          }
+        }
+      }
+    });
 
     buildChart("diaryTiming", {
       type: "bar",
@@ -1050,17 +1091,13 @@
       options: { plugins: { legend: { display: false } } }
     });
 
-    const instances = [...instanceMap.entries()]
-      .filter(([key]) => key !== "Unassigned")
-      .sort((a, b) => Number(a[0]) - Number(b[0]));
-
     buildChart("diaryInstances", {
       type: "bar",
       data: {
-        labels: instances.map(([key]) => String(key)),
+        labels: diariesByWeek.map((row) => formatDate(row.weekStart)),
         datasets: [{
-          label: "Diaries",
-          data: instances.map(([, count]) => count),
+          label: "Activity Diaries",
+          data: diariesByWeek.map((row) => row.count),
           backgroundColor: COLORS.teal,
           borderRadius: 5
         }]
@@ -1071,6 +1108,9 @@
 
   function deviceStatusWithWindow(deviceSet, windowDays) {
     if (!deviceSet) return { status: "Unknown", expectedReturnDate: "", isOverdue: false };
+    if (deviceSet.currentStatus === "Not distributed") {
+      return { status: "Not distributed", expectedReturnDate: "", isOverdue: false };
+    }
     if (deviceSet.currentStatus === "Returned") {
       return {
         status: "Returned",
@@ -1113,28 +1153,40 @@
     const deviceSets = filteredDeviceSets();
     const returns = filteredReturns();
     const distributions = filteredDistributions();
-    const componentsReturned = sumBy(returns, "componentsReturned");
+    const componentsReturned = sumBy(
+      returns.filter((r) => Number.isFinite(Number(r.componentsReturned))),
+      "componentsReturned"
+    );
     const componentsExpected = sumBy(returns, "componentsExpected");
-    const completeReturns = returns.filter((r) => r.allComponentsReturned).length;
-    const incompleteReturns = returns.filter((r) => !r.allComponentsReturned).length;
+    const completeReturns = returns.filter(
+      (r) => r.returnCompletenessStatus === "Complete"
+    ).length;
+    const incompleteReturns = returns.filter(
+      (r) => r.returnCompletenessStatus === "Incomplete"
+    ).length;
     const overdue = deviceSets.filter((row) =>
       deviceStatusWithWindow(row, state.returnWindowDays).isOverdue
     ).length;
 
-    const componentsByFacility = FACILITIES.map((facility) => {
-      const sets = deviceSets.filter((r) => r.latestFacility === facility);
-      return {
-        facility,
-        expected: sumBy(sets, "componentsExpected"),
-        returned: sumBy(sets, "componentsReturned")
-      };
-    });
+    const returnsByFacility = FACILITIES.map((facility) => ({
+      facility,
+      returned: returns.filter((row) => row.returnFacility === facility).length
+    }));
 
-    const statusMap = countBy(deviceSets, "currentStatus");
+    const currentComplete = deviceSets.filter(
+      (row) =>
+        row.currentStatus === "Returned" &&
+        row.currentReturnCompleteness === "Complete"
+    ).length;
+    const currentIncomplete = deviceSets.filter(
+      (row) =>
+        row.currentStatus === "Returned" &&
+        row.currentReturnCompleteness === "Incomplete"
+    ).length;
 
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
-        ${kpiCard("Return Records", number(returns.length), "info")}
+        ${kpiCard("Returned Device Sets", number(returns.length), "info")}
         ${kpiCard("Complete Returns", number(completeReturns), "positive")}
         ${kpiCard("Incomplete Returns", number(incompleteReturns), incompleteReturns ? "problem" : "positive")}
         ${kpiCard("Component Completeness", `${number(percent(componentsReturned, componentsExpected), 1)}%`, incompleteReturns ? "warning" : "positive", `${componentsReturned} of ${componentsExpected}`)}
@@ -1143,29 +1195,37 @@
       </div>
 
       <div class="dashboard-grid">
-        ${panel("Device Components by Latest Facility", chartCanvas("deviceFacility"), 6)}
-        ${panel("Current Device Set Status", chartCanvas("deviceStatus"), 6)}
+        ${panel("Devices Returned by Facility", chartCanvas("deviceFacility"), 6)}
+        ${panel("Current Device Return Status", chartCanvas("deviceStatus"), 6)}
         ${panel("Weekly Device Distribution vs Return", chartCanvas("deviceWeeklyFlow", true), 12)}
         ${panel(
           "Current Device Set Detail",
           table(
-            ["Device Set", "Status", "Facility", "Study ID", "Distributed", "Expected Return", "Returned", "Components"],
+            ["Device Set", "Lifecycle", "Return Completeness", "Facility", "Study ID", "Distributed", "Returned", "Components", "Missing Components"],
             deviceSets.map((r) => {
               const scenario = deviceStatusWithWindow(r, state.returnWindowDays);
+              const facility = r.latestReturnFacility || r.latestFacility || "—";
+              const completeness =
+                r.currentReturnCompleteness ||
+                (r.currentStatus === "Returned" ? "Unknown" : "Awaiting return");
+
               return [
                 escapeHtml(r.deviceSet || "—"),
                 statusChip(scenario.status),
-                escapeHtml(r.latestFacility || "—"),
+                statusChip(completeness),
+                escapeHtml(facility),
                 escapeHtml(r.latestStudyId || "—"),
                 escapeHtml(formatDate(r.latestDistributionDate)),
-                escapeHtml(formatDate(scenario.expectedReturnDate)),
                 escapeHtml(formatDate(r.latestReturnDate)),
-                r.componentsExpected
+                r.componentsExpected && r.componentsReturned !== null
                   ? `${number(r.componentsReturned)} / ${number(r.componentsExpected)}`
-                  : "—"
+                  : "—",
+                escapeHtml(r.missingComponents || "—")
               ];
             }),
-            deviceSets.map((r) => `data-filter-facility="${escapeHtml(r.latestFacility)}"`)
+            deviceSets.map((r) =>
+              `data-filter-facility="${escapeHtml(r.latestReturnFacility || r.latestFacility || "")}"`
+            )
           ),
           12
         )}
@@ -1177,23 +1237,15 @@
       {
         type: "bar",
         data: {
-          labels: componentsByFacility.map((r) => r.facility),
-          datasets: [
-            {
-              label: "Expected Components",
-              data: componentsByFacility.map((r) => r.expected),
-              backgroundColor: "#BFD0DD",
-              borderRadius: 4
-            },
-            {
-              label: "Returned Components",
-              data: componentsByFacility.map((r) => r.returned),
-              backgroundColor: COLORS.teal,
-              borderRadius: 4
-            }
-          ]
+          labels: returnsByFacility.map((row) => row.facility),
+          datasets: [{
+            label: "Returned Device Sets",
+            data: returnsByFacility.map((row) => row.returned),
+            backgroundColor: COLORS.teal,
+            borderRadius: 5
+          }]
         },
-        options: { indexAxis: "y" }
+        options: { plugins: { legend: { display: false } } }
       },
       (label) => setFacilityFilter(label)
     );
@@ -1232,17 +1284,14 @@
       }
     });
 
-    const statuses = [...statusMap.entries()];
     buildChart("deviceStatus", {
       type: "bar",
       data: {
-        labels: statuses.map(([label]) => label),
+        labels: ["Complete", "Incomplete"],
         datasets: [{
           label: "Device Sets",
-          data: statuses.map(([, count]) => count),
-          backgroundColor: statuses.map(([label]) =>
-            label === "Returned" ? COLORS.green : label === "Distributed" ? COLORS.amber : COLORS.slate
-          ),
+          data: [currentComplete, currentIncomplete],
+          backgroundColor: [COLORS.green, COLORS.red],
           borderRadius: 5
         }]
       },
@@ -1382,12 +1431,14 @@
         ${panel(
           "Incomplete Device Returns",
           table(
-            ["Device Set", "Return Date", "Components Returned", "Components Expected"],
+            ["Device Set", "Facility", "Return Date", "Components Returned", "Components Expected", "Missing Components"],
             incompleteReturns.map((r) => [
               escapeHtml(r.deviceSet || "—"),
+              escapeHtml(r.returnFacility || "—"),
               escapeHtml(formatDate(r.returnDate)),
-              number(r.componentsReturned),
-              number(r.componentsExpected)
+              r.componentsReturned === null ? "—" : number(r.componentsReturned),
+              number(r.componentsExpected),
+              escapeHtml(r.missingComponents || "—")
             ])
           ),
           12,
