@@ -3,77 +3,266 @@
   "redcap_project": "HeMAB Ghana Devices",
   "pid": 411,
   "record_id": "record_id",
+  "data_collector": "data_collector",
+  "distribution_instrument": "distribution_log",
   "distribution_date": "devices_date",
   "distribution_form_complete": "distribution_log_complete",
-  "return_date": "date_devices_return",
-  "returned_sets": "devices_return",
-  "return_form_complete": "return_log_complete",
-  "facility_distribution_fields": {
-    "War Memorial Hospital": "devices_war",
-    "Paga District Hospital": "devices_paga",
-    "Pungu Central": "devices_pungu",
-    "Martyrs of Uganda Health Centre, Sirigu": "devices_sirigu"
+  "device_sets": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6",
+    "A7",
+    "A8",
+    "A9",
+    "A10",
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B9",
+    "B10"
+  ],
+  "distribution_fields": {
+    "A1": {
+      "distributed": "distributed_a1",
+      "facility": "facility_a1",
+      "study_id": "study_id_a1"
+    },
+    "A2": {
+      "distributed": "distributed_a2",
+      "facility": "facility_a2",
+      "study_id": "study_id_a2"
+    },
+    "A3": {
+      "distributed": "distributed_a3",
+      "facility": "facility_a3",
+      "study_id": "study_id_a3"
+    },
+    "A4": {
+      "distributed": "distributed_a4",
+      "facility": "facility_a4",
+      "study_id": "study_id_a4"
+    },
+    "A5": {
+      "distributed": "distributed_a5",
+      "facility": "facility_a5",
+      "study_id": "study_id_a5"
+    },
+    "A6": {
+      "distributed": "distributed_a6",
+      "facility": "facility_a6",
+      "study_id": "study_id_a6"
+    },
+    "A7": {
+      "distributed": "distributed_a7",
+      "facility": "facility_a7",
+      "study_id": "study_id_a7"
+    },
+    "A8": {
+      "distributed": "distributed_a8",
+      "facility": "facility_a8",
+      "study_id": "study_id_a8"
+    },
+    "A9": {
+      "distributed": "distributed_a9",
+      "facility": "facility_a9",
+      "study_id": "study_id_a9"
+    },
+    "A10": {
+      "distributed": "distributed_a10",
+      "facility": "facility_a10",
+      "study_id": "study_id_a10"
+    },
+    "B1": {
+      "distributed": "distributed_b1",
+      "facility": "facility_b1",
+      "study_id": "study_id_b1"
+    },
+    "B2": {
+      "distributed": "distributed_b2",
+      "facility": "facility_b2",
+      "study_id": "study_id_b2"
+    },
+    "B3": {
+      "distributed": "distributed_b3",
+      "facility": "facility_b3",
+      "study_id": "study_id_b3"
+    },
+    "B4": {
+      "distributed": "distributed_b4",
+      "facility": "facility_b4",
+      "study_id": "study_id_b4"
+    },
+    "B5": {
+      "distributed": "distributed_b5",
+      "facility": "facility_b5",
+      "study_id": "study_id_b5"
+    },
+    "B6": {
+      "distributed": "distributed_b6",
+      "facility": "facility_b6",
+      "study_id": "study_id_b6"
+    },
+    "B7": {
+      "distributed": "distributed_b7",
+      "facility": "facility_b7",
+      "study_id": "study_id_b7"
+    },
+    "B8": {
+      "distributed": "distributed_b8",
+      "facility": "facility_b8",
+      "study_id": "study_id_b8"
+    },
+    "B9": {
+      "distributed": "distributed_b9",
+      "facility": "facility_b9",
+      "study_id": "study_id_b9"
+    },
+    "B10": {
+      "distributed": "distributed_b10",
+      "facility": "facility_b10",
+      "study_id": "study_id_b10"
+    }
   },
-  "device_study_id_fields": {
-    "War Memorial Hospital": [
-      "study_id_a1",
-      "study_id_a2",
-      "study_id_a3",
-      "study_id_a4",
-      "study_id_a5",
-      "study_id_b1",
-      "study_id_b2",
-      "study_id_b3",
-      "study_id_b4",
-      "study_id_b5"
-    ],
-    "Paga District Hospital": [
-      "study_id_paga_a1",
-      "study_id_paga_a2",
-      "study_id_paga_a3",
-      "study_id_paga_a4",
-      "study_id_paga_a5",
-      "study_id_paga_b1",
-      "study_id_paga_b2",
-      "study_id_paga_b3",
-      "study_id_paga_b4",
-      "study_id_paga_b5"
-    ],
-    "Pungu Central": [
-      "study_id_pungu_a1",
-      "study_id_pungu_a2",
-      "study_id_pungu_a3",
-      "study_id_pungu_a4",
-      "study_id_pungu_a5",
-      "study_id_pungu_b1",
-      "study_id_pungu_b2",
-      "study_id_pungu_b3",
-      "study_id_pungu_b4",
-      "study_id_pungu_b5"
-    ],
-    "Martyrs of Uganda Health Centre, Sirigu": [
-      "study_id_sirigu_a1",
-      "study_id_sirigu_a2",
-      "study_id_sirigu_a3",
-      "study_id_sirigu_a4",
-      "study_id_sirigu_a5",
-      "study_id_sirigu_b",
-      "study_id_sirigu_b2",
-      "study_id_sirigu_b3",
-      "study_id_sirigu_b4",
-      "study_id_sirigu_b5"
-    ]
+  "return_instrument": "return_log_new",
+  "return_date": "return_date",
+  "return_form_complete": "return_log_new_complete",
+  "return_fields": {
+    "A1": {
+      "returned": "returned_a1",
+      "facility": "ret_facility_a1",
+      "complete": "complete_a1",
+      "missing": "missings_a1"
+    },
+    "A2": {
+      "returned": "returned_a2",
+      "facility": "ret_facility_a2",
+      "complete": "complete_a2",
+      "missing": "missings_a2"
+    },
+    "A3": {
+      "returned": "returned_a3",
+      "facility": "ret_facility_a3",
+      "complete": "complete_a3",
+      "missing": "missings_a3"
+    },
+    "A4": {
+      "returned": "returned_a4",
+      "facility": "ret_facility_a4",
+      "complete": "complete_a4",
+      "missing": "missings_a4"
+    },
+    "A5": {
+      "returned": "returned_a5",
+      "facility": "ret_facility_a5",
+      "complete": "complete_a5",
+      "missing": "missings_a5"
+    },
+    "A6": {
+      "returned": "returned_a6",
+      "facility": "ret_facility_a6",
+      "complete": "complete_a6",
+      "missing": "missings_a6"
+    },
+    "A7": {
+      "returned": "returned_a7",
+      "facility": "ret_facility_a7",
+      "complete": "complete_a7",
+      "missing": "missings_a7"
+    },
+    "A8": {
+      "returned": "returned_a8",
+      "facility": "ret_facility_a8",
+      "complete": "complete_a8",
+      "missing": "missings_a8"
+    },
+    "A9": {
+      "returned": "returned_a9",
+      "facility": "ret_facility_a9",
+      "complete": "complete_a9",
+      "missing": "missings_a9"
+    },
+    "A10": {
+      "returned": "returned_a10",
+      "facility": "ret_facility_a10",
+      "complete": "complete_a10",
+      "missing": "missings_a10"
+    },
+    "B1": {
+      "returned": "returned_b1",
+      "facility": "ret_facility_b1",
+      "complete": "complete_b1",
+      "missing": "missings_b1"
+    },
+    "B2": {
+      "returned": "returned_b2",
+      "facility": "ret_facility_b2",
+      "complete": "complete_b2",
+      "missing": "missings_b2"
+    },
+    "B3": {
+      "returned": "returned_b3",
+      "facility": "ret_facility_b3",
+      "complete": "complete_b3",
+      "missing": "missings_b3"
+    },
+    "B4": {
+      "returned": "returned_b4",
+      "facility": "ret_facility_b4",
+      "complete": "complete_b4",
+      "missing": "missings_b4"
+    },
+    "B5": {
+      "returned": "returned_b5",
+      "facility": "ret_facility_b5",
+      "complete": "complete_b5",
+      "missing": "missings_b5"
+    },
+    "B6": {
+      "returned": "returned_b6",
+      "facility": "ret_facility_b6",
+      "complete": "complete_b6",
+      "missing": "missings_b6"
+    },
+    "B7": {
+      "returned": "returned_b7",
+      "facility": "ret_facility_b7",
+      "complete": "complete_b7",
+      "missing": "missings_b7"
+    },
+    "B8": {
+      "returned": "returned_b8",
+      "facility": "ret_facility_b8",
+      "complete": "complete_b8",
+      "missing": "missings_b8"
+    },
+    "B9": {
+      "returned": "returned_b9",
+      "facility": "ret_facility_b9",
+      "complete": "complete_b9",
+      "missing": "missings_b9"
+    },
+    "B10": {
+      "returned": "returned_b10",
+      "facility": "ret_facility_b10",
+      "complete": "complete_b10",
+      "missing": "missings_b10"
+    }
   },
-  "returned_component_fields": [
-    "set_a1",
-    "set_a2",
-    "set_a3",
-    "set_a4",
-    "set_a5",
-    "set_b1",
-    "set_b2",
-    "set_b3",
-    "set_b4",
-    "set_b5"
-  ]
+  "missing_component_choices": {
+    "0": "Bittium + Cable",
+    "1": "Greenteg",
+    "2": "Geneactive",
+    "3": "Switchbot",
+    "4": "URGREEN"
+  },
+  "metadata_verified_at": "2026-10-22",
+  "metadata_note": "Verified from live REDCap metadata. Distribution and return logs use per-device-set Yes/No fields for A1-A10 and B1-B10."
 }
