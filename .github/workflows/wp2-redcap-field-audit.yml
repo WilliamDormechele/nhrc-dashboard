@@ -37,6 +37,7 @@ jobs:
           PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
           PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD || 'record_id' }}
           PYTHONIOENCODING: utf-8
+          PYTHONPATH: src
         run: |
           python - <<'PY'
           import re
