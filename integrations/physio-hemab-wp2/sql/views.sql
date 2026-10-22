@@ -426,7 +426,6 @@ FROM physio_hemab_wp2.raw_records r
 CROSS JOIN mappings m
 WHERE r.source_project = 'devices'
   AND r.is_active = TRUE
-  AND r.repeat_instrument = 'distribution_log'
   AND physio_hemab_wp2.choice_label(
         'devices',
         'distributed_' || m.suffix,
@@ -534,7 +533,7 @@ CROSS JOIN LATERAL (
 ) missing
 WHERE r.source_project = 'devices'
   AND r.is_active = TRUE
-  AND r.repeat_instrument = 'return_log_new'
+  AND NULLIF(r.payload ->> 'return_date', '') IS NOT NULL
   AND physio_hemab_wp2.choice_label(
         'devices',
         'returned_' || m.suffix,

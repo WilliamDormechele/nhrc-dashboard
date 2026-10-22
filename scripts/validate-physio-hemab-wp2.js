@@ -306,6 +306,13 @@ assert(
 );
 
 assert(
+  !views.includes("r.repeat_instrument = 'distribution_log'") &&
+    !views.includes("r.repeat_instrument = 'return_log_new'") &&
+    views.includes("NULLIF(r.payload ->> 'return_date', '') IS NOT NULL"),
+  "Device reporting must support the live non-repeating REDCap record structure."
+);
+
+assert(
   wp2DashboardJs.includes('const hasReturns = returns.length > 0') &&
     wp2DashboardJs.includes('const hasComponentData = componentsExpected > 0') &&
     wp2DashboardJs.includes('No device returns recorded yet.') &&
