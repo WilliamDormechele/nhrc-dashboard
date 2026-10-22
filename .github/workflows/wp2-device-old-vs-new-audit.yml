@@ -1,0 +1,79 @@
+name: WP2 device legacy versus new field audit
+
+on:
+  push:
+    branches:
+      - "audit/wp2-device-old-vs-new-20261022"
+    paths:
+      - ".github/workflows/wp2-device-old-vs-new-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        working-directory: integrations/physio-hemab-wp2
+        run: python -m pip install --upgrade pip -r requirements.txt
+      - name: Count legacy and revised device fields
+        working-directory: integrations/physio-hemab-wp2
+        env:
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_URL: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_URL }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
+          PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD || 'record_id' }}
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from config import load_redcap_settings
+          from redcap_client import RedcapClient
+
+          settings=load_redcap_settings("devices", require_record_id=True)
+          client=RedcapClient(settings.api_url, settings.api_token, settings.request_timeout_seconds)
+          rows=client.export_records()
+
+          print("records_total=", len(rows))
+          print("repeat_instruments=", dict(Counter(str(r.get("redcap_repeat_instrument","")) for r in rows)))
+
+          def nonblank(field):
+              return sum(str(r.get(field,"") or "").strip() != "" for r in rows)
+
+          def checkbox_selected(prefix):
+              p=prefix+"___"
+              return sum(
+                  1
+                  for r in rows
+                  for k,v in r.items()
+                  if k.startswith(p) and str(v).strip()=="1"
+              )
+
+          legacy_fields=[
+              "devices_date","devices_war","devices_paga","devices_pungu","devices_sirigu",
+              "date_devices_return","devices_return",
+              "set_a1","set_a2","set_a3","set_a4","set_a5",
+              "set_b1","set_b2","set_b3","set_b4","set_b5",
+          ]
+          new_fields=[
+              "return_date",
+              *[f"distributed_{x}" for x in ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","b1","b2","b3","b4","b5","b6","b7","b8","b9","b10"]],
+              *[f"returned_{x}" for x in ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","b1","b2","b3","b4","b5","b6","b7","b8","b9","b10"]],
+              *[f"complete_{x}" for x in ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","b1","b2","b3","b4","b5","b6","b7","b8","b9","b10"]],
+          ]
+
+          for f in legacy_fields:
+              print(f"legacy_nonblank|{f}|{nonblank(f)}")
+              if f.startswith("devices_") or f.startswith("set_"):
+                  print(f"legacy_selected|{f}|{checkbox_selected(f)}")
+
+          for f in new_fields:
+              print(f"new_nonblank|{f}|{nonblank(f)}")
+
+          for suffix in ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","b1","b2","b3","b4","b5","b6","b7","b8","b9","b10"]:
+              print(f"new_missing_selected|missings_{suffix}|{checkbox_selected('missings_'+suffix)}")
+          PY
