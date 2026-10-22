@@ -114,7 +114,7 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-10-22.1"),
+    wp2Html.includes("WP2 UI build 2026-10-22.2"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
@@ -303,6 +303,15 @@ assert(
     views.includes("missing_components") &&
     views.includes("'Sirigu Health Centre'"),
   "New device return/completeness reporting logic is incomplete."
+);
+
+assert(
+  wp2DashboardJs.includes('const hasReturns = returns.length > 0') &&
+    wp2DashboardJs.includes('const hasComponentData = componentsExpected > 0') &&
+    wp2DashboardJs.includes('No device returns recorded yet.') &&
+    wp2DashboardJs.includes('No returned device sets are available to classify as complete or incomplete.') &&
+    wp2DashboardJs.includes('"Component Completeness",\n              "—"'),
+  "Device empty-state presentation is incomplete."
 );
 
 assert(

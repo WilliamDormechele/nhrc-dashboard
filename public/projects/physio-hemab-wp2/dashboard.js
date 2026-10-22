@@ -1167,6 +1167,8 @@
     const overdue = deviceSets.filter((row) =>
       deviceStatusWithWindow(row, state.returnWindowDays).isOverdue
     ).length;
+    const hasReturns = returns.length > 0;
+    const hasComponentData = componentsExpected > 0;
 
     const returnsByFacility = FACILITIES.map((facility) => ({
       facility,
@@ -1189,14 +1191,38 @@
         ${kpiCard("Returned Device Sets", number(returns.length), "info")}
         ${kpiCard("Complete Returns", number(completeReturns), "positive")}
         ${kpiCard("Incomplete Returns", number(incompleteReturns), incompleteReturns ? "problem" : "positive")}
-        ${kpiCard("Component Completeness", `${number(percent(componentsReturned, componentsExpected), 1)}%`, incompleteReturns ? "warning" : "positive", `${componentsReturned} of ${componentsExpected}`)}
+        ${hasComponentData
+          ? kpiCard(
+              "Component Completeness",
+              `${number(percent(componentsReturned, componentsExpected), 1)}%`,
+              incompleteReturns ? "warning" : "positive",
+              `${componentsReturned} of ${componentsExpected}`
+            )
+          : kpiCard(
+              "Component Completeness",
+              "—",
+              "neutral",
+              "No device returns recorded yet"
+            )}
         ${kpiCard("Return Window", `${state.returnWindowDays} days`, "neutral", state.data?.config?.returnWindowDays ? "Project policy" : "Scenario selection")}
         ${kpiCard("Overdue Devices", number(overdue), overdue ? "problem" : "positive")}
       </div>
 
       <div class="dashboard-grid">
-        ${panel("Devices Returned by Facility", chartCanvas("deviceFacility"), 6)}
-        ${panel("Current Device Return Status", chartCanvas("deviceStatus"), 6)}
+        ${panel(
+          "Devices Returned by Facility",
+          hasReturns
+            ? chartCanvas("deviceFacility")
+            : emptyState("No device returns recorded yet."),
+          6
+        )}
+        ${panel(
+          "Current Device Return Status",
+          hasReturns
+            ? chartCanvas("deviceStatus")
+            : emptyState("No returned device sets are available to classify as complete or incomplete."),
+          6
+        )}
         ${panel("Weekly Device Distribution vs Return", chartCanvas("deviceWeeklyFlow", true), 12)}
         ${panel(
           "Current Device Set Detail",
@@ -1232,9 +1258,10 @@
       </div>
     `;
 
-    buildChart(
-      "deviceFacility",
-      {
+    if (hasReturns) {
+      buildChart(
+        "deviceFacility",
+        {
         type: "bar",
         data: {
           labels: returnsByFacility.map((row) => row.facility),
@@ -1247,8 +1274,9 @@
         },
         options: { plugins: { legend: { display: false } } }
       },
-      (label) => setFacilityFilter(label)
-    );
+        (label) => setFacilityFilter(label)
+      );
+    }
 
     const distributionWeeks = weeklyCounts(distributions, "distributionDate");
     const returnWeeks = weeklyCounts(returns, "returnDate");
@@ -1284,19 +1312,24 @@
       }
     });
 
-    buildChart("deviceStatus", {
-      type: "bar",
-      data: {
-        labels: ["Complete", "Incomplete"],
-        datasets: [{
-          label: "Device Sets",
-          data: [currentComplete, currentIncomplete],
-          backgroundColor: [COLORS.green, COLORS.red],
-          borderRadius: 5
-        }]
-      },
-      options: { plugins: { legend: { display: false } } }
-    });
+    if (hasReturns) {
+      buildChart("deviceStatus", {
+        type: "bar",
+        data: {
+          labels: ["Complete", "Incomplete"],
+          datasets: [{
+            label: "Device Sets",
+            data: [currentComplete, currentIncomplete],
+            backgroundColor: [COLORS.green, COLORS.red],
+            borderRadius: 5
+          }]
+        },
+        options: { plugins: { legend: { display: false } } }
+      });
+    } else {
+      destroyChart("deviceFacility");
+      destroyChart("deviceStatus");
+    }
   }
 
   function dataQualityIssues() {
