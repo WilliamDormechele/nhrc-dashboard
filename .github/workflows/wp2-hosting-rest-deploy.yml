@@ -1,0 +1,243 @@
+name: Firebase Hosting REST deploy
+
+on:
+  push:
+    branches:
+      - "deploy/wp2-device-empty-state-rest-20261022"
+    paths:
+      - ".github/workflows/wp2-hosting-rest-deploy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build versioned site
+        run: npm run build:version
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Deploy with Firebase Hosting REST API
+        env:
+          FIREBASE_JSON: ${{ secrets.PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python -m pip install google-auth requests
+          python - <<'PY'
+          import gzip
+          import hashlib
+          import io
+          import json
+          import mimetypes
+          import os
+          from pathlib import Path
+
+          import requests
+          from google.auth.transport.requests import Request
+          from google.oauth2 import service_account
+
+          PROJECT_ID = "nhrc-dashboard"
+          SITE_ID = "nhrc-dashboard"
+          PUBLIC_DIR = Path("public")
+
+          raw = os.environ.get("FIREBASE_JSON", "")
+          if not raw:
+              raise SystemExit("Missing Firebase service account secret.")
+
+          credentials = service_account.Credentials.from_service_account_info(
+              json.loads(raw),
+              scopes=["https://www.googleapis.com/auth/cloud-platform"],
+          )
+          credentials.refresh(Request())
+          auth_headers = {"Authorization": f"Bearer {credentials.token}"}
+          json_headers = {**auth_headers, "Content-Type": "application/json"}
+
+          config = {
+              "config": {
+                  "headers": [
+                      {
+                          "glob": "projects/physio-hemab-wp2/**",
+                          "headers": {
+                              "Cache-Control": "no-cache, no-store, must-revalidate"
+                          },
+                      },
+                      {
+                          "glob": "projects/physio-hemab-wp2/index.html",
+                          "headers": {
+                              "Cache-Control": "no-cache, no-store, must-revalidate"
+                          },
+                      },
+                      {
+                          "glob": "index.html",
+                          "headers": {
+                              "Cache-Control": "no-cache, no-store, must-revalidate"
+                          },
+                      },
+                      {
+                          "glob": "**/*.@(js|css)",
+                          "headers": {
+                              "Cache-Control": "public, max-age=31536000, immutable"
+                          },
+                      },
+                      {
+                          "glob": "**/*.@(png|jpg|jpeg|gif|svg|webp|ico)",
+                          "headers": {
+                              "Cache-Control": "public, max-age=31536000, immutable"
+                          },
+                      },
+                  ]
+              }
+          }
+
+          create_url = (
+              f"https://firebasehosting.googleapis.com/v1beta1/"
+              f"sites/{SITE_ID}/versions"
+          )
+          response = requests.post(
+              create_url,
+              headers=json_headers,
+              json=config,
+              timeout=60,
+          )
+          print("create_version_status=", response.status_code)
+          if response.status_code not in (200, 201):
+              print(response.text[:4000])
+              raise SystemExit("Could not create Hosting version.")
+
+          version = response.json()
+          version_name = version["name"]
+          version_id = version_name.rsplit("/", 1)[-1]
+          print("version=", version_name)
+
+          compressed_by_hash = {}
+          files = {}
+
+          for path in sorted(PUBLIC_DIR.rglob("*")):
+              if not path.is_file():
+                  continue
+              if any(part.startswith(".") for part in path.relative_to(PUBLIC_DIR).parts):
+                  continue
+              if "node_modules" in path.parts:
+                  continue
+
+              relative = "/" + path.relative_to(PUBLIC_DIR).as_posix()
+              raw_bytes = path.read_bytes()
+
+              buffer = io.BytesIO()
+              with gzip.GzipFile(fileobj=buffer, mode="wb", mtime=0) as gz:
+                  gz.write(raw_bytes)
+              compressed = buffer.getvalue()
+              digest = hashlib.sha256(compressed).hexdigest()
+
+              files[relative] = digest
+              compressed_by_hash[digest] = compressed
+
+          print("files_prepared=", len(files))
+
+          required_hashes = set()
+          upload_url = None
+          items = list(files.items())
+
+          for start in range(0, len(items), 1000):
+              batch = dict(items[start:start + 1000])
+              populate_url = (
+                  f"https://firebasehosting.googleapis.com/v1beta1/"
+                  f"sites/{SITE_ID}/versions/{version_id}:populateFiles"
+              )
+              response = requests.post(
+                  populate_url,
+                  headers=json_headers,
+                  json={"files": batch},
+                  timeout=120,
+              )
+              print(
+                  "populate_status=",
+                  response.status_code,
+                  "batch_start=",
+                  start,
+              )
+              if response.status_code != 200:
+                  print(response.text[:4000])
+                  raise SystemExit("Could not populate Hosting files.")
+
+              payload = response.json()
+              required_hashes.update(payload.get("uploadRequiredHashes", []))
+              upload_url = payload.get("uploadUrl") or upload_url
+
+          print("uploads_required=", len(required_hashes))
+          if required_hashes and not upload_url:
+              raise SystemExit("Hosting API did not provide an upload URL.")
+
+          for index, digest in enumerate(sorted(required_hashes), start=1):
+              data = compressed_by_hash.get(digest)
+              if data is None:
+                  raise SystemExit(f"Missing compressed data for hash {digest}")
+
+              response = requests.post(
+                  f"{upload_url}/{digest}",
+                  headers={
+                      **auth_headers,
+                      "Content-Type": "application/octet-stream",
+                  },
+                  data=data,
+                  timeout=120,
+              )
+              if response.status_code not in (200, 201):
+                  print(
+                      "upload_failure_hash=",
+                      digest,
+                      "status=",
+                      response.status_code,
+                  )
+                  print(response.text[:4000])
+                  raise SystemExit("A Hosting file upload failed.")
+
+              if index % 25 == 0 or index == len(required_hashes):
+                  print(f"uploaded={index}/{len(required_hashes)}")
+
+          finalize_url = (
+              f"https://firebasehosting.googleapis.com/v1beta1/"
+              f"sites/{SITE_ID}/versions/{version_id}?update_mask=status"
+          )
+          response = requests.patch(
+              finalize_url,
+              headers=json_headers,
+              json={"status": "FINALIZED"},
+              timeout=60,
+          )
+          print("finalize_status=", response.status_code)
+          if response.status_code != 200:
+              print(response.text[:4000])
+              raise SystemExit("Could not finalize Hosting version.")
+
+          release_url = (
+              f"https://firebasehosting.googleapis.com/v1beta1/"
+              f"sites/{SITE_ID}/releases"
+          )
+          response = requests.post(
+              release_url,
+              headers=auth_headers,
+              params={"versionName": version_name},
+              timeout=60,
+          )
+          print("release_status=", response.status_code)
+          if response.status_code not in (200, 201):
+              print(response.text[:4000])
+              raise SystemExit("Could not release Hosting version.")
+
+          release = response.json()
+          print("release=", release.get("name", ""))
+          print("hosting_url=https://nhrc-dashboard.web.app")
+          PY
