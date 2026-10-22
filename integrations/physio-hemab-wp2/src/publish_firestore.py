@@ -141,6 +141,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             facility,
             device_set,
             study_id,
+            COALESCE(data_collector, 'Unassigned') AS data_collector,
             distribution_form_complete
         FROM physio_hemab_wp2.vw_device_distributions
         ORDER BY distribution_date NULLS LAST, device_set, facility
@@ -154,6 +155,10 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             return_date,
             return_instance,
             device_set,
+            return_facility,
+            return_completeness_status,
+            components_missing,
+            missing_components,
             components_returned,
             components_expected,
             all_components_returned,
@@ -172,6 +177,11 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             latest_facility,
             latest_study_id,
             latest_return_date,
+            latest_return_facility,
+            return_completeness_status,
+            current_return_completeness,
+            components_missing,
+            missing_components,
             components_returned,
             components_expected,
             all_components_returned,
@@ -323,6 +333,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "facility": row.get("facility") or "",
                 "deviceSet": row.get("device_set") or "",
                 "studyId": row.get("study_id") or "",
+                "dataCollector": row.get("data_collector") or "Unassigned",
                 "formComplete": bool(row.get("distribution_form_complete")),
             }
             for row in device_distributions
@@ -332,9 +343,14 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "returnDate": row.get("return_date") or "",
                 "returnInstance": row.get("return_instance"),
                 "deviceSet": row.get("device_set") or "",
+                "returnFacility": row.get("return_facility") or "",
+                "returnCompletenessStatus": row.get("return_completeness_status")
+                or "Unknown",
+                "componentsMissing": row.get("components_missing"),
+                "missingComponents": row.get("missing_components") or "",
                 "componentsReturned": row.get("components_returned"),
                 "componentsExpected": row.get("components_expected"),
-                "allComponentsReturned": bool(row.get("all_components_returned")),
+                "allComponentsReturned": row.get("all_components_returned"),
                 "formComplete": bool(row.get("return_form_complete")),
             }
             for row in device_returns
@@ -347,6 +363,13 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "latestFacility": row.get("latest_facility") or "",
                 "latestStudyId": row.get("latest_study_id") or "",
                 "latestReturnDate": row.get("latest_return_date") or "",
+                "latestReturnFacility": row.get("latest_return_facility") or "",
+                "returnCompletenessStatus": row.get("return_completeness_status")
+                or "Unknown",
+                "currentReturnCompleteness": row.get("current_return_completeness")
+                or "Not applicable",
+                "componentsMissing": row.get("components_missing"),
+                "missingComponents": row.get("missing_components") or "",
                 "componentsReturned": row.get("components_returned"),
                 "componentsExpected": row.get("components_expected"),
                 "allComponentsReturned": row.get("all_components_returned"),
