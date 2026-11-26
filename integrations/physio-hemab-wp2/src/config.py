@@ -6,15 +6,18 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
+PRODUCTION_REDCAP_URL = "https://redcap.uk-halle.de/api/"
+PRODUCTION_REDCAP_HOST = "redcap.uk-halle.de"
+
 REDCAP_PROJECTS = {
     "main": {
         "label": "HeMAB Ghana Main",
-        "pid": "410",
+        "pid": "115",
         "prefix": "PHYSIO_HEMAB_MAIN",
     },
     "devices": {
         "label": "HeMAB Ghana Devices",
-        "pid": "411",
+        "pid": "116",
         "prefix": "PHYSIO_HEMAB_DEVICES",
     },
 }
@@ -74,11 +77,15 @@ def load_redcap_settings(
             f"Required environment variable is not set: {record_id_name}"
         )
 
+    api_url = _required(f"{prefix}_REDCAP_API_URL").rstrip("/") + "/"
+    if api_url != PRODUCTION_REDCAP_URL:
+        raise RuntimeError(f"{project['label']}: production REDCap endpoint required. Update the configured URL and production token.")
+
     return RedcapSettings(
         project_key=project_key,
         project_label=project["label"],
         pid=project["pid"],
-        api_url=_required(f"{prefix}_REDCAP_API_URL"),
+        api_url=api_url,
         api_token=_required(f"{prefix}_REDCAP_API_TOKEN"),
         record_id_field=record_id_field,
         request_timeout_seconds=int(

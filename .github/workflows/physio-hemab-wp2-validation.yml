@@ -92,6 +92,9 @@ jobs:
       - name: Check Python syntax
         run: python -m py_compile integrations/physio-hemab-wp2/src/*.py
 
+      - name: Test production field compatibility
+        run: python -m unittest discover -s integrations/physio-hemab-wp2/tests -v
+
       - name: Validate field-map JSON
         run: |
           python -m json.tool integrations/physio-hemab-wp2/field-map.main.json > /dev/null

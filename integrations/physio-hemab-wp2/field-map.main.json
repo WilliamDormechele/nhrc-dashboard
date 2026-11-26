@@ -1,7 +1,7 @@
 {
   "source_project": "main",
   "redcap_project": "HeMAB Ghana Main",
-  "pid": 410,
+  "pid": 115,
   "record_id": "record_id",
   "study_id": "enroll_studid",
   "facility": "health_facility_enrollment",
@@ -15,8 +15,11 @@
   "activity_diary_date": "ad_date",
   "activity_diary_phone_on_diary_date": "call_date",
   "activity_diary_phone_date": "call_date_delay",
-  "activity_diary_call_count": "ad_call_numb",
+  "activity_diary_call_count": "ad_call_number",
   "activity_diary_complete": "activity_diary_complete",
   "data_collector": "data_collector",
-  "data_collector_note": "Dedicated REDCap data_collector variable is the authoritative collector source when populated; manual assignment remains a fallback only for legacy/unattributed tasks."
+  "data_collector_note": "Dedicated REDCap data_collector variable is the authoritative collector source when populated; manual assignment remains a fallback only for legacy/unattributed tasks.",
+  "activity_diary_call_count_legacy": "ad_call_numb",
+  "activity_diary_interview_type": "ad_dc_interview",
+  "source_environment": "production"
 }

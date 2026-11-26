@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS physio_hemab_wp2.sync_runs (
 ALTER TABLE physio_hemab_wp2.sync_runs
     ADD COLUMN IF NOT EXISTS records_deactivated INTEGER NOT NULL DEFAULT 0;
 
+ALTER TABLE physio_hemab_wp2.sync_runs
+    ADD COLUMN IF NOT EXISTS source_host TEXT,
+    ADD COLUMN IF NOT EXISTS source_pid INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_physio_hemab_wp2_sync_runs_project_time
     ON physio_hemab_wp2.sync_runs(source_project, started_at DESC);
 
