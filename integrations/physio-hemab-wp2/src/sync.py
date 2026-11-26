@@ -10,11 +10,13 @@ from psycopg.types.json import Jsonb
 
 from config import (
     REDCAP_PROJECTS,
+    PRODUCTION_REDCAP_HOST,
     load_database_settings,
     load_redcap_settings,
 )
 from db import database_connection
 from redcap_client import RedcapClient
+from production_fields import select_fields, metadata_fields, diary_metrics
 
 
 MAIN_DASHBOARD_FIELDS = [
@@ -33,6 +35,8 @@ MAIN_DASHBOARD_FIELDS = [
     "call_date",
     "call_date_delay",
     "ad_call_numb",
+    "ad_call_number",
+    "ad_dc_interview",
     "activity_diary_complete",
 ]
 
@@ -438,12 +442,34 @@ def sync_project(connection, project_key: str) -> bool:
     try:
         sync_run_id = start_sync_run(connection, settings.project_key)
 
+        client.verify_project(settings.pid, settings.project_label)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT 1 FROM physio_hemab_wp2.raw_records r
+                   LEFT JOIN physio_hemab_wp2.sync_runs s ON s.sync_run_id = r.last_sync_run_id
+                   WHERE r.source_project = %s AND r.is_active
+                     AND (s.source_host IS DISTINCT FROM %s OR s.source_pid IS DISTINCT FROM %s)
+                   LIMIT 1""",
+                (settings.project_key, PRODUCTION_REDCAP_HOST, int(settings.pid)),
+            )
+            if cursor.fetchone():
+                raise RuntimeError("Existing local test records require a separate production database. The test database has not been modified.")
+            cursor.execute(
+                "UPDATE physio_hemab_wp2.sync_runs SET source_host=%s, source_pid=%s WHERE sync_run_id=%s",
+                (PRODUCTION_REDCAP_HOST, int(settings.pid), sync_run_id),
+            )
         metadata = client.export_metadata()
+        fields = metadata_fields(metadata)
+        requested_fields = select_fields(settings.project_key, dashboard_fields(settings.project_key), metadata)
         sync_metadata(connection, settings.project_key, metadata)
-
-        requested_fields = dashboard_fields(settings.project_key)
         records = client.export_records(fields=requested_fields)
         records_received = len(records)
+        if not records:
+            raise RuntimeError("Unexpected empty production export; previous published snapshot retained.")
+        returned_keys = {key for record in records for key in record}
+        missing = [name for name in requested_fields if name not in returned_keys and not any(key.startswith(name + "___") for key in returned_keys)]
+        if missing:
+            raise RuntimeError("Required fields not returned by REDCap: " + ", ".join(missing))
 
         prepare_seen_table(connection)
 
@@ -464,6 +490,8 @@ def sync_project(connection, project_key: str) -> bool:
             )
 
             minimized = minimize_record(record, requested_fields)
+            if settings.project_key == "main":
+                minimized.update(diary_metrics(record, fields))
 
             mark_seen(
                 connection,
@@ -509,7 +537,7 @@ def sync_project(connection, project_key: str) -> bool:
         )
 
         print(
-            f"{settings.project_label} sync completed: "
+            f"{settings.project_label} (verified production PID {settings.pid}) sync completed: "
             f"received={records_received}, "
             f"inserted={records_inserted}, "
             f"updated={records_updated}, "
@@ -529,11 +557,11 @@ def sync_project(connection, project_key: str) -> bool:
                 records_inserted=records_inserted,
                 records_updated=records_updated,
                 records_deactivated=records_deactivated,
-                error_message=str(exc)[:4000],
+                error_message=type(exc).__name__,
             )
 
         print(
-            f"{settings.project_label} sync failed: {exc}",
+            f"{settings.project_label} sync failed: {exc if isinstance(exc, RuntimeError) else type(exc).__name__}",
             file=sys.stderr,
         )
         return False

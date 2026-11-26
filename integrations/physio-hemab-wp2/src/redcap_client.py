@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 import requests
+from production_fields import validate_project_identity
 
 
 class RedcapClient:
@@ -26,22 +27,28 @@ class RedcapClient:
             self.api_url,
             data=request_payload,
             timeout=self.timeout_seconds,
+            allow_redirects=False,
         )
 
+        if 300 <= response.status_code < 400:
+            raise RuntimeError("REDCap API redirect refused; use the verified HTTPS API endpoint.")
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise RuntimeError(
-                f"REDCap API HTTP error {response.status_code} at {response.url}. "
+                f"REDCap API HTTP error {response.status_code} during {payload.get('content', 'request')}. "
                 "Check the API endpoint path and project API access."
             ) from exc
 
         data = response.json()
 
         if isinstance(data, dict) and data.get("error"):
-            raise RuntimeError(f"REDCap API error: {data['error']}")
+            raise RuntimeError(f"REDCap API rejected {payload.get('content', 'request')}. Check the project token, rights and requested fields.")
 
         return data
+
+    def verify_project(self, expected_pid: str, expected_title: str) -> None:
+        validate_project_identity(self._post({"content": "project"}), expected_pid, expected_title)
 
     def export_metadata(self) -> list[dict[str, Any]]:
         data = self._post({"content": "metadata"})

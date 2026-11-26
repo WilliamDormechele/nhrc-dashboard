@@ -1,4 +1,5 @@
 name: Physio-HeMAB WP2 refresh
+run-name: Physio-HeMAB WP2 refresh (${{ inputs.source || github.event_name }})
 
 on:
   workflow_dispatch:
@@ -104,6 +105,7 @@ jobs:
           test -n "$FIREBASE_JSON" || { echo "Missing PHYSIO_HEMAB_FIREBASE_SERVICE_ACCOUNT_JSON"; exit 1; }
 
       - name: Prepare Firebase credential file
+        id: firebase_credential
         if: steps.gate.outputs.run == 'true'
         shell: bash
         env:
@@ -146,6 +148,14 @@ jobs:
         run: |
           python src/sync.py all
           python src/publish_firestore.py
+
+      - name: Record failed refresh without replacing the snapshot
+        if: failure() && steps.firebase_credential.outcome == 'success'
+        working-directory: integrations/physio-hemab-wp2
+        env:
+          PHYSIO_HEMAB_FIREBASE_CREDENTIALS_FILE: ${{ runner.temp }}/physio-firebase-service-account.json
+          PHYSIO_HEMAB_FIREBASE_PROJECT_ID: nhrc-dashboard
+        run: python src/publish_firestore.py --mark-failed
 
       - name: Remove temporary Firebase credential
         if: always()

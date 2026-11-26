@@ -102,6 +102,12 @@ if ([string]::IsNullOrWhiteSpace($secretMap.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_I
     $secretMap.PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD = "record_id"
 }
 
+$productionUrl = "https://redcap.uk-halle.de/api/"
+foreach ($name in @("PHYSIO_HEMAB_MAIN_REDCAP_API_URL", "PHYSIO_HEMAB_DEVICES_REDCAP_API_URL")) {
+    if (([string]$secretMap[$name]).TrimEnd('/') + '/' -cne $productionUrl) {
+        throw "Refusing to overwrite production credentials with a test endpoint. Use configure-production-redcap.ps1."
+    }
+}
 foreach ($entry in $secretMap.GetEnumerator()) {
     Set-RepoSecret -Name $entry.Key -Value ([string]$entry.Value)
 }

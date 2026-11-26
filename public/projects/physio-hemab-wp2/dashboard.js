@@ -102,6 +102,7 @@
   }
 
   function number(value, decimals = 0) {
+    if (value === null || value === undefined || value === "") return "—";
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return "—";
     return parsed.toLocaleString(undefined, {
@@ -202,7 +203,7 @@
   }
 
   function average(values) {
-    const valid = values.map(Number).filter(Number.isFinite);
+    const valid = values.filter(v => v !== null && v !== undefined && v !== "").map(Number).filter(Number.isFinite);
     if (!valid.length) return null;
     return valid.reduce((a, b) => a + b, 0) / valid.length;
   }
@@ -567,6 +568,7 @@
     const main = data?.sourceStatus?.main || {};
     const devices = data?.sourceStatus?.devices || {};
     const bothSuccess = main.status === "success" && devices.status === "success";
+    const refreshFailed = state.refreshState?.status === "failed";
 
     els.dataCurrentTo.textContent = formatDate(data?.fetchedAt, true);
     els.mainStatus.innerHTML =
@@ -578,8 +580,8 @@
     els.devicesStatus.style.color = devices.status === "success" ? COLORS.green : COLORS.red;
 
     els.liveStatus.innerHTML = `
-      <span class="status-dot ${bothSuccess ? "status-good" : "status-warning"}"></span>
-      <span>${bothSuccess ? "Latest snapshot loaded" : "Partial data"}</span>
+      <span class="status-dot ${bothSuccess && !refreshFailed ? "status-good" : "status-warning"}"></span>
+      <span>${refreshFailed ? "Refresh failed; last verified data" : bothSuccess ? "Latest snapshot loaded" : "Production data unavailable"}</span>
     `;
   }
 
@@ -618,8 +620,8 @@
       diaryCompletionPct: percent(diaryComplete, diaryExpected),
       sameDay,
       delayed,
-      onTimePct: percent(sameDay, diaryComplete),
-      delayedPct: percent(delayed, diaryComplete),
+      onTimePct: percent(sameDay, sameDay + delayed),
+      delayedPct: percent(delayed, sameDay + delayed),
       calls,
       avgCalls: average(diaries.map((r) => r.callsMade)),
       avgDelay: average(diaries.map((r) => r.delayDays)),
@@ -986,7 +988,7 @@
     diaries.forEach((row, index) => {
       const week = weekStartMonday(row.diaryDate);
       const callsMade = Number(row.callsMade);
-      if (!week || !Number.isFinite(callsMade)) return;
+      if (!week || row.callsMade == null || row.callsMade === "" || !Number.isFinite(callsMade)) return;
 
       const participantKey =
         String(row.studyId || "").trim() ||
@@ -1018,8 +1020,8 @@
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
         ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}`)}
-        ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, complete), 1)}%`, "positive", `${sameDay} Yes`)}
-        ${kpiCard("Delayed Interviews", `${number(percent(delayed, complete), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
+        ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, sameDay + delayed), 1)}%`, "positive", `${sameDay} Yes`)}
+        ${kpiCard("Delayed Interviews", `${number(percent(delayed, sameDay + delayed), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
         ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} total calls`)}
         ${kpiCard("Avg Delay", number(avgDelay, 2), avgDelay > 0 ? "warning" : "positive", "Days")}
         ${kpiCard("Max Delay", number(maxDelay), maxDelay > 0 ? "problem" : "positive", "Days")}
@@ -1032,12 +1034,13 @@
         ${panel(
           "Activity Diary Operational Detail",
           table(
-            ["Facility", "Data Collector", "Instance", "Diary Date", "Same-Day", "Interview Date", "Delay", "Calls"],
+            ["Facility", "Data Collector", "Instance", "Diary Date", "Interview Type", "Same-Day", "Interview Date", "Delay", "Calls"],
             diaries.map((r) => [
               escapeHtml(r.facility || "—"),
               escapeHtml(r.dataCollector || "—"),
               number(r.diaryInstance),
               escapeHtml(formatDate(r.diaryDate)),
+              escapeHtml(r.interviewType || "—"),
               escapeHtml(r.sameDayInterview || "—"),
               escapeHtml(formatDate(r.interviewDate)),
               r.delayDays === null ? "—" : number(r.delayDays),
@@ -1510,15 +1513,15 @@
     const allCurrent = main.status === "success" && devices.status === "success";
 
     const sourceRows = [
-      ["Main REDCap", `PID ${main.pid || 410}`, statusChip(main.status === "success" ? "Current" : "Error"), main.message || "Live API access"],
-      ["Devices REDCap", `PID ${devices.pid || 411}`, statusChip(devices.status === "success" ? "Current" : "Error"), devices.message || "Live API access"]
+      ["Main REDCap", `PID ${main.pid || 115}`, statusChip(main.status === "success" ? "Current" : "Error"), main.message || "Live API access"],
+      ["Devices REDCap", `PID ${devices.pid || 116}`, statusChip(devices.status === "success" ? "Current" : "Error"), devices.message || "Live API access"]
     ];
 
     content.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard("Data Current To", formatDate(state.data?.fetchedAt, true), allCurrent ? "positive" : "warning")}
-        ${kpiCard("Main REDCap", main.status === "success" ? "Current" : "Error", main.status === "success" ? "positive" : "problem", `PID ${main.pid || 410}`)}
-        ${kpiCard("Devices REDCap", devices.status === "success" ? "Current" : "Error", devices.status === "success" ? "positive" : "problem", `PID ${devices.pid || 411}`)}
+        ${kpiCard("Main REDCap", main.status === "success" ? "Current" : "Error", main.status === "success" ? "positive" : "problem", `PID ${main.pid || 115}`)}
+        ${kpiCard("Devices REDCap", devices.status === "success" ? "Current" : "Error", devices.status === "success" ? "positive" : "problem", `PID ${devices.pid || 116}`)}
         ${kpiCard("Access Mode", "Secure", "info", "Firebase-authenticated callable")}
       </div>
 
@@ -2111,6 +2114,13 @@
     }
   }
 
+  function isVerifiedProductionSnapshot(snapshot) {
+    return snapshot?.sourceStatus?.main?.verified === true && Number(snapshot.sourceStatus.main.pid) === 115 &&
+      snapshot.sourceStatus.main.sourceHost === "redcap.uk-halle.de" &&
+      snapshot?.sourceStatus?.devices?.verified === true && Number(snapshot.sourceStatus.devices.pid) === 116 &&
+      snapshot.sourceStatus.devices.sourceHost === "redcap.uk-halle.de";
+  }
+
   function applyProjectSnapshot(snapshot) {
     if (!snapshot.exists) {
       throw new Error(
@@ -2125,6 +2135,17 @@
       projectData.wp2RefreshEndpoint || ""
     ).trim();
     state.refreshState = projectData.wp2RefreshState || {};
+
+    if (!isVerifiedProductionSnapshot(publishedSnapshot)) {
+      state.data = null;
+      ["overview", "recruitment", "forms", "diary", "devices", "quality", "sync", "performance"].forEach(section => {
+        const content = document.getElementById(section + "Content");
+        if (content) content.replaceChildren();
+      });
+      configureRefreshControl();
+      renderFreshness();
+      throw new Error("Production REDCap data not yet verified. Test data is not displayed. Ask the administrator to configure the production API and refresh.");
+    }
 
     state.data = publishedSnapshot
       ? {
@@ -2182,7 +2203,7 @@
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
 
-  async function waitForPublishedRefresh(previousFetchedAt) {
+  async function waitForPublishedRefresh(previousFetchedAt, previousFailureAt) {
     const firestore = getFirestoreBridge();
     const projectRef = firestore
       .collection("projects")
@@ -2227,10 +2248,15 @@
       const projectData = snapshot.data() || {};
       const nextFetchedAt =
         projectData.wp2Snapshot?.fetchedAt || "";
+      const refreshState = projectData.wp2RefreshState || {};
+      if (refreshState.status === "failed" && refreshState.lastFailureAt && refreshState.lastFailureAt !== previousFailureAt) {
+        state.refreshState = refreshState;
+        throw new Error("REDCap refresh failed. The previous verified snapshot has been retained. Contact the administrator.");
+      }
 
       if (
         nextFetchedAt &&
-        nextFetchedAt !== previousFetchedAt
+        nextFetchedAt !== previousFetchedAt && isVerifiedProductionSnapshot(projectData.wp2Snapshot)
       ) {
         updateRefreshProgress({
           title: "Refresh complete",
@@ -2283,6 +2309,7 @@
     }
 
     const previousFetchedAt = state.data?.fetchedAt || "";
+    const previousFailureAt = state.refreshState?.lastFailureAt || "";
     state.refreshInProgress = true;
     showRefreshProgress();
     configureRefreshControl();
@@ -2352,7 +2379,7 @@
       state.refreshCooldownUntil =
         Date.now() + cooldownSeconds * 1000;
 
-      const updated = await waitForPublishedRefresh(previousFetchedAt);
+      const updated = await waitForPublishedRefresh(previousFetchedAt, previousFailureAt);
 
       if (updated) {
         setRefreshMessage(

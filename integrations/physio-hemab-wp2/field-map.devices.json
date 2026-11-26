@@ -1,7 +1,7 @@
 {
   "source_project": "devices",
   "redcap_project": "HeMAB Ghana Devices",
-  "pid": 411,
+  "pid": 116,
   "record_id": "record_id",
   "data_collector": "data_collector",
   "distribution_instrument": "distribution_log",
@@ -264,5 +264,6 @@
     "4": "URGREEN"
   },
   "metadata_verified_at": "2026-10-22",
-  "metadata_note": "Verified from live REDCap metadata. Distribution and return logs use per-device-set Yes/No fields for A1-A10 and B1-B10."
+  "metadata_note": "Verified from live REDCap metadata. Distribution and return logs use per-device-set Yes/No fields for A1-A10 and B1-B10.",
+  "source_environment": "production"
 }

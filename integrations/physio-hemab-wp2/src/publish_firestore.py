@@ -11,7 +11,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from psycopg.rows import dict_row
 
-from config import load_database_settings
+from config import load_database_settings, REDCAP_PROJECTS, PRODUCTION_REDCAP_HOST
 from db import database_connection
 
 
@@ -126,6 +126,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             interview_date,
             delay_days,
             calls_made,
+            interview_type,
             diary_complete
         FROM physio_hemab_wp2.vw_activity_diaries
         ORDER BY diary_date NULLS LAST, study_id, diary_instance
@@ -201,7 +202,9 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             records_received,
             records_inserted,
             records_updated,
-            records_deactivated
+            records_deactivated,
+            source_host,
+            source_pid
         FROM physio_hemab_wp2.vw_sync_status
         ORDER BY source_project
         """,
@@ -211,6 +214,13 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         str(row["source_project"]): row
         for row in sync_rows
     }
+
+    for key, project in REDCAP_PROJECTS.items():
+        row = sync_by_source.get(key, {})
+        if (row.get("status") != "success" or row.get("source_host") != PRODUCTION_REDCAP_HOST
+                or row.get("source_pid") != int(project["pid"]) or not row.get("completed_at")
+                or int(row.get("records_received") or 0) <= 0):
+            raise RuntimeError(f"Cannot publish: {key} has no successful verified production export.")
 
     completed_times = [
         str(row.get("completed_at"))
@@ -265,11 +275,13 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
     )
 
     source_status: dict[str, Any] = {}
-    for key, pid in (("main", 410), ("devices", 411)):
+    for key, project in REDCAP_PROJECTS.items():
         row = sync_by_source.get(key, {})
         status = str(row.get("status") or "unknown")
         source_status[key] = {
-            "pid": pid,
+            "pid": int(project["pid"]),
+            "sourceHost": row.get("source_host"),
+            "verified": True,
             "status": status,
             "completedAt": row.get("completed_at") or "",
             "recordsReceived": int(row.get("records_received") or 0),
@@ -280,7 +292,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         }
 
     snapshot = {
-        "snapshotVersion": 1,
+        "snapshotVersion": 2,
         "publishedAt": datetime.now(timezone.utc).isoformat(),
         "fetchedAt": data_current_to,
         "sourceStatus": source_status,
@@ -322,6 +334,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "interviewDate": row.get("interview_date") or "",
                 "delayDays": row.get("delay_days"),
                 "callsMade": row.get("calls_made"),
+                "interviewType": row.get("interview_type") or "",
                 "diaryComplete": bool(row.get("diary_complete")),
             }
             for row in activity_diaries
@@ -441,6 +454,14 @@ def _firestore_client():
 
 
 def main() -> int:
+    import sys
+    if "--mark-failed" in sys.argv:
+        client = _firestore_client()
+        client.collection("projects").document(PROJECT_CODE).set(
+            {"wp2RefreshState": {"status": "failed", "lastFailureAt": datetime.now(timezone.utc).isoformat()}}, merge=True
+        )
+        print("Refresh failure recorded; existing snapshot retained.")
+        return 0
     database_settings = load_database_settings()
     client = _firestore_client()
     project_ref = client.collection("projects").document(PROJECT_CODE)
@@ -470,6 +491,7 @@ def main() -> int:
             "wp2SnapshotUpdatedAt": firestore.SERVER_TIMESTAMP,
             "wp2RefreshState": {
                 "lastSuccessAt": firestore.SERVER_TIMESTAMP,
+                "status": "success",
                 "lastSource": refresh_source,
             },
         },

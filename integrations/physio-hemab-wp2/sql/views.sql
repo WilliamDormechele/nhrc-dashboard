@@ -230,23 +230,8 @@ SELECT
         )
         ELSE NULL
     END AS delay_days,
-    CASE
-        WHEN substring(
-            physio_hemab_wp2.choice_label(
-                'main',
-                'ad_call_numb',
-                r.payload ->> 'ad_call_numb'
-            )
-            FROM '([0-9]+)'
-        ) IS NOT NULL
-        THEN substring(
-            physio_hemab_wp2.choice_label(
-                'main',
-                'ad_call_numb',
-                r.payload ->> 'ad_call_numb'
-            )
-            FROM '([0-9]+)'
-        )::integer
+    CASE WHEN (r.payload ->> 'dashboard_calls_made') ~ '^[0-9]+$'
+        THEN (r.payload ->> 'dashboard_calls_made')::integer
         ELSE NULL
     END AS calls_made,
     (r.payload ->> 'activity_diary_complete') = '2' AS diary_complete,
@@ -265,7 +250,8 @@ SELECT
         NULLIF(trim(p.data_collector), ''),
         NULLIF(trim(a.data_collector), ''),
         'Unassigned'
-    ) AS data_collector
+    ) AS data_collector,
+    NULLIF(r.payload ->> 'dashboard_interview_type', '') AS interview_type
 FROM physio_hemab_wp2.raw_records r
 LEFT JOIN physio_hemab_wp2.vw_participants p
     ON p.record_id = r.record_id
@@ -670,7 +656,9 @@ SELECT DISTINCT ON (source_project)
     records_inserted,
     records_updated,
     records_deactivated,
-    error_message
+    error_message,
+    source_host,
+    source_pid
 FROM physio_hemab_wp2.sync_runs
 ORDER BY source_project, started_at DESC;
 
