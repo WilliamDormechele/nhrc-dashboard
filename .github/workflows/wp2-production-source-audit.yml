@@ -1,0 +1,60 @@
+name: WP2 production source verification
+on:
+  push:
+    branches: ["audit/wp2-production-source-20261126"]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify configured server and project (no participant data)
+        env:
+          MAIN_URL: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_URL }}
+          MAIN_TOKEN: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN }}
+          DEVICES_URL: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_URL }}
+          DEVICES_TOKEN: ${{ secrets.PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, json, urllib.request, urllib.parse
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener = urllib.request.build_opener(NoRedirect())
+          for name, expected in (("MAIN",115),("DEVICES",116)):
+              url = os.environ.get(name+"_URL","").rstrip("/")+"/"
+              token = os.environ.get(name+"_TOKEN","")
+              host = urllib.parse.urlsplit(url).hostname
+              source = "production" if url == "https://redcap.uk-halle.de/api/" else "test" if url == "https://redcap-test.uk-halle.de/api/" else "unrecognised"
+              print(name+" configured_endpoint="+source, flush=True)
+              if source != "production" or not token:
+                  continue
+              def post(content):
+                  data=urllib.parse.urlencode({"token":token,"content":content,"format":"json","returnFormat":"json"}).encode()
+                  with opener.open(urllib.request.Request(url,data=data), timeout=20) as response:
+                      return json.load(response)
+              try:
+                  info=post("project")
+                  if isinstance(info,list) and len(info)==1:
+                      info=info[0]
+                  match=isinstance(info,dict) and str(info.get("project_id"))==str(expected)
+                  print(name+" project_id_verified="+str(match),flush=True)
+                  if not match:
+                      continue
+                  if name=="MAIN":
+                      metadata=post("metadata")
+                      fields={m.get("field_name"):m for m in metadata}
+                      for key in ("ad_call_number","ad_call_numb","ad_dc_interview","call_date","call_date_delay"):
+                          m=fields.get(key)
+                          if not m:
+                              print(key+" absent")
+                              continue
+                          kind=str(m.get("field_type",""))
+                          print(key+" type="+kind if kind in {"radio","dropdown","checkbox","text","yesno","calc"} else key+" present")
+                          if key in {"ad_call_number","ad_call_numb"}:
+                              choices=str(m.get("select_choices_or_calculations",""))
+                              print(key+" choice_count="+str(len([c for c in choices.split("|") if "," in c])))
+              except Exception as exc:
+                  print(name+" verification_failed="+type(exc).__name__,flush=True)
+          PY
