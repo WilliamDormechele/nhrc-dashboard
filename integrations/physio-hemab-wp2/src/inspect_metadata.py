@@ -28,6 +28,7 @@ def main() -> None:
         timeout_seconds=settings.request_timeout_seconds,
     )
 
+    client.verify_project(settings.pid, settings.project_label)
     metadata = client.export_metadata()
 
     print(

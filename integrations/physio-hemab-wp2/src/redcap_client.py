@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 import requests
+from production_fields import validate_project_identity
 
 
 class RedcapClient:
@@ -47,16 +48,7 @@ class RedcapClient:
         return data
 
     def verify_project(self, expected_pid: str, expected_title: str) -> None:
-        data = self._post({"content": "project"})
-        if isinstance(data, list) and len(data) == 1:
-            data = data[0]
-        if not isinstance(data, dict) or str(data.get("project_id", "")) != str(expected_pid):
-            raise RuntimeError(f"REDCap project identity mismatch; expected PID {expected_pid}.")
-        if str(data.get("project_title", "")).strip().casefold() != expected_title.strip().casefold():
-            raise RuntimeError(f"REDCap project title mismatch for PID {expected_pid}.")
-        production = data.get("in_production")
-        if production is not None and str(production).lower() not in {"1", "true"}:
-            raise RuntimeError(f"REDCap PID {expected_pid} is not in production mode.")
+        validate_project_identity(self._post({"content": "project"}), expected_pid, expected_title)
 
     def export_metadata(self) -> list[dict[str, Any]]:
         data = self._post({"content": "metadata"})

@@ -1,4 +1,5 @@
 name: Physio-HeMAB WP2 refresh
+run-name: Physio-HeMAB WP2 refresh (${{ inputs.source || github.event_name }})
 
 on:
   workflow_dispatch:

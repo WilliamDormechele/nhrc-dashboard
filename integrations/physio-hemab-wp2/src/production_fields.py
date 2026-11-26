@@ -67,3 +67,15 @@ def diary_metrics(row, fields):
             break
     _, interview_type = decode_choice(row, "ad_dc_interview", fields.get("ad_dc_interview"))
     return {"dashboard_calls_made": count, "dashboard_interview_type": interview_type}
+
+
+def validate_project_identity(data, expected_pid, expected_title):
+    if isinstance(data, list) and len(data) == 1:
+        data = data[0]
+    if not isinstance(data, dict) or str(data.get("project_id", "")) != str(expected_pid):
+        raise RuntimeError(f"REDCap project identity mismatch; expected PID {expected_pid}.")
+    if str(data.get("project_title", "")).strip().casefold() != expected_title.strip().casefold():
+        raise RuntimeError(f"REDCap project title mismatch for PID {expected_pid}.")
+    production = data.get("in_production")
+    if production is not None and str(production).lower() not in {"1", "true"}:
+        raise RuntimeError(f"REDCap PID {expected_pid} is not in production mode.")

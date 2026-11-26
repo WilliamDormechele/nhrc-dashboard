@@ -8,16 +8,28 @@ Physio-HeMAB WP2 uses two separate REDCap projects on the same REDCap server:
 
 | Key | REDCap project | PID | Purpose |
 | --- | --- | ---: | --- |
-| `main` | HeMAB Ghana Main | 410 | Enrollment, Maternal Record Book, Physical Examination and Activity Diary |
-| `devices` | HeMAB Ghana Devices | 411 | Device distribution and device return logs |
+| `main` | HeMAB Ghana Main | 115 | Enrollment, Maternal Record Book, Physical Examination and Activity Diary |
+| `devices` | HeMAB Ghana Devices | 116 | Device distribution and device return logs |
 
 Both projects use the same stable, versionless REDCap API endpoint:
 
 ```text
-https://redcap-test.uk-halle.de/api/
+https://redcap.uk-halle.de/api/
 ```
 
 Each REDCap project requires its own API token. The token identifies the REDCap project, so the project browser URL with `index.php?pid=...` must not be used as the API URL.
+
+## Production cutover
+
+On 26 November 2026 the project list showed the production projects Main PID 115 and Devices PID 116. The previously configured API secrets pointed to the test instance. Each source now requires the exact production endpoint and its own verified production token. Project information is verified before record export; publication requires both successful production sources. Empty or failed exports do not replace the last verified snapshot. Previously published test snapshots are not displayed as production data.
+
+From the repository root, after pulling main, run the following script to verify the production tokens and update the four GitHub Actions secrets without printing credentials:
+
+```powershell
+.\integrations\physio-hemab-wp2\scripts\configure-production-redcap.ps1
+```
+
+It dispatches the standard refresh workflow and checks its result. It does not edit REDCap records or replace the Firebase credential. No local production database is needed for the GitHub Actions refresh. Keep local test databases separate; the synchronizer refuses to merge existing active, unverified test records into production.
 
 ## Local secret configuration
 
@@ -32,12 +44,12 @@ The repository already ignores `.env` files. Never commit the real token values.
 Use:
 
 ```env
-PHYSIO_HEMAB_MAIN_REDCAP_API_URL=https://redcap-test.uk-halle.de/api/
-PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN=<PID 410 token>
+PHYSIO_HEMAB_MAIN_REDCAP_API_URL=https://redcap.uk-halle.de/api/
+PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN=<PID 115 token>
 PHYSIO_HEMAB_MAIN_REDCAP_RECORD_ID_FIELD=record_id
 
-PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=https://redcap-test.uk-halle.de/api/
-PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN=<PID 411 token>
+PHYSIO_HEMAB_DEVICES_REDCAP_API_URL=https://redcap.uk-halle.de/api/
+PHYSIO_HEMAB_DEVICES_REDCAP_API_TOKEN=<PID 116 token>
 PHYSIO_HEMAB_DEVICES_REDCAP_RECORD_ID_FIELD=record_id
 ```
 
@@ -60,16 +72,16 @@ The Main project currently contains these forms:
 The Devices project currently contains:
 
 - `distribution_log`
-- `return_log`
+- `return_log_new`
 
-The Main data dictionary does not contain a dedicated data-collector field. The project team still needs to decide whether the dashboard should use an explicit REDCap field or approved REDCap user/audit information for data-collector attribution.
+The dashboard uses the dedicated REDCap data_collector field. Call attempts use ad_call_number when present and answered, with legacy ad_call_numb supported through REDCap metadata. Interview type uses ad_dc_interview when available. Completion KPIs use REDCap form-status fields, not clinical investigation values or the order of questionnaire items.
 
 ## Data flow
 
 ```text
-PID 410 HeMAB Ghana Main --------\
+PID 115 HeMAB Ghana Main --------\
                                   -> Python sync -> PostgreSQL -> Power BI -> NHRC Dashboard
-PID 411 HeMAB Ghana Devices -----/
+PID 116 HeMAB Ghana Devices -----/
 ```
 
 ## Local setup
@@ -298,7 +310,7 @@ Because the Firebase project is being used without billing, the production path 
 ```text
 Local trusted workstation
         ↓
-REDCap PID 410 + PID 411
+REDCap PID 115 + PID 116
         ↓
 privacy-minimised local sync
         ↓
@@ -408,7 +420,7 @@ Daily at 21:00 Europe/London
         ↓
 GitHub Actions (public-repository standard runner)
         ↓
-REDCap PID 410 + PID 411
+REDCap PID 115 + PID 116
         ↓
 ephemeral PostgreSQL 16 reporting layer
         ↓

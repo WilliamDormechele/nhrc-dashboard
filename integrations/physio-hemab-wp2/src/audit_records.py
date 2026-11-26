@@ -6,6 +6,8 @@ from typing import Any
 
 from config import REDCAP_PROJECTS, load_redcap_settings
 from redcap_client import RedcapClient
+from sync import dashboard_fields
+from production_fields import select_fields, diary_metrics
 
 
 SENSITIVE_FIELDS = {
@@ -112,9 +114,10 @@ def main() -> None:
         timeout_seconds=settings.request_timeout_seconds,
     )
 
+    client.verify_project(settings.pid, settings.project_label)
     metadata = client.export_metadata()
     metadata_map = metadata_by_field(metadata)
-    records = client.export_records()
+    records = client.export_records(fields=select_fields(settings.project_key, dashboard_fields(settings.project_key), metadata))
 
     print(
         f"# {settings.project_label} "
@@ -179,7 +182,7 @@ def main() -> None:
         )
         print(
             "activity_diary_rows_with_call_count="
-            + str(sum(nonblank(row.get("ad_call_numb")) for row in records))
+            + str(sum(diary_metrics(row, metadata_map)["dashboard_calls_made"] is not None for row in records))
         )
 
         call_date_labels = choice_label_map(metadata_map.get("call_date"))

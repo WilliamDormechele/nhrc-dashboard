@@ -67,6 +67,7 @@ jobs:
             "integrations/physio-hemab-wp2/scripts/install-auto-refresh-task.ps1",
             "integrations/physio-hemab-wp2/scripts/disable-auto-refresh-task.ps1",
             "integrations/physio-hemab-wp2/scripts/configure-github-refresh-secrets.ps1",
+            "integrations/physio-hemab-wp2/scripts/configure-production-redcap.ps1",
             "integrations/physio-hemab-wp2/scripts/configure-refresh-endpoint.ps1",
             "integrations/physio-hemab-wp2/scripts/deploy-free-refresh-worker.ps1"
           )
@@ -127,3 +128,4 @@ jobs:
             -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_data_collector_performance;"
           docker exec wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 \
             -c "SELECT COUNT(*) FROM physio_hemab_wp2.vw_device_overdue_scenarios;"
+          docker exec -i wp2-pg-test psql -v ON_ERROR_STOP=1 -U postgres -d physio_hemab_wp2 < integrations/physio-hemab-wp2/tests/production_reporting.sql
