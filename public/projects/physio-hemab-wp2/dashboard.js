@@ -640,7 +640,7 @@
     const forms = [
       { label: "Enrollment Form", expected: m.enrolled, completed: m.enrollmentComplete },
       { label: "Maternal Record Book", expected: m.enrolled, completed: m.maternalComplete },
-      { label: "Physical Examination", expected: m.enrolled, completed: m.physicalComplete },
+      { label: "Case Report Form (CRF)", expected: m.enrolled, completed: m.physicalComplete },
       { label: "Activity Diary", expected: m.diaryExpected, completed: m.diaryComplete }
     ];
 
@@ -855,7 +855,7 @@
         completed: participants.filter((r) => r.maternalRecordComplete).length
       },
       {
-        form: "Physical Examination",
+        form: "Case Report Form (CRF)",
         expected: participants.length,
         completed: participants.filter((r) => r.physicalExamComplete).length
       },
@@ -1022,7 +1022,7 @@
         ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}`)}
         ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, sameDay + delayed), 1)}%`, "positive", `${sameDay} Yes`)}
         ${kpiCard("Delayed Interviews", `${number(percent(delayed, sameDay + delayed), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
-        ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} total calls`)}
+        ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} exact attempts; More excluded`)}
         ${kpiCard("Avg Delay", number(avgDelay, 2), avgDelay > 0 ? "warning" : "positive", "Days")}
         ${kpiCard("Max Delay", number(maxDelay), maxDelay > 0 ? "problem" : "positive", "Days")}
       </div>
@@ -1044,7 +1044,7 @@
               escapeHtml(r.sameDayInterview || "—"),
               escapeHtml(formatDate(r.interviewDate)),
               r.delayDays === null ? "—" : number(r.delayDays),
-              r.callsMade === null ? "—" : number(r.callsMade)
+              r.callsMade == null ? escapeHtml(r.callAttemptLabel || "—") : number(r.callsMade)
             ]),
             diaries.map((r) =>
               `data-filter-facility="${escapeHtml(r.facility)}" data-filter-collector="${escapeHtml(r.dataCollector)}"`
@@ -1390,7 +1390,7 @@
         severity: "High"
       },
       {
-        name: "Incomplete Physical Examinations",
+        name: "Incomplete Case Report Forms",
         count: participants.filter((r) => !r.physicalExamComplete).length,
         severity: "High"
       },
@@ -1457,7 +1457,7 @@
               escapeHtml(formatDate(r.diaryDate)),
               escapeHtml(formatDate(r.interviewDate)),
               r.delayDays === null ? "—" : number(r.delayDays),
-              r.callsMade === null ? "—" : number(r.callsMade)
+              r.callsMade == null ? escapeHtml(r.callAttemptLabel || "—") : number(r.callsMade)
             ])
           ),
           7,

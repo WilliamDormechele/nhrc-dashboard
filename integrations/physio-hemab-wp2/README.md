@@ -66,7 +66,7 @@ The Main project currently contains these forms:
 
 - `enrollment_form`
 - `maternal_record_book_baseline`
-- `physical_examination_form`
+- `case_report_form` (production CRF; former test instrument `physical_examination_form`)
 - `activity_diary`
 
 The Devices project currently contains:
@@ -74,7 +74,7 @@ The Devices project currently contains:
 - `distribution_log`
 - `return_log_new`
 
-The dashboard uses the dedicated REDCap data_collector field. Call attempts use ad_call_number when present and answered, with legacy ad_call_numb supported through REDCap metadata. Interview type uses ad_dc_interview when available. Completion KPIs use REDCap form-status fields, not clinical investigation values or the order of questionnaire items.
+The dashboard uses the dedicated REDCap data_collector field. Production metadata verified on 27 November 2026 identifies ad_call_numb (dropdown: 1, 2, 3, More) and case_report_form_complete. The alternate ad_call_number is supported if introduced later. More is retained as a category and excluded from exact numeric summaries. Interview type uses ad_dc_interview when available. Completion KPIs use REDCap form-status fields, not clinical investigation values or the order of questionnaire items.
 
 ## Data flow
 
