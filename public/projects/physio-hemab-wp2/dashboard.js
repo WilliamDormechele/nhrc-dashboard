@@ -256,6 +256,7 @@
     "Enrollment Forms Complete": "enrollment", "Enrollment Complete": "enrollment",
     "Maternal Records Complete": "maternal", "Physical Exams Complete": "crf",
     "Activity Diaries Complete": "diaryComplete", "Completion": "diaryComplete",
+    "Incomplete Recorded Diaries": "diaryIncomplete",
     "On-Time Interviews": "sameDay", "Same-Day Interviews": "sameDay", "Delayed Interviews": "delayed",
     "Avg Call Attempts": "calls", "Avg Delay": "delay", "Max Delay": "maxDelay",
     "Returned Device Sets": "returns", "Complete Returns": "completeReturns",
@@ -291,6 +292,7 @@
       case "crf": return participantTable(participants.filter(r => r.physicalExamComplete));
       case "unassigned": return participantTable(participants.filter(r => !r.dataCollector || r.dataCollector === "Unassigned"));
       case "diaryComplete": return diaryTable(diaries.filter(r => r.diaryComplete));
+      case "diaryIncomplete": return diaryTable(diaries.filter(r => !r.diaryComplete));
       case "sameDay": return diaryTable(diaries.filter(r => r.sameDayInterview === "Yes"));
       case "delayed": return diaryTable(diaries.filter(r => r.sameDayInterview === "No"));
       case "calls": return diaryTable(diaries.filter(r => numeric(r.callsMade)));
@@ -321,7 +323,7 @@
   const detailSearch = document.getElementById("kpiDetailsSearch");
 
   function positionKpiDetails() {
-    if (!detailDialog?.open) return;
+    if (!detailDialog) return;
     let top = 0;
     let height = window.innerHeight;
     try {
@@ -372,8 +374,10 @@
     document.getElementById("kpiDetailsTitle").textContent = button.dataset.kpiTitle;
     document.getElementById("kpiDetailsContext").textContent =
       "Dashboard value: " + button.dataset.kpiValue + " · " + (els.activeFilterSummary.textContent || "No filters") +
+      (button.dataset.kpiDetails === "diaryComplete" && button.dataset.kpiTitle === "Completion" ? " · Completed records (numerator)" : "") +
       (button.dataset.kpiDetails === "overdue" ? " · Return window: " + state.returnWindowDays + " days" : "");
     detailSearch.value = "";
+    positionKpiDetails();
     detailDialog.showModal();
     positionKpiDetails();
     renderKpiDetails();
@@ -397,12 +401,21 @@
   document.getElementById("kpiDetailsClose").addEventListener("click", closeKpiDetails);
   document.getElementById("kpiDetailsPrevious").addEventListener("click", () => { if (detailState) { detailState.page--; renderKpiDetails(); } });
   document.getElementById("kpiDetailsNext").addEventListener("click", () => { if (detailState) { detailState.page++; renderKpiDetails(); } });
-  detailDialog.addEventListener("close", () => { const trigger = detailState?.trigger; detailState = null; document.getElementById("kpiDetailsTable").replaceChildren(); if (trigger?.isConnected) trigger.focus({ preventScroll: true }); });
+  detailDialog.addEventListener("close", () => { if (detailDialog.open) return; const trigger = detailState?.trigger; detailState = null; document.getElementById("kpiDetailsTable").replaceChildren(); if (trigger?.isConnected) trigger.focus({ preventScroll: true }); });
   window.addEventListener("resize", positionKpiDetails);
-  try { if (window.parent !== window) { window.parent.addEventListener("scroll", positionKpiDetails, { passive: true }); window.parent.addEventListener("resize", positionKpiDetails); } } catch (_) {}
+  try {
+    if (window.parent !== window) {
+      window.parent.addEventListener("scroll", positionKpiDetails, { passive: true });
+      window.parent.addEventListener("resize", positionKpiDetails);
+      window.addEventListener("pagehide", () => {
+        window.parent.removeEventListener("scroll", positionKpiDetails);
+        window.parent.removeEventListener("resize", positionKpiDetails);
+      }, { once: true });
+    }
+  } catch (_) {}
 
   function kpiCard(label, value, tone = "info", note = "") {
-    const key = KPI_DETAIL_KEYS[label];
+    const key = Object.prototype.hasOwnProperty.call(KPI_DETAIL_KEYS, label) ? KPI_DETAIL_KEYS[label] : null;
     const tag = key ? "button" : "article";
     const attributes = key ? `type="button" data-kpi-details="${escapeHtml(key)}" data-kpi-title="${escapeHtml(label)}" data-kpi-value="${escapeHtml(value)}" aria-haspopup="dialog" aria-label="${escapeHtml(label + ": " + value + ". View matching records")}"` : "";
     return `
@@ -590,11 +603,20 @@
     els.collectorFilter.value = state.filters.collector;
     els.dateFromFilter.value = state.filters.dateFrom;
     els.dateToFilter.value = state.filters.dateTo;
+    els.dateFromFilter.max = state.filters.dateTo || "";
+    els.dateToFilter.min = state.filters.dateFrom || "";
+    if (state.returnWindowDays != null) els.returnWindowFilter.value = String(state.returnWindowDays);
   }
 
   function setDimensionFilter(dimension, value, { toggle = false } = {}) {
     const nextValue = normalizeFilterValue(value);
     const currentValue = normalizeFilterValue(state.filters[dimension]);
+    if ((dimension === "dateFrom" && nextValue && state.filters.dateTo && nextValue > state.filters.dateTo) ||
+        (dimension === "dateTo" && nextValue && state.filters.dateFrom && nextValue < state.filters.dateFrom)) {
+      syncFilterControls();
+      showDashboardToast("warning", "Check date range", "From date must be on or before To date.");
+      return;
+    }
 
     state.filters[dimension] =
       toggle && nextValue && sameFilterValue(currentValue, nextValue)
@@ -614,9 +636,18 @@
     setDimensionFilter("collector", value, { toggle: true });
   }
 
+  function defaultReturnWindowDays() {
+    const options = state.data?.config?.returnWindowOptions || [1, 2, 3, 5, 7, 10, 14];
+    const configured = Number(state.data?.config?.returnWindowDays);
+    return configured > 0 ? configured : options.map(Number).includes(3) ? 3 : Number(options[0]) || 3;
+  }
+
   function clearSingleFilter(dimension) {
-    if (!Object.prototype.hasOwnProperty.call(state.filters, dimension)) return;
-    state.filters[dimension] = "";
+    if (dimension === "returnWindow") state.returnWindowDays = defaultReturnWindowDays();
+    else {
+      if (!Object.prototype.hasOwnProperty.call(state.filters, dimension)) return;
+      state.filters[dimension] = "";
+    }
     syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
@@ -653,6 +684,9 @@
       });
     }
 
+    if (state.returnWindowDays != null && Number(state.returnWindowDays) !== defaultReturnWindowDays()) {
+      chips.push({ dimension: "returnWindow", label: `Return window: ${state.returnWindowDays} days` });
+    }
     const hasFilters = chips.length > 0;
 
     if (els.activeFilterSummary) {
@@ -728,15 +762,14 @@
     els.collectorFilter.value = state.filters.collector;
 
     const options = state.data?.config?.returnWindowOptions || [1, 2, 3, 5, 7, 10, 14];
-    const configured = state.data?.config?.returnWindowDays;
-    if (state.returnWindowDays === null) {
-      state.returnWindowDays = configured || options.find((v) => Number(v) === 3) || options[0] || 3;
+    if (state.returnWindowDays === null || !options.map(Number).includes(Number(state.returnWindowDays))) {
+      state.returnWindowDays = defaultReturnWindowDays();
     }
 
     els.returnWindowFilter.innerHTML = options
       .map((days) => `<option value="${days}">${days} day${Number(days) === 1 ? "" : "s"}</option>`)
       .join("");
-    els.returnWindowFilter.value = String(state.returnWindowDays);
+    syncFilterControls();
   }
 
   function renderFreshness() {
@@ -761,15 +794,18 @@
     `;
   }
 
+  function diaryCompletionScope(participants, diaries) {
+    const recordedOnly = Boolean(state.filters.collector || state.filters.dateFrom || state.filters.dateTo);
+    const expected = recordedOnly ? diaries.length : participants.length * Number(state.data?.config?.activityDiariesExpectedPerParticipant || 6);
+    return { expected, recordedOnly };
+  }
+
   function getOverviewMetrics() {
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const target = Number(state.data?.config?.participantTarget || 200);
     const overallEnrolled = (state.data?.participants || []).length;
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
-    const diaryExpected = participants.length * expectedPerParticipant;
+    const { expected: diaryExpected, recordedOnly: diaryRecordedOnly } = diaryCompletionScope(participants, diaries);
     const diaryComplete = diaries.filter((r) => r.diaryComplete).length;
     const sameDay = diaries.filter((r) => r.sameDayInterview === "Yes").length;
     const delayed = diaries.filter((r) => r.sameDayInterview === "No").length;
@@ -791,6 +827,7 @@
         (r) => r.enrollmentComplete && r.maternalRecordComplete && r.physicalExamComplete
       ).length,
       diaryExpected,
+      diaryRecordedOnly,
       diaryComplete,
       diaryOutstanding: Math.max(diaryExpected - diaryComplete, 0),
       diaryCompletionPct: percent(diaryComplete, diaryExpected),
@@ -817,7 +854,7 @@
       { label: "Enrollment Form", expected: m.enrolled, completed: m.enrollmentComplete },
       { label: "Maternal Record Book", expected: m.enrolled, completed: m.maternalComplete },
       { label: "Case Report Form (CRF)", expected: m.enrolled, completed: m.physicalComplete },
-      { label: "Activity Diary", expected: m.diaryExpected, completed: m.diaryComplete }
+      { label: m.diaryRecordedOnly ? "Activity Diary (recorded)" : "Activity Diary", expected: m.diaryExpected, completed: m.diaryComplete }
     ];
 
     content.innerHTML = `
@@ -834,7 +871,7 @@
         )}
         ${kpiCard("Overall Study Target", number(m.target), "neutral", "Study-level target across four facilities")}
         ${kpiCard("Overall Recruitment Progress", `${number(m.recruitmentPct, 1)}%`, "positive", `${m.remaining} participants remaining overall`)}
-        ${kpiCard("Activity Diaries Complete", number(m.diaryComplete), m.diaryOutstanding ? "warning" : "positive", `${m.diaryOutstanding} outstanding of ${m.diaryExpected}`)}
+        ${kpiCard("Activity Diaries Complete", number(m.diaryComplete), m.diaryOutstanding ? "warning" : "positive", m.diaryRecordedOnly ? `${m.diaryOutstanding} incomplete of ${m.diaryExpected} recorded` : `${m.diaryOutstanding} outstanding of ${m.diaryExpected}`)}
         ${kpiCard("Enrollment Forms Complete", number(m.enrollmentComplete), "positive")}
         ${kpiCard("Maternal Records Complete", number(m.maternalComplete), "positive")}
         ${kpiCard("Physical Exams Complete", number(m.physicalComplete), "positive")}
@@ -1016,9 +1053,7 @@
   }
 
   function formRows(participants, diaries) {
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
+    const diaryScope = diaryCompletionScope(participants, diaries);
     return [
       {
         form: "Enrollment Form",
@@ -1036,8 +1071,8 @@
         completed: participants.filter((r) => r.physicalExamComplete).length
       },
       {
-        form: "Activity Diary",
-        expected: participants.length * expectedPerParticipant,
+        form: diaryScope.recordedOnly ? "Activity Diary (recorded)" : "Activity Diary",
+        expected: diaryScope.expected,
         completed: diaries.filter((r) => r.diaryComplete).length
       }
     ].map((r) => ({
@@ -1052,13 +1087,14 @@
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const forms = formRows(participants, diaries);
+    const diaryScope = diaryCompletionScope(participants, diaries);
 
     content.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard("Enrollment Complete", number(forms[0].completed), forms[0].missing ? "warning" : "positive")}
         ${kpiCard("Maternal Records Complete", number(forms[1].completed), forms[1].missing ? "warning" : "positive")}
         ${kpiCard("Physical Exams Complete", number(forms[2].completed), forms[2].missing ? "warning" : "positive")}
-        ${kpiCard("Activity Diaries Complete", number(forms[3].completed), forms[3].missing ? "warning" : "positive", `${forms[3].missing} outstanding`)}
+        ${kpiCard("Activity Diaries Complete", number(forms[3].completed), forms[3].missing ? "warning" : "positive", diaryScope.recordedOnly ? `${forms[3].missing} recorded forms incomplete` : `${forms[3].missing} outstanding`)}
       </div>
 
       <div class="dashboard-grid">
@@ -1146,9 +1182,7 @@
     const content = document.getElementById("diaryContent");
     const diaries = filteredDiaries();
     const participants = filteredParticipants();
-    const expected = participants.length * Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
+    const { expected, recordedOnly } = diaryCompletionScope(participants, diaries);
     const complete = diaries.filter((r) => r.diaryComplete).length;
     const sameDay = diaries.filter((r) => r.sameDayInterview === "Yes").length;
     const delayed = diaries.filter((r) => r.sameDayInterview === "No").length;
@@ -1195,7 +1229,7 @@
 
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
-        ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}`)}
+        ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}${recordedOnly ? " recorded" : " expected"}`)}
         ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, sameDay + delayed), 1)}%`, "positive", `${sameDay} Yes`)}
         ${kpiCard("Delayed Interviews", `${number(percent(delayed, sameDay + delayed), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
         ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} exact attempts; More excluded`)}
@@ -1513,10 +1547,7 @@
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const returns = filteredReturns();
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
-    const expectedDiaries = participants.length * expectedPerParticipant;
+    const { expected: expectedDiaries, recordedOnly } = diaryCompletionScope(participants, diaries);
     const completedDiaries = diaries.filter((r) => r.diaryComplete).length;
     const sourceStatus = state.data?.sourceStatus || {};
     const targetConfig = state.data?.config?.facilityTargets || {};
@@ -1527,7 +1558,7 @@
 
     return [
       {
-        name: "Outstanding Activity Diaries",
+        name: recordedOnly ? "Incomplete Recorded Activity Diaries" : "Outstanding Activity Diaries",
         count: Math.max(expectedDiaries - completedDiaries, 0),
         severity: "High"
       },
@@ -1592,13 +1623,14 @@
     const diaries = filteredDiaries();
     const delayed = diaries.filter((r) => r.sameDayInterview === "No");
     const incompleteReturns = filteredReturns().filter(incompleteReturn);
+    const recordedOnly = diaryCompletionScope(filteredParticipants(), diaries).recordedOnly;
     const majorIssueCount = issues.filter((r) => ["High", "Critical"].includes(r.severity))
       .reduce((sum, r) => sum + r.count, 0);
 
     content.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard("High / Critical Issues", number(majorIssueCount), majorIssueCount ? "problem" : "positive")}
-        ${kpiCard("Outstanding Diaries", number(issues.find((r) => r.name === "Outstanding Activity Diaries")?.count || 0), "warning")}
+        ${kpiCard(recordedOnly ? "Incomplete Recorded Diaries" : "Outstanding Diaries", number(issues.find((r) => r.name === (recordedOnly ? "Incomplete Recorded Activity Diaries" : "Outstanding Activity Diaries"))?.count || 0), "warning", recordedOnly ? "Within selected records" : "Planned study-level gap")}
         ${kpiCard("Incomplete Returns", number(incompleteReturns.length), incompleteReturns.length ? "problem" : "positive")}
         ${kpiCard("Delayed Interviews", number(delayed.length), delayed.length ? "warning" : "positive")}
       </div>
@@ -2074,6 +2106,11 @@
     if (state.section === "performance") {
       wirePerformanceConfiguration();
     }
+    const note = document.getElementById("filterScopeNote");
+    if (note) note.textContent = state.section === "sync" ? "Sync status is study-wide." :
+      state.section === "devices" ? "Dates select return/distribution events and the latest event for current inventory. Return window changes overdue status." :
+      (state.filters.collector || state.filters.dateFrom || state.filters.dateTo) && ["overview","forms","diary","quality"].includes(state.section) ?
+      "Diary completion uses recorded forms within these filters; planned lifetime diary targets cannot be allocated to individual dates or collectors." : "";
   }
 
   function wireInteractiveRows() {
@@ -2313,6 +2350,7 @@
     state.refreshState = projectData.wp2RefreshState || {};
 
     if (!isVerifiedProductionSnapshot(publishedSnapshot)) {
+      closeKpiDetails();
       state.data = null;
       ["overview", "recruitment", "forms", "diary", "devices", "quality", "sync", "performance"].forEach(section => {
         const content = document.getElementById(section + "Content");
@@ -2619,6 +2657,7 @@
       dateFrom: "",
       dateTo: ""
     };
+    state.returnWindowDays = defaultReturnWindowDays();
     syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
@@ -2628,32 +2667,14 @@
     button.addEventListener("click", () => showSection(button.dataset.section));
   });
 
-  els.facilityFilter.addEventListener("change", () => {
-    state.filters.facility = els.facilityFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.collectorFilter.addEventListener("change", () => {
-    state.filters.collector = els.collectorFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.dateFromFilter.addEventListener("change", () => {
-    state.filters.dateFrom = els.dateFromFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.dateToFilter.addEventListener("change", () => {
-    state.filters.dateTo = els.dateToFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
+  [["facility", els.facilityFilter], ["collector", els.collectorFilter], ["dateFrom", els.dateFromFilter], ["dateTo", els.dateToFilter]].forEach(([dimension, control]) => {
+    control.addEventListener("change", () => setDimensionFilter(dimension, control.value));
   });
 
   els.returnWindowFilter.addEventListener("change", () => {
-    state.returnWindowDays = Number(els.returnWindowFilter.value) || 3;
+    state.returnWindowDays = Number(els.returnWindowFilter.value) || defaultReturnWindowDays();
+    syncFilterControls();
+    renderActiveFilterSummary();
     renderCurrentSection();
   });
 

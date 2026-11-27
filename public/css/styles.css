@@ -2401,7 +2401,7 @@ body.admin-loading {
   border-radius: 22px;
   display: flex;
   flex-direction: column;
-  min-height: 720px;
+  min-height: 0;
   overflow: hidden;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
@@ -3731,6 +3731,6 @@ body.native-dashboard-page .workspace-body {
   }
 
   .native-dashboard-container iframe {
-    min-height: 640px;
+    min-height: 0;
   }
 }
