@@ -11,8 +11,8 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 if ($LASTEXITCODE -ne 0) { throw "Authenticate GitHub CLI first." }
 
 function Read-VerifiedToken {
-    param([string]$Title, [int]$Pid)
-    $secret = Read-Host "Paste the PRODUCTION REDCap API token for $Title (PID $Pid)" -AsSecureString
+    param([string]$Title, [int]$ProjectId)
+    $secret = Read-Host "Paste the PRODUCTION REDCap API token for $Title (PID $ProjectId)" -AsSecureString
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
     try {
         $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr).Trim()
@@ -25,17 +25,17 @@ function Read-VerifiedToken {
                 returnFormat = "json"
             }
         } catch {
-            throw "Unable to verify production API access for PID $Pid. Check that the token belongs to the production project and has API Export access."
+            throw "Unable to verify production API access for PID $ProjectId. Check that the token belongs to the production project and has API Export access."
         }
         $project = @($result)
-        if ($project.Count -ne 1 -or [string]$project[0].project_id -ne [string]$Pid -or
+        if ($project.Count -ne 1 -or [string]$project[0].project_id -ne [string]$ProjectId -or
             ([string]$project[0].project_title).Trim() -ne $Title) {
-            throw "Wrong project token. Expected $Title, PID $Pid. No secrets have been changed."
+            throw "Wrong project token. Expected $Title, PID $ProjectId. No secrets have been changed."
         }
         if ($null -ne $project[0].in_production -and [string]$project[0].in_production -notin @("1", "True")) {
-            throw "PID $Pid is not in production mode."
+            throw "PID $ProjectId is not in production mode."
         }
-        Write-Host "Verified $Title (PID $Pid)." -ForegroundColor Green
+        Write-Host "Verified $Title (PID $ProjectId)." -ForegroundColor Green
         return $token
     } finally {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)

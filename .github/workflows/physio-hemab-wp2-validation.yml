@@ -85,6 +85,33 @@ jobs:
             }
           }
 
+      - name: Verify production token prompt can bind parameters
+        shell: pwsh
+        run: |
+          $path = "integrations/physio-hemab-wp2/scripts/configure-production-redcap.ps1"
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -ne 0) { throw "Token configuration script has parse errors." }
+          $function = $ast.Find({
+              param($node)
+              $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq "Read-VerifiedToken"
+          }, $true)
+          if (-not $function) { throw "Token prompt function missing." }
+          # Load only the function, not the deployment script. Stub API and prompt; no secrets or network.
+          . ([scriptblock]::Create($function.Extent.Text))
+          $Url = "https://redcap.uk-halle.de/api/"
+          function Read-Host { param([string]$Prompt, [switch]$AsSecureString) ConvertTo-SecureString "synthetic-token" -AsPlainText -Force }
+          function Invoke-RestMethod {
+              param($Uri, $Method, $MaximumRedirection, $TimeoutSec, $Body)
+              @{ project_id = 115; project_title = "HeMAB Ghana Main"; in_production = 1 }
+          }
+          $result = Read-VerifiedToken "HeMAB Ghana Main" 115
+          if ($result -ne "synthetic-token") { throw "Token prompt regression." }
+          $rejected = $false
+          try { Read-VerifiedToken "HeMAB Ghana Devices" 116 | Out-Null } catch { $rejected = $true }
+          if (-not $rejected) { throw "Wrong project token accepted." }
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
