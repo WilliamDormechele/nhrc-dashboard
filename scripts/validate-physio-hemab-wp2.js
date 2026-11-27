@@ -4,7 +4,9 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+  // Git may check out files with CRLF on Windows and LF on Linux.
+  // Validate the same source content regardless of local line endings.
+  return fs.readFileSync(path.join(root, relativePath), "utf8").replace(/\r\n/g, "\n");
 }
 
 function assert(condition, message) {

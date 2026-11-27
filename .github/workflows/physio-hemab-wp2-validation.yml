@@ -53,6 +53,20 @@ jobs:
       - name: Validate dashboard integration
         run: npm run test:physio-hemab-wp2
 
+      - name: Verify validation with Windows CRLF line endings
+        run: |
+          node <<'JS'
+          const fs = require("fs");
+          const file = "public/projects/physio-hemab-wp2/dashboard.js";
+          const original = fs.readFileSync(file, "utf8");
+          try {
+            fs.writeFileSync(file, original.replace(/\r?\n/g, "\r\n"), "utf8");
+            require("./scripts/validate-physio-hemab-wp2.js");
+          } finally {
+            fs.writeFileSync(file, original, "utf8");
+          }
+          JS
+
       - name: Check native dashboard JavaScript syntax
         run: |
           node --check public/projects/physio-hemab-wp2/dashboard.js
