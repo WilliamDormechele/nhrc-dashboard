@@ -18,7 +18,7 @@ INSERT INTO physio_hemab_wp2.raw_records(source_project,record_id,repeat_instrum
 VALUES ('main','synthetic_complete','','','{"enroll_studid":"synthetic_complete","case_report_form_complete":"2"}','synthetic4'),
        ('main','synthetic','activity_diary','2','{"ad_date":"2026-11-27","dashboard_call_attempt_label":"More","dashboard_interview_type":"No interview","activity_diary_complete":"2"}','synthetic5');
 
-DO $
+DO $$
 BEGIN
  IF (SELECT count(*) FROM physio_hemab_wp2.vw_participants WHERE physical_examination_complete) <> 1 THEN
    RAISE EXCEPTION 'Production CRF completion regression';
