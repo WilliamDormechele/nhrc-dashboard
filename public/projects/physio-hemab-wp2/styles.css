@@ -1336,3 +1336,19 @@ h3 {
 @media(prefers-reduced-motion:reduce){.kpi-drilldown{transition:none}.kpi-drilldown:hover{transform:none}}
 
 .filter-scope-note{grid-column:1/-1;margin:0;color:#52697f;font-size:11px;line-height:1.5}.filter-scope-note:empty{display:none}
+
+/* Review release: consistent table controls, visible focus and compact navigation. */
+.table-tools { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 0; }
+.table-tools input { max-width:100%; padding:8px; border:1px solid #697b89; border-radius:6px; }
+.table-tools [role=status] { color:#334b60; }
+.data-table th { position:sticky; top:0; z-index:1; background:#edf3f7; }
+.data-table th button { font:inherit; font-weight:700; color:#17324d; border:0; background:transparent; cursor:pointer; text-align:left; padding:8px; }
+.table-wrap { max-height:560px; overflow:auto; }
+tr[hidden] { display:none !important; }
+:focus-visible { outline:3px solid #176caa; outline-offset:3px; }
+.indicator-help { margin:12px 0; padding:14px; background:#edf3f7; border-radius:10px; color:#17324d; }
+.indicator-help summary { cursor:pointer; font-weight:700; }
+.indicator-help dt { font-weight:700; margin-top:12px; }
+.indicator-help dd { margin:4px 0 0; }
+.section-nav { position:sticky; top:0; z-index:10; background:#fff; max-height:160px; overflow:auto; }
+@media(max-width:600px) { .section-nav { display:flex; flex-wrap:nowrap; max-height:70px; } .nav-item { flex-shrink:0; } .table-tools { align-items:stretch; } .table-tools label { width:100%; } }

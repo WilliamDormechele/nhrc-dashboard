@@ -398,6 +398,13 @@
     }
   });
   detailSearch.addEventListener("input", () => { if (detailState) { detailState.page = 0; renderKpiDetails(); } });
+  document.getElementById("kpiDetailsExport").addEventListener("click", () => {
+    if (!detailState) return;
+    const query = String(detailSearch.value || "").trim().toLowerCase();
+    const rows = detailState.data.rows.filter(row => !query || row.some(cell => String(cell ?? "").toLowerCase().includes(query)));
+    if (detailState.sort >= 0) rows.sort((a, b) => detailState.direction * String(a[detailState.sort] ?? "").localeCompare(String(b[detailState.sort] ?? ""), undefined, { numeric: true }));
+    downloadCsv(detailState.data.headers, rows, "wp2-indicator-records");
+  });
   document.getElementById("kpiDetailsClose").addEventListener("click", closeKpiDetails);
   document.getElementById("kpiDetailsPrevious").addEventListener("click", () => { if (detailState) { detailState.page--; renderKpiDetails(); } });
   document.getElementById("kpiDetailsNext").addEventListener("click", () => { if (detailState) { detailState.page++; renderKpiDetails(); } });
@@ -444,10 +451,10 @@
   }
 
   function table(headers, rows, rowAttributes = [], maxRows = 250) {
-    if (!rows.length) return emptyState("No records match the current filters.");
+    if (!rows.length) return emptyState(Object.values(state.filters).some(Boolean) ? "No records match these filters. Clear all filters to broaden the results." : "No records have been published for this table yet. Check Sync Status for source availability.");
 
-    const visibleRows = rows.slice(0, maxRows);
-    const visibleAttributes = rowAttributes.slice(0, maxRows);
+    const visibleRows = rows;
+    const visibleAttributes = rowAttributes;
     const truncated = rows.length > visibleRows.length;
 
     return `
@@ -534,6 +541,17 @@
       },
       ...(options.scales || {})
     };
+    if (options.indexAxis === "y") {
+      options.scales.y.ticks.callback = function(value) {
+        const words = String(this.getLabelForValue(value)).split(" ");
+        const lines = [""];
+        words.forEach(word => {
+          if ((lines[lines.length - 1] + " " + word).trim().length > 20) lines.push(word);
+          else lines[lines.length - 1] = (lines[lines.length - 1] + " " + word).trim();
+        });
+        return lines;
+      };
+    }
 
     if (clickHandler) {
       options.onHover = (event, elements) => {
@@ -2084,6 +2102,119 @@
     );
   }
 
+  function downloadCsv(headers, rows, name) {
+    // Neutralise spreadsheet formulas, including cells with leading whitespace.
+    const cell = value => '"' + String(value ?? "").replace(/^([\s]*[=+@-])/, "'$1").replace(/"/g, '""') + '"';
+    const blob = new Blob(["\ufeff" + [headers, ...rows].map(row => row.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = name + ".csv"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function enhanceTables() {
+    document.querySelectorAll(".dashboard-section.active-section .table-wrap").forEach(wrap => {
+      const tableElement = wrap.querySelector("table");
+      const rows = Array.from(tableElement.tBodies[0].rows);
+      const headers = Array.from(tableElement.tHead.rows[0].cells);
+      const controls = document.createElement("div");
+      controls.className = "table-tools";
+      controls.innerHTML = '<label>Search table <input type="search" aria-label="Search this table"></label><button type="button" class="btn btn-secondary">Download filtered CSV</button><span role="status"></span>';
+      wrap.before(controls);
+      let page = 0;
+      const pager = document.createElement("div"); pager.className = "table-tools";
+      pager.innerHTML = '<button type="button" class="btn btn-secondary">Previous</button><span></span><button type="button" class="btn btn-secondary">Next</button>';
+      wrap.after(pager);
+      const search = controls.querySelector("input");
+      const matches = () => Array.from(tableElement.tBodies[0].rows).filter(row => row.textContent.toLowerCase().includes(search.value.trim().toLowerCase()));
+      const render = () => {
+        const selected = matches(); const pages = Math.max(1, Math.ceil(selected.length / 25));
+        page = Math.max(0, Math.min(page, pages - 1)); rows.forEach(row => { row.hidden = true; });
+        selected.slice(page * 25, (page + 1) * 25).forEach(row => { row.hidden = false; });
+        controls.querySelector('[role="status"]').textContent = selected.length + " of " + rows.length + " rows";
+        pager.querySelector("span").textContent = "Page " + (page + 1) + " of " + pages;
+        pager.firstElementChild.disabled = page === 0; pager.lastElementChild.disabled = page + 1 >= pages;
+      };
+      search.oninput = () => { page = 0; render(); };
+      pager.firstElementChild.onclick = () => { page--; render(); };
+      pager.lastElementChild.onclick = () => { page++; render(); };
+      controls.querySelector("button").onclick = () => downloadCsv(headers.map(h => h.textContent), matches().map(row => Array.from(row.cells, c => c.textContent)), "wp2-" + state.section);
+      headers.forEach((header, column) => {
+        const label = header.textContent; const button = document.createElement("button");
+        button.type = "button"; button.textContent = label; let direction = 1;
+        header.scope = "col"; header.replaceChildren(button);
+        button.onclick = () => {
+          rows.sort((a, b) => direction * a.cells[column].textContent.localeCompare(b.cells[column].textContent, undefined, { numeric: true }));
+          headers.forEach(h => h.removeAttribute("aria-sort")); header.setAttribute("aria-sort", direction === 1 ? "ascending" : "descending");
+          rows.forEach(row => tableElement.tBodies[0].append(row)); direction *= -1; page = 0; render();
+        };
+      });
+      render();
+    });
+  }
+
+  function activityEvents() {
+    const events = [];
+    const add = (rows, field, type, facilityField = "facility", idField = "studyId") => rows.forEach(row => {
+      if (row[field]) events.push({ date: row[field], type, id: row[idField], facility: row[facilityField], collector: row.dataCollector });
+    });
+    add(filteredParticipants(), "enrollmentDate", "Enrollment");
+    add((state.data.participants || []).filter(row => (!state.filters.facility || row.physicalExamFacility === state.filters.facility) && (!state.filters.collector || row.dataCollector === state.filters.collector) && dateInRange(row.physicalExamDate)), "physicalExamDate", "CRF", "physicalExamFacility");
+    add(filteredDiaries(), "diaryDate", "Diary");
+    add(filteredDistributions(), "distributionDate", "Distribution", "facility", "deviceSet");
+    add(filteredReturns(), "returnDate", "Return", "returnFacility", "deviceSet");
+    return events.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }
+
+  function historicalDevices(cutoff) {
+    const bySet = new Map();
+    const add = (rows, field, type) => rows.forEach(row => {
+      const date = String(row[field] || "").slice(0, 10);
+      if (!row.deviceSet || !date || date > cutoff) return;
+      const previous = bySet.get(row.deviceSet);
+      if (!previous || date > previous.date) bySet.set(row.deviceSet, { row, date, type });
+      else if (date === previous.date && type !== previous.type) bySet.set(row.deviceSet, { row, date, type: "Same-day order unknown" });
+    });
+    add(state.data.deviceDistributions || [], "distributionDate", "Distributed");
+    add(state.data.deviceReturns || [], "returnDate", "Returned");
+    return [...bySet].filter(([, e]) => (!state.filters.facility || (e.row.returnFacility || e.row.facility) === state.filters.facility) && (!state.filters.collector || e.row.dataCollector === state.filters.collector));
+  }
+
+  function renderReviewAdditions() {
+    const content = document.getElementById(state.section + "Content");
+    if (state.section === "overview") {
+      content.insertAdjacentHTML("beforeend", panel("Fieldwork activity by day", '<p>Recorded events, not unique participants or completed forms. Maternal records have no approved event date.</p>' + chartCanvas("fieldworkTrend"), 12));
+      const events = activityEvents(); const dates = unique(events.map(e => String(e.date).slice(0, 10))).sort();
+      buildChart("fieldworkTrend", { type: "line", data: { labels: dates, datasets: ["Enrollment", "CRF", "Diary", "Distribution", "Return"].map((type, i) => ({ label: type, data: dates.map(day => events.filter(e => e.type === type && String(e.date).slice(0, 10) === day).length), borderColor: Object.values(COLORS)[i], tension: 0.1 })) } });
+    }
+    if (state.section === "sync") {
+      const history = state.data.refreshHistory || [];
+      content.insertAdjacentHTML("beforeend", panel("Refresh history and record counts", '<p>Study-wide successful publications; newest first. REDCap export rows can include repeating instruments and are not participant counts. History begins with this release.</p>' + table(["Published", "Main export rows", "Devices export rows", "Participants", "Diaries", "Distributions", "Returns"], history.map(r => [escapeHtml(formatDate(r.publishedAt, true)), number(r.main), number(r.devices), number(r.participants), number(r.diaries), number(r.distributions), number(r.returns)])), 12));
+      const change = state.data.changeSummary;
+      content.insertAdjacentHTML("beforeend", panel("What changed since the previous publication?", change ? table(["Measure", "Change"], Object.entries(change).map(([key, value]) => [escapeHtml(key), number(value)])) + '<p>Totals show net count differences. New and updated counts compare approved participant/diary dashboard fields by study ID and diary instance. They do not count edits to clinical fields outside the dashboard.</p>' : emptyState("A previous verified production publication is needed to calculate changes."), 12));
+      const failureValue = state.refreshState.lastFailureAt;
+      const failure = failureValue?.toDate ? failureValue.toDate().toISOString() : failureValue;
+      if (failure) content.insertAdjacentHTML("beforeend", panel("Last refresh failure", '<p>' + escapeHtml(formatDate(failure, true)) + ' — the last verified snapshot was retained.</p>', 12));
+    }
+    if (state.section === "quality") {
+      const rows = filteredParticipants().filter(r => !r.enrollmentComplete || !r.maternalRecordComplete || !r.physicalExamComplete || !r.dataCollector || r.dataCollector === "Unassigned");
+      content.insertAdjacentHTML("beforeend", panel("Participant follow-up queue", table(["Study ID", "Facility", "Collector", "Action"], rows.map(r => [escapeHtml(r.studyId), escapeHtml(r.facility), escapeHtml(r.dataCollector), escapeHtml([!r.enrollmentComplete && "Complete enrollment", !r.maternalRecordComplete && "Complete maternal record", !r.physicalExamComplete && "Complete CRF", (!r.dataCollector || r.dataCollector === "Unassigned") && "Assign collector"].filter(Boolean).join("; "))])), 12));
+    }
+    if (state.section === "performance") {
+      content.insertAdjacentHTML("beforeend", panel("Facility completion rates", '<p>Core completion: completed enrollment, maternal record and CRF forms / (3 × filtered participants). Diary completion: completed / recorded diaries. These rates describe selected records, not individual staff performance.</p>' + table(["Facility", "Core complete / expected", "Core rate", "Diaries complete / recorded", "Diary rate"], unique([...filteredParticipants(), ...filteredDiaries()].map(r => r.facility)).map(facility => {
+        const p = filteredParticipants().filter(r => r.facility === facility); const d = filteredDiaries().filter(r => r.facility === facility);
+        const n = p.reduce((s, r) => s + Number(!!r.enrollmentComplete) + Number(!!r.maternalRecordComplete) + Number(!!r.physicalExamComplete), 0); const c = d.filter(r => r.diaryComplete).length;
+        return [escapeHtml(facility || "Unassigned"), n + " / " + p.length * 3, p.length ? percent(n, p.length * 3) + "%" : "—", c + " / " + d.length, d.length ? percent(c, d.length) + "%" : "—"];
+      })), 12));
+    }
+    if (state.section === "devices") {
+      const cutoff = state.filters.dateTo || String(state.data.fetchedAt).slice(0, 10);
+      content.insertAdjacentHTML("beforeend", panel("Historical inventory as of " + cutoff, '<p>Latest dated event on or before the To date (or snapshot date). From date is ignored for this inventory. Facility and collector refer to that event. Same-day event order cannot be inferred; undated events are excluded. Return completeness is shown separately.</p>' + table(["Device set", "Last event", "Status", "Facility", "Collector", "Return completeness"], historicalDevices(cutoff).map(([id, e]) => [escapeHtml(id), escapeHtml(e.date), escapeHtml(e.type), escapeHtml(e.row.returnFacility || e.row.facility || "—"), escapeHtml(e.row.dataCollector || "—"), escapeHtml(e.type === "Returned" ? e.row.returnCompletenessStatus || "Unknown" : "—")])), 12));
+    }
+    if (state.section === "timeline") content.innerHTML = panel("Study activity timeline", '<p>Selected enrollment, CRF, diary and device events. Events reflect recorded dates; they do not imply form completion.</p>' + table(["Date", "Event", "Study ID / device set", "Facility", "Collector"], activityEvents().map(e => [escapeHtml(e.date), escapeHtml(e.type), escapeHtml(e.id), escapeHtml(e.facility), escapeHtml(e.collector)])), 12);
+    enhanceTables();
+  }
+
   function renderCurrentSection() {
     closeKpiDetails();
     if (!state.data) return;
@@ -2096,11 +2227,13 @@
       devices: renderDevices,
       quality: renderQuality,
       sync: renderSync,
-      performance: renderPerformance
+      performance: renderPerformance,
+      timeline: () => {}
     };
 
     const render = renderers[state.section] || renderOverview;
     render();
+    renderReviewAdditions();
     wireInteractiveRows();
 
     if (state.section === "performance") {

@@ -11,7 +11,7 @@ const cut = source.lastIndexOf('  document.querySelectorAll(".nav-item").forEach
 assert.ok(cut > 0);
 const context = {document:doc,window,console,Date};
 vm.createContext(context);
-vm.runInContext(source.slice(0,cut)+'\n globalThis.api={state,filteredParticipants,filteredDiaries,filteredReturns,filteredDistributions,filteredDeviceSets,kpiDetailData,kpiCard,componentRows,dataQualityIssues,diaryCompletionScope,setDimensionFilter,clearFilters};\n})();',context);
+vm.runInContext(source.slice(0,cut)+'\n globalThis.api={state,filteredParticipants,filteredDiaries,filteredReturns,filteredDistributions,filteredDeviceSets,kpiDetailData,kpiCard,componentRows,dataQualityIssues,diaryCompletionScope,setDimensionFilter,clearFilters,historicalDevices,activityEvents};\n})();',context);
 const a=context.api;
 a.state.data={
  participants:[{studyId:"S1",facility:"F1",dataCollector:"A",enrollmentDate:"2026-11-26",enrollmentComplete:true},{studyId:"S2",facility:"F2",dataCollector:"B",enrollmentDate:"2026-11-25",enrollmentComplete:false}],
@@ -63,3 +63,12 @@ contentHeight=430;
 heightContext.resizeNativeDashboardFrame(frame);
 assert.equal(frame.style.height,"430px");
 console.log("Native dashboard expands and contracts without viewport-height feedback.");
+// Historical inventory reconstructs events before applying attribution filters.
+a.state.filters={facility:'',collector:'',dateFrom:'2026-11-26',dateTo:''};
+assert.equal(a.historicalDevices('2026-11-24').length,1);
+assert.equal(a.historicalDevices('2026-11-25').find(([id])=>id==='A1')[1].type,'Distributed');
+assert.equal(a.historicalDevices('2026-11-26').find(([id])=>id==='A1')[1].type,'Returned');
+a.state.data.deviceDistributions.push({deviceSet:'A1',facility:'F2',dataCollector:'B',distributionDate:'2026-11-26'});
+assert.equal(a.historicalDevices('2026-11-26').find(([id])=>id==='A1')[1].type,'Same-day order unknown');
+assert.ok(a.activityEvents().every(e=>e.date>='2026-11-26'));
+console.log('Historical device cutoff, same-day ambiguity and filtered timeline passed.');

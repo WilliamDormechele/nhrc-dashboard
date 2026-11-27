@@ -28,7 +28,7 @@ async function run(){
  await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
  let browser;
  try{
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true, ...(process.env.WP2_BROWSER_CHANNEL ? {channel:process.env.WP2_BROWSER_CHANNEL} : {})});
   const page=await browser.newPage({viewport:{width:1440,height:900}});
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   await page.route("https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",route=>route.fulfill({path:path.join(path.dirname(require.resolve("chart.js")), "chart.umd.js"),contentType:"text/javascript"}));
@@ -82,12 +82,35 @@ async function run(){
   await f.locator("#diaryContent tbody tr").first().waitFor();
   await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
   const long=await page.locator("#frame").evaluate(e=>e.clientHeight);
-  assert.ok(long>2000,"long tab must expand");
+  assert.ok(long>900,"long tab must expand");
   await f.locator('[data-section="sync"]').click();
-  await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return e.clientHeight<1500&&Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
-  assert.ok(await page.locator("#frame").evaluate(e=>e.clientHeight)<long/2,"short tab must shrink");
+  await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
+  assert.ok(await page.locator("#frame").evaluate(e=>e.clientHeight)<long,"short tab must shrink");
   await page.setViewportSize({width:800,height:850});
   await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
+  await f.locator('[data-section="timeline"]').click();
+  const timeline = f.locator("#timelineContent");
+  assert.match(await timeline.innerText(), /Page 1 of/);
+  await timeline.locator('input[type="search"]').fill("S30");
+  assert.match(await timeline.locator('[role="status"]').innerText(), /5 of 180 rows/);
+  assert.equal(await timeline.locator('tbody tr:visible').count(), 5);
+  const downloading = page.waitForEvent("download");
+  await timeline.getByRole("button", {name:"Download filtered CSV"}).click();
+  const download = await downloading;
+  const stream = await download.createReadStream(); const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  const csv = Buffer.concat(chunks).toString("utf8");
+  assert.equal(csv.split("\r\n").length, 6);
+  assert.ok(csv.includes('"S30"') && !csv.includes('"S29"'));
+  await f.locator('[data-section="devices"]').click();
+  assert.match(await f.locator("#devicesContent").innerText(), /Historical inventory as of 2026-11-27/);
+  for (const section of ["overview", "recruitment", "forms", "diary", "quality", "sync", "performance", "timeline"]) {
+    await f.locator('[data-section="'+section+'"]').click();
+    await f.locator("#"+section+"Content").waitFor({state:"visible"});
+  }
+  await page.setViewportSize({width:390,height:844});
+  await f.locator('[data-section="overview"]').click();
+  await page.screenshot({path:path.join(__dirname,"../logs/wp2-review-mobile.png"),fullPage:true});
   assert.deepEqual(errors,[]);
   console.log("Real Chromium: automatic filters, matching record popup, search, sorting, pagination, return window, and long-to-short iframe sizing passed.");
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}

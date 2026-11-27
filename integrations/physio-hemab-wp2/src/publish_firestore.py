@@ -408,6 +408,52 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         ],
     }
 
+    previous = project_document.get("wp2Snapshot") or {}
+    counts = lambda data: {
+        "Participants": len(data.get("participants", [])),
+        "Diaries": len(data.get("activityDiaries", [])),
+        "Distributions": len(data.get("deviceDistributions", [])),
+        "Returns": len(data.get("deviceReturns", [])),
+        "Incomplete core forms": sum(
+            sum(not row.get(field, False) for field in (
+                "enrollmentComplete", "maternalRecordComplete", "physicalExamComplete"
+            )) for row in data.get("participants", [])
+        ),
+        "Incomplete recorded diaries": sum(not row.get("diaryComplete", False)
+                                            for row in data.get("activityDiaries", [])),
+    }
+    previous_sources = previous.get("sourceStatus") or {}
+    verified_previous = all(
+        previous_sources.get(key, {}).get("verified") is True
+        and previous_sources.get(key, {}).get("sourceHost") == PRODUCTION_REDCAP_HOST
+        and previous_sources.get(key, {}).get("pid") == int(project["pid"])
+        for key, project in REDCAP_PROJECTS.items()
+    )
+    if verified_previous:
+        before, after = counts(previous), counts(snapshot)
+        snapshot["changeSummary"] = {key: value - before[key] for key, value in after.items()}
+        for collection, fields, label in (
+            ("participants", ("studyId",), "participant dashboard records"),
+            ("activityDiaries", ("studyId", "diaryInstance"), "diary dashboard records"),
+        ):
+            old_rows = {tuple(str(row.get(field, "")) for field in fields): row
+                        for row in previous.get(collection, [])}
+            new_rows = {tuple(str(row.get(field, "")) for field in fields): row
+                        for row in snapshot.get(collection, [])}
+            snapshot["changeSummary"]["New " + label] = len(new_rows.keys() - old_rows.keys())
+            snapshot["changeSummary"]["Updated " + label] = sum(
+                new_rows[key] != old_rows[key] for key in new_rows.keys() & old_rows.keys()
+            )
+    entry = {
+        "publishedAt": snapshot["publishedAt"],
+        "main": source_status["main"]["recordsReceived"],
+        "devices": source_status["devices"]["recordsReceived"],
+        "participants": len(snapshot["participants"]),
+        "diaries": len(snapshot["activityDiaries"]),
+        "distributions": len(snapshot["deviceDistributions"]),
+        "returns": len(snapshot["deviceReturns"]),
+    }
+    snapshot["refreshHistory"] = [entry] + (previous.get("refreshHistory", [])[:19] if verified_previous else [])
     size = len(
         json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).encode(
             "utf-8"

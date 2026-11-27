@@ -525,3 +525,25 @@ Interactive charts and tables use true toggle semantics:
 - use **Clear filters** to remove all Facility, Data Collector and date filters.
 
 Filter comparisons are normalized so harmless whitespace or case differences do not prevent repeat-click removal.
+
+## Dashboard review release (27 November 2026)
+
+The native dashboard includes KPI help, daily fieldwork activity, a study timeline,
+participant follow-up queue, facility completion rates, historical device inventory,
+and searchable/sortable tables with pagination and filtered CSV downloads. Downloads
+include all matching pages and only displayed dashboard fields; spreadsheet formulas
+are neutralised. Mobile navigation scrolls horizontally and keyboard focus is visible.
+
+The publisher retains the latest 20 successful refresh summaries. Sync Status shows
+source export-row counts, snapshot counts and changes against the previous verified
+production snapshot. New/updated participant and diary counts compare approved
+dashboard fields only. The first publication starts history; no prior history is invented.
+Historical inventory uses the latest dated event on or before the To date (or snapshot
+date), ignores From date and flags ambiguous same-day order. Current inventory keeps
+its existing meaning. Completion continues to use REDCap form-completion statuses.
+
+Local checks: `node scripts/validate-dashboard-core.js`, `npm run test:physio-hemab-wp2`,
+`node scripts/test-wp2-interactions.js` and the integration Python unit tests.
+For the optional browser regression install Playwright and Chart.js without saving
+dependencies, then run `node scripts/test-wp2-browser.js` (set `WP2_BROWSER_CHANNEL=msedge`
+to use installed Edge on Windows). The regression uses synthetic records only.

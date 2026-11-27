@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>NHRC Projects Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="css/styles.css?v=20260508154302" />
+  <link rel="stylesheet" href="css/styles.css?v=20261127235234" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -511,9 +511,9 @@
         </div>
 
         <div>
-          <label for="monitoringTrendUserFilter">Trend user</label>
+          <label for="monitoringTrendUserFilter">Trend series</label>
           <select id="monitoringTrendUserFilter">
-            <option value="">Top 6 active users</option>
+            <option value="">All users — aggregate</option>
           </select>
         </div>
 
@@ -587,7 +587,12 @@
   </div>
 
   <div class="chart-card">
-    <h3>Daily Activity Trend</h3>
+    <div class="chart-card-heading">
+      <div>
+        <h3>Daily Activity Trend</h3>
+        <p class="chart-card-subtitle">Executive trend; use Trend series above to drill down to one user.</p>
+      </div>
+    </div>
     <canvas id="dailyChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
@@ -607,7 +612,12 @@
   </div>
 
   <div class="chart-card">
-    <h3>Daily Active Users</h3>
+    <div class="chart-card-heading">
+      <div>
+        <h3>Daily Active Users</h3>
+        <p class="chart-card-subtitle">Unique active users by day; select one user above for individual activity.</p>
+      </div>
+    </div>
     <canvas id="dailyUsersChart" class="chart-canvas chart-canvas-standard"></canvas>
   </div>
 
@@ -1210,17 +1220,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- App scripts -->
-<script src="js/firebase-config.js?v=20260508154302"></script>
-<script src="data/project-config.js?v=20260508154302"></script>
-<script src="js/permissions.js?v=20260508154302"></script>
-<script src="js/tracker.js?v=20260508154302"></script>
-<script src="js/ui.js?v=20260508154302"></script>
-<script src="js/projects.js?v=20260508154302"></script>
-<script src="js/auth.js?v=20260508154302"></script>
-<script src="js/admin.js?v=20260508154302"></script>
-<script src="js/monitoring.js?v=20260508154302"></script>
-<script src="js/app.js?v=20260508154302"></script>
-<script src="js/role-access.js?v=20260508154302"></script>
+<script src="js/firebase-config.js?v=20261127235234"></script>
+<script src="data/project-config.js?v=20261127235234"></script>
+<script src="js/permissions.js?v=20261127235234"></script>
+<script src="js/tracker.js?v=20261127235234"></script>
+<script src="js/ui.js?v=20261127235234"></script>
+<script src="js/projects.js?v=20261127235234"></script>
+<script src="js/auth.js?v=20261127235234"></script>
+<script src="js/admin.js?v=20261127235234"></script>
+<script src="js/monitoring.js?v=20261127235234"></script>
+<script src="js/app.js?v=20261127235234"></script>
+<script src="js/role-access.js?v=20261127235234"></script>
 </body>
 
 </html>

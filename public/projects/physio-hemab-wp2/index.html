@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Physio-HeMAB WP2 Operational Dashboard</title>
-  <link rel="stylesheet" href="styles.css?v=20261127-filters3">
+  <link rel="stylesheet" href="styles.css?v=20261127-review4">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -32,6 +32,19 @@
         </div>
       </div>
     </header>
+
+    <details class="indicator-help">
+      <summary>KPI definitions and refresh help</summary>
+      <dl>
+        <dt>Enrollment, Maternal Record and CRF completion</dt><dd>Completed means REDCap form status 2. Core rates use three expected forms per selected participant.</dd>
+        <dt>Diary completion</dt><dd>With date or collector filters: completed / recorded diaries. Otherwise: completed / (selected participants × configured expected diaries). Missing planned diaries are a study-level gap, not dated records.</dd>
+        <dt>Same-day interviews and call attempts</dt><dd>Same-day uses recorded Yes/No responses. Numeric call summaries exclude the category More and missing values. Missing denominators should be read as unavailable.</dd>
+        <dt>Device returns</dt><dd>Return totals count events. Complete component return and completed REDCap return forms are separate measures. Overdue requires a configured return window.</dd>
+        <dt>Collector completion</dt><dd>Completed core forms plus completed recorded diaries / (three forms per assigned participant plus recorded diaries). Attribution describes recorded workload.</dd>
+        <dt>Refresh schedule</dt><dd>Automatic refresh is scheduled for 21:00 Europe/London; execution can be delayed. Authorised users can request a refresh. Sync Status is study-wide and failed refreshes retain the last verified data.</dd>
+        <dt>Downloads</dt><dd>CSV downloads contain the current table after dashboard filters, table search and sorting, across all pages. They include only the fields displayed in the table.</dd>
+      </dl>
+    </details>
 
     <section class="freshness-strip" aria-label="Dashboard data freshness">
       <div class="freshness-item">
@@ -91,7 +104,7 @@
       <button type="button" class="btn btn-secondary active-filter-clear-all" id="clearAllActiveFiltersBtn">
         Clear all
       </button>
-      <span class="wp2-build-marker">WP2 UI build 2026-11-27.3</span>
+      <span class="wp2-build-marker">WP2 UI build 2026-11-27.4</span>
     </section>
 
     <nav class="section-nav" aria-label="Physio-HeMAB dashboard sections">
@@ -103,6 +116,7 @@
       <button type="button" class="nav-item" data-section="quality">Data Quality</button>
       <button type="button" class="nav-item" data-section="sync">Sync Status</button>
       <button type="button" class="nav-item" data-section="performance">Performance &amp; Targets</button>
+      <button type="button" class="nav-item" data-section="timeline">Activity Timeline</button>
     </nav>
 
     <section id="overview" class="dashboard-section active-section" aria-labelledby="overviewHeading">
@@ -189,6 +203,8 @@
       <div id="performanceContent"></div>
     </section>
 
+    <section id="timeline" class="dashboard-section" aria-label="Activity Timeline"><h2>Activity Timeline</h2><div id="timelineContent"></div></section>
+
     <div id="refreshProgressOverlay" class="refresh-progress-overlay hidden" role="status" aria-live="polite" aria-hidden="true">
       <div class="refresh-progress-card">
         <div class="refresh-progress-heading">
@@ -237,6 +253,7 @@
     <div class="kpi-details-controls">
       <label for="kpiDetailsSearch">Search records <input id="kpiDetailsSearch" type="search" placeholder="Search within these results"></label>
       <span id="kpiDetailsCount" role="status" aria-live="polite"></span>
+      <button type="button" class="btn btn-secondary" id="kpiDetailsExport">Download filtered CSV</button>
     </div>
     <div id="kpiDetailsTable" class="kpi-details-table" tabindex="0" aria-label="Matching records table"></div>
     <div class="kpi-details-footer">
@@ -244,6 +261,6 @@
       <div><button type="button" class="btn btn-secondary" id="kpiDetailsPrevious">Previous</button><button type="button" class="btn btn-secondary" id="kpiDetailsNext">Next</button></div>
     </div>
   </dialog>
-  <script src="dashboard.js?v=20261127-filters3"></script>
+  <script src="dashboard.js?v=20261127-review4"></script>
 </body>
 </html>
