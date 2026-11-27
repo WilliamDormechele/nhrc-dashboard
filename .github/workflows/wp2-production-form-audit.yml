@@ -1,0 +1,49 @@
+name: WP2 production form compatibility audit
+on:
+  push:
+    branches: ["audit/wp2-production-form-names-20261127"]
+    paths: [".github/workflows/wp2-production-form-audit.yml"]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Inspect verified production form structure (metadata only)
+        env:
+          REDCAP_URL: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_URL }}
+          REDCAP_TOKEN: ${{ secrets.PHYSIO_HEMAB_MAIN_REDCAP_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os,json,urllib.request,urllib.parse
+          url=os.environ["REDCAP_URL"].rstrip("/")+"/"
+          assert url=="https://redcap.uk-halle.de/api/"
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl):
+                  return None
+          opener=urllib.request.build_opener(NoRedirect())
+          def post(content):
+              body=urllib.parse.urlencode({"token":os.environ["REDCAP_TOKEN"],"content":content,"format":"json","returnFormat":"json"}).encode()
+              with opener.open(urllib.request.Request(url,data=body),timeout=25) as response:
+                  return json.load(response)
+          info=post("project")
+          if isinstance(info,list) and len(info)==1:
+              info=info[0]
+          assert str(info.get("project_id"))=="115"
+          metadata=post("metadata")
+          fields={m["field_name"]:m for m in metadata}
+          print("PRODUCTION_MAIN_PID=115")
+          print("FORM_NAMES="+json.dumps(sorted({m["form_name"] for m in metadata})))
+          for name in ("record_id","enroll_studid","enroll_registr_date","health_facility_enrollment","crf_date","crf_facility","crf_examiner","data_collector","ad_date","call_date","call_date_delay","ad_call_number","ad_call_numb","ad_dc_interview"):
+              m=fields.get(name)
+              if m:
+                  print("FIELD="+json.dumps({"name":name,"form":m.get("form_name"),"type":m.get("field_type"),"choices":m.get("select_choices_or_calculations") if name in {"ad_call_number","ad_call_numb","ad_dc_interview","call_date"} else None}))
+              else:
+                  print("ABSENT="+name)
+          try:
+              repeating=post("repeatingFormsEvents")
+              print("REPEAT_FORMS="+json.dumps(sorted({str(x.get("form_name","")) for x in repeating})))
+          except Exception as e:
+              print("REPEAT_METADATA_UNAVAILABLE="+type(e).__name__)
+          PY
