@@ -1,17 +1,10 @@
 name: Physio-HeMAB WP2 refresh
-run-name: Physio-HeMAB WP2 refresh (${{ inputs.source || github.event_name }})
+run-name: Physio-HeMAB WP2 verified production refresh
 
 on:
-  workflow_dispatch:
-    inputs:
-      source:
-        description: Refresh source
-        required: false
-        default: dashboard
-  schedule:
-    # GitHub cron is UTC. Run at both candidate hours, then gate to 21:00 Europe/London.
-    - cron: "0 20 * * *"
-    - cron: "0 21 * * *"
+  push:
+    branches: ["deploy/wp2-verified-production-refresh-20261127"]
+    paths: [".github/workflows/physio-hemab-wp2-refresh.yml"]
 
 permissions:
   contents: read
@@ -143,7 +136,7 @@ jobs:
           PHYSIO_HEMAB_DB_SSLMODE: disable
           PHYSIO_HEMAB_FIREBASE_CREDENTIALS_FILE: ${{ runner.temp }}/physio-firebase-service-account.json
           PHYSIO_HEMAB_FIREBASE_PROJECT_ID: nhrc-dashboard
-          PHYSIO_HEMAB_REFRESH_SOURCE: ${{ github.event_name == 'schedule' && 'daily-21:00-Europe/London' || inputs.source || 'dashboard' }}
+          PHYSIO_HEMAB_REFRESH_SOURCE: production-crf-fix-20261127
           PYTHONIOENCODING: utf-8
         run: |
           python src/sync.py all
