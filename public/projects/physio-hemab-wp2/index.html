@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Physio-HeMAB WP2 Operational Dashboard</title>
-  <link rel="stylesheet" href="styles.css?v=20261127-production2">
+  <link rel="stylesheet" href="styles.css?v=20261127-filters3">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -77,7 +77,7 @@
         <button type="button" class="btn btn-secondary" id="clearFiltersBtn">Clear filters</button>
       </div>
       <p class="filter-tip">
-        Tip: click a chart bar or table row to filter; click the same bar or row again to remove it.
+        Filters apply immediately. Click a supported chart bar or table row to filter; click again to remove it. Select a KPI marked View records to inspect its underlying records. Study-wide targets and sync status remain global.
       </p>
     </section>
 
@@ -90,7 +90,7 @@
       <button type="button" class="btn btn-secondary active-filter-clear-all" id="clearAllActiveFiltersBtn">
         Clear all
       </button>
-      <span class="wp2-build-marker">WP2 UI build 2026-11-27.2</span>
+      <span class="wp2-build-marker">WP2 UI build 2026-11-27.3</span>
     </section>
 
     <nav class="section-nav" aria-label="Physio-HeMAB dashboard sections">
@@ -148,7 +148,7 @@
       <div class="section-title-row">
         <div>
           <h2 id="devicesHeading">Devices</h2>
-          <p>Distribution, return completeness, current set status and configurable overdue monitoring.</p>
+          <p>Return totals count events; current inventory uses the latest recorded lifecycle status. Dates filter events and the latest inventory event, not historical inventory as of the selected date. Collector refers to the recorded data collector.</p>
         </div>
         <div class="section-inline-control">
           <label for="returnWindowFilter">Return window</label>
@@ -228,6 +228,21 @@
     </div>
   </main>
 
-  <script src="dashboard.js?v=20261127-production2"></script>
+  <dialog id="kpiDetailsDialog" class="kpi-details-dialog" aria-labelledby="kpiDetailsTitle">
+    <div class="kpi-details-header">
+      <div><p class="eyebrow">Indicator detail</p><h2 id="kpiDetailsTitle">Matching records</h2><p id="kpiDetailsContext"></p></div>
+      <button type="button" class="btn btn-secondary" id="kpiDetailsClose" aria-label="Close indicator details">Close ×</button>
+    </div>
+    <div class="kpi-details-controls">
+      <label for="kpiDetailsSearch">Search records <input id="kpiDetailsSearch" type="search" placeholder="Search within these results"></label>
+      <span id="kpiDetailsCount" role="status" aria-live="polite"></span>
+    </div>
+    <div id="kpiDetailsTable" class="kpi-details-table" tabindex="0" aria-label="Matching records table"></div>
+    <div class="kpi-details-footer">
+      <span id="kpiDetailsPage"></span>
+      <div><button type="button" class="btn btn-secondary" id="kpiDetailsPrevious">Previous</button><button type="button" class="btn btn-secondary" id="kpiDetailsNext">Next</button></div>
+    </div>
+  </dialog>
+  <script src="dashboard.js?v=20261127-filters3"></script>
 </body>
 </html>

@@ -1319,3 +1319,14 @@ h3 {
     font-size: 15px;
   }
 }
+
+/* Filtered indicator record inspection */
+.kpi-drilldown{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;font:inherit;width:100%;cursor:pointer;transition:box-shadow .16s,border-color .16s,transform .16s}
+.kpi-drilldown:hover{box-shadow:0 6px 18px #17324d1c;border-color:#2f6f9f;transform:translateY(-1px)}
+.kpi-drilldown:focus-visible,.kpi-details-dialog button:focus-visible{outline:2px solid #2f6f9f;outline-offset:3px}
+.kpi-detail-affordance{margin-top:10px;color:#2f6f9f;font-size:11px;font-weight:650;letter-spacing:.01em}
+.kpi-details-dialog{position:fixed;inset:auto 0;top:var(--detail-top,12px);margin:0 auto;width:min(1140px,calc(100% - 24px));max-height:var(--detail-height,calc(100vh - 24px));padding:0;border:1px solid #dce5ed;border-radius:12px;background:#fff;color:#17324d;box-shadow:0 24px 70px #17324d40;overflow:hidden}
+.kpi-details-dialog[open]{display:flex;flex-direction:column}.kpi-details-dialog::backdrop{background:#172d42a8}
+.kpi-details-header,.kpi-details-controls,.kpi-details-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;flex-shrink:0;border-bottom:1px solid #e6edf2}
+.kpi-details-header h2{font-size:21px;margin:4px 0}.kpi-details-header p{font-size:12px;color:#576b7e;margin:4px 0;overflow-wrap:anywhere}.kpi-details-controls{flex-wrap:wrap;background:#f8fafc;font-size:12px}.kpi-details-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kpi-details-controls input{padding:9px 12px;border:1px solid #cdd9e3;border-radius:6px;min-width:220px;max-width:100%;font:inherit}.kpi-details-table{min-height:0;overflow:auto;flex:1;padding:0 20px 12px}.kpi-details-table table{width:100%;border-collapse:collapse;font-size:12px}.kpi-details-table th{position:sticky;top:0;background:#f1f5f8;z-index:1;white-space:nowrap}.kpi-details-table td{vertical-align:top;overflow-wrap:anywhere}.kpi-details-table th button{font:inherit;font-weight:700;background:none;border:0;color:inherit;cursor:pointer;padding:0;text-align:left}.kpi-details-footer{border-top:1px solid #e6edf2;border-bottom:0;font-size:12px}.kpi-details-footer>div{display:flex;gap:8px}.kpi-details-footer button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:640px){.kpi-details-header,.kpi-details-controls,.kpi-details-footer{padding:10px 12px}.kpi-details-table{padding:0 10px 8px}.kpi-details-controls input{min-width:0;width:100%}.kpi-details-controls label{width:100%}}

@@ -3,6 +3,7 @@ BEGIN;
 INSERT INTO physio_hemab_wp2.redcap_metadata(source_project,field_name,choices)
 VALUES
  ('main','call_date','{"0":"Yes","1":"No"}'),
+ ('devices','data_collector','{"1":"Collector A"}'),
  ('devices','distributed_a1','{"0":"Yes","1":"No"}'),
  ('devices','returned_a1','{"0":"Yes","1":"No"}'),
  ('devices','complete_a1','{"0":"Yes","1":"No"}'),
@@ -12,7 +13,7 @@ INSERT INTO physio_hemab_wp2.raw_records(source_project,record_id,repeat_instrum
 VALUES
  ('main','synthetic','','','{"enroll_studid":"synthetic","enrollment_form_complete":"2","maternal_record_book_baseline_complete":"2","case_report_form_complete":"1"}','synthetic1'),
  ('main','synthetic','activity_diary','1','{"ad_date":"2026-11-26","call_date":"0","dashboard_calls_made":2,"dashboard_call_attempt_label":"2","dashboard_interview_type":"Phone","activity_diary_complete":"2"}','synthetic2'),
- ('devices','synthetic','','','{"devices_date":"2026-11-25","return_date":"2026-11-26","distributed_a1":"0","returned_a1":"0","complete_a1":"1","missings_a1___2":"1"}','synthetic3');
+ ('devices','synthetic','','','{"data_collector":"1","devices_date":"2026-11-25","return_date":"2026-11-26","distributed_a1":"0","returned_a1":"0","complete_a1":"1","missings_a1___2":"1"}','synthetic3');
 
 INSERT INTO physio_hemab_wp2.raw_records(source_project,record_id,repeat_instrument,repeat_instance,payload,payload_hash)
 VALUES ('main','synthetic_complete','','','{"enroll_studid":"synthetic_complete","case_report_form_complete":"2"}','synthetic4'),
@@ -33,8 +34,11 @@ BEGIN
    RAISE EXCEPTION 'Revised activity diary reporting regression';
  END IF;
  IF (SELECT count(*) FROM physio_hemab_wp2.vw_device_distributions) <> 1 OR
-    (SELECT count(*) FROM physio_hemab_wp2.vw_device_returns WHERE return_completeness_status='Incomplete' AND components_returned=4 AND missing_components='Geneactive') <> 1 THEN
+    (SELECT count(*) FROM physio_hemab_wp2.vw_device_returns WHERE return_completeness_status='Incomplete' AND components_returned=4 AND missing_components='Geneactive' AND data_collector='Collector A' AND redcap_record_id='synthetic') <> 1 THEN
    RAISE EXCEPTION 'Non-repeating device reporting regression';
+ END IF;
+ IF (SELECT count(*) FROM physio_hemab_wp2.vw_device_set_status WHERE device_set='A1' AND latest_return_collector='Collector A' AND latest_distribution_record_id='synthetic') <> 1 THEN
+   RAISE EXCEPTION 'Device collector trace regression';
  END IF;
  IF (SELECT count(*) FROM physio_hemab_wp2.vw_device_set_status) <> 20 THEN
    RAISE EXCEPTION 'Device inventory regression';

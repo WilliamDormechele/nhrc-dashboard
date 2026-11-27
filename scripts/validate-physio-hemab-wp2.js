@@ -116,7 +116,7 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-11-27.2"),
+    wp2Html.includes("WP2 UI build 2026-11-27.3"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
@@ -391,4 +391,5 @@ assert(
   "Local PostgreSQL service configuration is missing."
 );
 
+assert(wp2Html.includes('id="kpiDetailsDialog"') && wp2DashboardJs.includes("function kpiDetailData") && wp2DashboardJs.includes("function deviceEventMatches") && wp2DashboardJs.includes("View records") && snapshotPublisher.includes("latestReturnCollector"), "KPI tracing and device filters are incomplete.");
 console.log("Physio-HeMAB WP2 structural validation passed.");
