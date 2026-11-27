@@ -458,6 +458,7 @@ SELECT
             r.payload ->> ('ret_facility_' || m.suffix)
         )
     ) AS return_facility,
+    NULLIF(trim(physio_hemab_wp2.choice_label('devices', 'data_collector', r.payload ->> 'data_collector')), '') AS data_collector,
     completeness.return_completeness_status,
     missing.missing_components_count AS components_missing,
     missing.missing_components,
@@ -559,6 +560,8 @@ latest_distribution AS (
         distribution_date,
         facility,
         study_id,
+        redcap_record_id,
+        data_collector,
         distribution_form_complete
     FROM physio_hemab_wp2.vw_device_distributions
     ORDER BY device_set, distribution_date DESC NULLS LAST, distribution_instance DESC
@@ -568,6 +571,8 @@ latest_return AS (
         device_set,
         return_date,
         return_facility,
+        redcap_record_id,
+        data_collector,
         return_completeness_status,
         components_missing,
         missing_components,
@@ -593,6 +598,10 @@ SELECT
     d.study_id AS latest_study_id,
     r.return_date AS latest_return_date,
     r.return_facility AS latest_return_facility,
+    d.redcap_record_id AS latest_distribution_record_id,
+    d.data_collector AS latest_distribution_collector,
+    r.redcap_record_id AS latest_return_record_id,
+    r.data_collector AS latest_return_collector,
     r.return_completeness_status,
     r.components_missing,
     r.missing_components,

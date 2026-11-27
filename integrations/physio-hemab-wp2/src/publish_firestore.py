@@ -138,6 +138,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         connection,
         """
         SELECT
+            redcap_record_id,
             distribution_date,
             distribution_instance,
             facility,
@@ -154,10 +155,12 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         connection,
         """
         SELECT
+            redcap_record_id,
             return_date,
             return_instance,
             device_set,
             return_facility,
+            COALESCE(data_collector, 'Unassigned') AS data_collector,
             return_completeness_status,
             components_missing,
             missing_components,
@@ -180,6 +183,10 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             latest_study_id,
             latest_return_date,
             latest_return_facility,
+            latest_distribution_record_id,
+            latest_distribution_collector,
+            latest_return_record_id,
+            latest_return_collector,
             return_completeness_status,
             current_return_completeness,
             components_missing,
@@ -343,6 +350,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         ],
         "deviceDistributions": [
             {
+                "redcapRecordId": row.get("redcap_record_id") or "",
                 "distributionDate": row.get("distribution_date") or "",
                 "distributionInstance": row.get("distribution_instance"),
                 "facility": row.get("facility") or "",
@@ -355,6 +363,8 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
         ],
         "deviceReturns": [
             {
+                "redcapRecordId": row.get("redcap_record_id") or "",
+                "dataCollector": row.get("data_collector") or "Unassigned",
                 "returnDate": row.get("return_date") or "",
                 "returnInstance": row.get("return_instance"),
                 "deviceSet": row.get("device_set") or "",
@@ -379,6 +389,10 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "latestStudyId": row.get("latest_study_id") or "",
                 "latestReturnDate": row.get("latest_return_date") or "",
                 "latestReturnFacility": row.get("latest_return_facility") or "",
+                "latestDistributionRecordId": row.get("latest_distribution_record_id") or "",
+                "latestDistributionCollector": row.get("latest_distribution_collector") or "Unassigned",
+                "latestReturnRecordId": row.get("latest_return_record_id") or "",
+                "latestReturnCollector": row.get("latest_return_collector") or "Unassigned",
                 "returnCompletenessStatus": row.get("return_completeness_status")
                 or "Unknown",
                 "currentReturnCompleteness": row.get("current_return_completeness")

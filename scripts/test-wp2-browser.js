@@ -1,0 +1,95 @@
+// Real browser regression using only synthetic records and a local server.
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const http = require("node:http");
+const { chromium } = require("playwright");
+const root = path.resolve(__dirname, "../public");
+const wp = "/projects/physio-hemab-wp2/";
+const f1 = "War Memorial Hospital", f2 = "Paga District Hospital";
+const row = (i) => ({ studyId: "S" + i, facility: i % 2 ? f1 : f2, dataCollector: i % 2 ? "Collector A" : "Collector B", enrollmentDate: "2026-11-20", enrollmentComplete: true, maternalRecordComplete: true, physicalExamComplete: true });
+const participants = Array.from({length: 30}, (_,i)=>row(i+1));
+const activityDiaries = Array.from({length: 120}, (_,i)=>({...row(i%30+1), diaryDate: "2026-11-25", diaryInstance: Math.floor(i/30)+1, diaryComplete: true, sameDayInterview:"Yes", callsMade: 1, delayDays: 0}));
+const deviceReturns = Array.from({length: 30},(_,i)=>({redcapRecordId:"RETURN-"+String(i+1).padStart(2,"0"), deviceSet:"A"+(i%10+1), returnFacility:i%2?f1:f2, dataCollector:i%2?"Collector A":"Collector B", returnDate:i%2?"2026-11-26":"2026-11-25", returnCompletenessStatus:i===29?"Complete":"Incomplete", componentsReturned:i===29?5:4, componentsExpected:5, missingComponents:i===29?"":"Geneactive", allComponentsReturned:i===29, formComplete:true}));
+const snapshot={participants,activityDiaries,deviceReturns,deviceDistributions:[],deviceSets:[{deviceSet:"A1",currentStatus:"Distributed",latestFacility:f1,latestDistributionCollector:"Collector A",latestDistributionDate:new Date(Date.now()-7*86400000).toISOString().slice(0,10),latestDistributionRecordId:"DIST-01"}],sourceStatus:{main:{verified:true,pid:115,sourceHost:"redcap.uk-halle.de",status:"success"},devices:{verified:true,pid:116,sourceHost:"redcap.uk-halle.de",status:"success"}},config:{participantTarget:200,activityDiariesExpectedPerParticipant:6,returnWindowOptions:[1,3,7,14]},fetchedAt:"2026-11-27T09:21:06Z"};
+const parentSource=fs.readFileSync(path.join(root,"js/projects.js"),"utf8");
+const autoHeightSource=parentSource.slice(parentSource.indexOf("let nativeDashboardResizeObserver"),parentSource.indexOf("function clearNativeDashboardLayout"));
+const harness='<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/styles.css"><style>body{margin:0;height:auto;display:block}#frame{width:100%;border:0;display:block}</style><div class="native-dashboard-container"><iframe id="frame"></iframe></div><script>window.currentUserProfile={role:"project_pi",assignedProjects:["physio-hemab-wp2"]};window.nhrcFirestore={collection:()=>({doc:()=>({get:async()=>({exists:true,data:()=>({wp2Snapshot:'+JSON.stringify(snapshot)+'})})})})};'+autoHeightSource+';const frame=document.getElementById("frame");enableNativeDashboardAutoHeight(frame);frame.src="'+wp+'index.html";</script>';
+const server=http.createServer((req,res)=>{
+ const url=new URL(req.url,"http://localhost");
+ if(url.pathname==="/"){res.setHeader("content-type","text/html; charset=utf-8");res.end(harness);return}
+ const file=path.resolve(root,"."+url.pathname);
+ if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);res.end();return}
+ const ext=path.extname(file);
+ res.setHeader("content-type",({".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8"})[ext]||"application/octet-stream");
+ res.end(fs.readFileSync(file));
+});
+async function run(){
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
+ let browser;
+ try{
+  browser=await chromium.launch({headless:true});
+  const page=await browser.newPage({viewport:{width:1440,height:900}});
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",route=>route.fulfill({path:path.join(path.dirname(require.resolve("chart.js")), "chart.umd.js"),contentType:"text/javascript"}));
+  await page.goto("http://127.0.0.1:"+server.address().port+"/");
+  const f=page.frameLocator("#frame");
+  const kpi=(label)=>f.locator('[data-kpi-title="'+label+'"]');
+  await kpi("Participants Enrolled").waitFor();
+  await f.locator("#facilityFilter").selectOption(f1);
+  await kpi("Participants in Filtered View").waitFor();
+  assert.equal(await kpi("Participants in Filtered View").getAttribute("data-kpi-value"),"15");
+  await f.locator("#clearFiltersBtn").click();
+  await f.locator('[data-section="devices"]').click();
+  const incomplete=kpi("Incomplete Returns");
+  assert.equal(await incomplete.getAttribute("data-kpi-value"),"29");
+  await incomplete.click();
+  const dialog=f.locator("#kpiDetailsDialog");
+  await dialog.waitFor({state:"visible"});
+  assert.match(await f.locator("#kpiDetailsCount").innerText(),/29 of 29/);
+  assert.equal(await dialog.locator("tbody tr").count(),25);
+  await f.locator("#kpiDetailsNext").click();
+  assert.equal(await dialog.locator("tbody tr").count(),4);
+  await f.locator("#kpiDetailsSearch").fill("RETURN-01");
+  assert.equal(await dialog.locator("tbody tr").count(),1);
+  assert.match(await dialog.locator("tbody").innerText(),/RETURN-01/);
+  await f.locator("#kpiDetailsSearch").fill("");
+  await dialog.locator('[data-detail-sort="0"]').click();
+  assert.match(await dialog.locator("tbody tr").first().innerText(),/RETURN-01/);
+  await dialog.locator('[data-detail-sort="0"]').click();
+  assert.match(await dialog.locator("tbody tr").first().innerText(),/RETURN-29/);
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({state:"hidden"});
+  await f.locator("#collectorFilter").selectOption("Collector A");
+  assert.equal(await incomplete.getAttribute("data-kpi-value"),"14");
+  await f.locator("#facilityFilter").selectOption(f2);
+  assert.equal(await incomplete.getAttribute("data-kpi-value"),"0");
+  await incomplete.click();
+  assert.match(await f.locator("#kpiDetailsTable").innerText(),/No records match/);
+  await f.locator("#kpiDetailsClose").click();
+  await f.locator("#clearFiltersBtn").click();
+  await f.locator("#dateFromFilter").fill("2026-11-26");
+  await f.locator("#dateToFilter").fill("2026-11-26");
+  assert.equal(await incomplete.getAttribute("data-kpi-value"),"14");
+  await f.locator("#clearFiltersBtn").click();
+  await f.locator("#returnWindowFilter").selectOption("14");
+  assert.equal(await kpi("Overdue Devices").getAttribute("data-kpi-value"),"0");
+  await f.locator("#returnWindowFilter").selectOption("1");
+  assert.equal(await kpi("Overdue Devices").getAttribute("data-kpi-value"),"1");
+  await f.locator("#clearFiltersBtn").click();
+  assert.equal(await f.locator("#returnWindowFilter").inputValue(),"3");
+  await f.locator('[data-section="diary"]').click();
+  await f.locator("#diaryContent tbody tr").first().waitFor();
+  await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
+  const long=await page.locator("#frame").evaluate(e=>e.clientHeight);
+  assert.ok(long>2000,"long tab must expand");
+  await f.locator('[data-section="sync"]').click();
+  await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return e.clientHeight<1500&&Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
+  assert.ok(await page.locator("#frame").evaluate(e=>e.clientHeight)<long/2,"short tab must shrink");
+  await page.setViewportSize({width:800,height:850});
+  await page.waitForFunction(()=>{const e=document.querySelector("#frame"),m=e.contentDocument.querySelector("#wp2Dashboard");return Math.abs(e.clientHeight-m.getBoundingClientRect().height)<3});
+  assert.deepEqual(errors,[]);
+  console.log("Real Chromium: automatic filters, matching record popup, search, sorting, pagination, return window, and long-to-short iframe sizing passed.");
+ }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
+}
+run().catch(e=>{console.error(e);process.exitCode=1});

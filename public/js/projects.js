@@ -386,32 +386,30 @@ function stopNativeDashboardAutoHeight() {
   }
 }
 
+function getNativeDashboardContent(frame) {
+  const doc = frame?.contentDocument;
+  return doc?.getElementById("wp2Dashboard") || doc?.querySelector("main") || doc?.body || null;
+}
+
 function measureNativeDashboardHeight(frame) {
   try {
-    const doc = frame?.contentDocument;
-    if (!doc) return 0;
-
-    const body = doc.body;
-    const html = doc.documentElement;
-
-    return Math.max(
-      body?.scrollHeight || 0,
-      body?.offsetHeight || 0,
-      html?.scrollHeight || 0,
-      html?.offsetHeight || 0
-    );
+    const content = getNativeDashboardContent(frame);
+    if (!content) return 0;
+    const rect = content.getBoundingClientRect();
+    // Root document scrollHeight is never smaller than the iframe viewport.
+    // Measuring the actual content box allows both expansion and contraction.
+    if (rect.width <= 0 || rect.height <= 0) return 0;
+    return Math.ceil(Math.max(rect.height, content.offsetHeight || 0));
   } catch (error) {
-    console.warn("Native dashboard height could not be measured.", error);
     return 0;
   }
 }
 
 function resizeNativeDashboardFrame(frame) {
   const height = measureNativeDashboardHeight(frame);
-  if (!frame || height < 200) return;
-
-  const currentHeight = parseInt(frame.style.height || "0", 10) || 0;
-  if (Math.abs(currentHeight - height) > 2) {
+  if (!frame || height <= 0) return;
+  const currentHeight = parseFloat(frame.style.height || "0") || 0;
+  if (Math.abs(currentHeight - height) > 1) {
     frame.style.height = `${height}px`;
   }
 }
@@ -423,41 +421,33 @@ function enableNativeDashboardAutoHeight(frame) {
   nativeDashboardObservedFrame = frame;
   frame.setAttribute("scrolling", "no");
   frame.style.overflow = "hidden";
+  frame.style.height = "480px";
 
-  const bind = () => {
+  frame.onload = () => {
+    if (nativeDashboardObservedFrame !== frame) return;
+    nativeDashboardResizeObserver?.disconnect();
+    nativeDashboardResizeObserver = null;
+    if (nativeDashboardResizeTimer) {
+      clearInterval(nativeDashboardResizeTimer);
+      nativeDashboardResizeTimer = null;
+    }
     resizeNativeDashboardFrame(frame);
 
     try {
-      const doc = frame.contentDocument;
-      if (typeof ResizeObserver !== "undefined" && doc) {
+      const content = getNativeDashboardContent(frame);
+      if (typeof ResizeObserver !== "undefined" && content) {
         nativeDashboardResizeObserver = new ResizeObserver(() => {
-          resizeNativeDashboardFrame(frame);
+          if (nativeDashboardObservedFrame === frame) resizeNativeDashboardFrame(frame);
         });
-
-        if (doc.documentElement) {
-          nativeDashboardResizeObserver.observe(doc.documentElement);
-        }
-        if (doc.body) {
-          nativeDashboardResizeObserver.observe(doc.body);
-        }
+        nativeDashboardResizeObserver.observe(content);
+      } else {
+        // Retain a fallback for older browsers until the project is changed.
+        nativeDashboardResizeTimer = setInterval(() => resizeNativeDashboardFrame(frame), 500);
       }
     } catch (error) {
-      console.warn("Native dashboard resize observer could not start.", error);
+      console.warn("Native dashboard content observer could not start.", error);
     }
-
-    let checks = 0;
-    nativeDashboardResizeTimer = setInterval(() => {
-      resizeNativeDashboardFrame(frame);
-      checks += 1;
-
-      if (checks >= 60) {
-        clearInterval(nativeDashboardResizeTimer);
-        nativeDashboardResizeTimer = null;
-      }
-    }, 500);
   };
-
-  frame.onload = bind;
 }
 
 function clearNativeDashboardLayout() {

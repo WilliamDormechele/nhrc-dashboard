@@ -150,10 +150,18 @@
     return dateInRange(row.diaryDate);
   }
 
+  function currentDeviceFacility(row) {
+    return row.currentStatus === "Returned" ? row.latestReturnFacility || "" : row.latestFacility || "";
+  }
+
   function deviceMatches(row) {
-    const facility = row.latestReturnFacility || row.latestFacility || "";
+    const returned = row.currentStatus === "Returned";
+    const facility = currentDeviceFacility(row);
+    const collector = (returned ? row.latestReturnCollector : row.latestDistributionCollector) || "Unassigned";
+    const date = returned ? row.latestReturnDate : row.latestDistributionDate;
     if (state.filters.facility && facility !== state.filters.facility) return false;
-    return true;
+    if (state.filters.collector && collector !== state.filters.collector) return false;
+    return dateInRange(date);
   }
 
   function filteredParticipants() {
@@ -168,18 +176,27 @@
     return (state.data?.deviceSets || []).filter(deviceMatches);
   }
 
+  function deviceEventMatches(row, facility, date) {
+    if (state.filters.facility && facility !== state.filters.facility) return false;
+    if (state.filters.collector && (row.dataCollector || "Unassigned") !== state.filters.collector) return false;
+    return dateInRange(date);
+  }
+
   function filteredDistributions() {
-    return (state.data?.deviceDistributions || []).filter((row) => {
-      if (state.filters.facility && row.facility !== state.filters.facility) return false;
-      return dateInRange(row.distributionDate);
-    });
+    return (state.data?.deviceDistributions || []).filter(row => deviceEventMatches(row, row.facility, row.distributionDate));
   }
 
   function filteredReturns() {
-    return (state.data?.deviceReturns || []).filter((row) => {
-      if (state.filters.facility && row.returnFacility !== state.filters.facility) return false;
-      return dateInRange(row.returnDate);
-    });
+    return (state.data?.deviceReturns || []).filter(row => deviceEventMatches(row, row.returnFacility, row.returnDate));
+  }
+
+  function incompleteReturn(row) {
+    return row.returnCompletenessStatus === "Incomplete";
+  }
+
+  function componentRows() {
+    return filteredReturns().filter(row => row.componentsReturned != null && row.componentsReturned !== "" &&
+      Number.isFinite(Number(row.componentsReturned)) && Number(row.componentsExpected) > 0);
   }
 
   function unique(values) {
@@ -234,13 +251,180 @@
       .map(([weekStart, count]) => ({ weekStart, count }));
   }
 
+  const KPI_DETAIL_KEYS = {
+    "Participants Enrolled": "participants", "Participants in Filtered View": "participants",
+    "Enrollment Forms Complete": "enrollment", "Enrollment Complete": "enrollment",
+    "Maternal Records Complete": "maternal", "Physical Exams Complete": "crf",
+    "Activity Diaries Complete": "diaryComplete", "Completion": "diaryComplete",
+    "Incomplete Recorded Diaries": "diaryIncomplete",
+    "On-Time Interviews": "sameDay", "Same-Day Interviews": "sameDay", "Delayed Interviews": "delayed",
+    "Avg Call Attempts": "calls", "Avg Delay": "delay", "Max Delay": "maxDelay",
+    "Returned Device Sets": "returns", "Complete Returns": "completeReturns",
+    "Incomplete Returns": "incompleteReturns", "Component Completeness": "components",
+    "Overdue Devices": "overdue", "Collector Attribution Gaps": "unassigned"
+  };
+
+  function kpiDetailData(key) {
+    const participants = filteredParticipants();
+    const diaries = filteredDiaries();
+    const returns = filteredReturns();
+    const yesNo = value => value === true ? "Complete" : "Not complete";
+    const participantTable = rows => ({
+      unit: "participant records",
+      headers: ["Study ID", "Facility", "Data collector", "Enrolled", "Enrollment", "Maternal record", "CRF"],
+      rows: rows.map(r => [r.studyId, r.facility, r.dataCollector, r.enrollmentDate, yesNo(r.enrollmentComplete), yesNo(r.maternalRecordComplete), yesNo(r.physicalExamComplete)])
+    });
+    const diaryTable = rows => ({
+      unit: "activity diary records",
+      headers: ["Study ID", "Facility", "Data collector", "Instance", "Diary date", "Interview type", "Same day", "Interview date", "Delay (days)", "Call attempts", "Form status"],
+      rows: rows.map(r => [r.studyId, r.facility, r.dataCollector, r.diaryInstance, r.diaryDate, r.interviewType, r.sameDayInterview, r.interviewDate, r.delayDays, r.callsMade ?? r.callAttemptLabel, yesNo(r.diaryComplete)])
+    });
+    const returnTable = rows => ({
+      unit: "return events",
+      headers: ["REDCap record", "Instance", "Device set", "Return date", "Return facility", "Data collector", "Return completeness", "Components returned", "Expected components", "Missing components", "Form status"],
+      rows: rows.map(r => [r.redcapRecordId, r.returnInstance, r.deviceSet, r.returnDate, r.returnFacility, r.dataCollector, r.returnCompletenessStatus, r.componentsReturned, r.componentsExpected, r.missingComponents, yesNo(r.formComplete)])
+    });
+    const numeric = value => value != null && value !== "" && Number.isFinite(Number(value));
+    switch (key) {
+      case "participants": return participantTable(participants);
+      case "enrollment": return participantTable(participants.filter(r => r.enrollmentComplete));
+      case "maternal": return participantTable(participants.filter(r => r.maternalRecordComplete));
+      case "crf": return participantTable(participants.filter(r => r.physicalExamComplete));
+      case "unassigned": return participantTable(participants.filter(r => !r.dataCollector || r.dataCollector === "Unassigned"));
+      case "diaryComplete": return diaryTable(diaries.filter(r => r.diaryComplete));
+      case "diaryIncomplete": return diaryTable(diaries.filter(r => !r.diaryComplete));
+      case "sameDay": return diaryTable(diaries.filter(r => r.sameDayInterview === "Yes"));
+      case "delayed": return diaryTable(diaries.filter(r => r.sameDayInterview === "No"));
+      case "calls": return diaryTable(diaries.filter(r => numeric(r.callsMade)));
+      case "delay": return diaryTable(diaries.filter(r => numeric(r.delayDays)));
+      case "maxDelay": {
+        const valid = diaries.filter(r => numeric(r.delayDays));
+        const max = Math.max(0, ...valid.map(r => Number(r.delayDays)));
+        return diaryTable(valid.filter(r => Number(r.delayDays) === max));
+      }
+      case "returns": return returnTable(returns);
+      case "completeReturns": return returnTable(returns.filter(r => r.returnCompletenessStatus === "Complete"));
+      case "incompleteReturns": return returnTable(returns.filter(incompleteReturn));
+      case "components": return returnTable(componentRows());
+      case "overdue": return {
+        unit: "current device sets",
+        headers: ["Device set", "Distribution record", "Study ID", "Facility", "Data collector", "Distributed", "Due date", "Status"],
+        rows: filteredDeviceSets().filter(r => deviceStatusWithWindow(r, state.returnWindowDays).isOverdue).map(r => [
+          r.deviceSet, r.latestDistributionRecordId, r.latestStudyId, currentDeviceFacility(r), r.latestDistributionCollector,
+          r.latestDistributionDate, deviceStatusWithWindow(r, state.returnWindowDays).expectedReturnDate, "Overdue"
+        ])
+      };
+      default: return null;
+    }
+  }
+
+  let detailState = null;
+  const detailDialog = document.getElementById("kpiDetailsDialog");
+  const detailSearch = document.getElementById("kpiDetailsSearch");
+
+  function positionKpiDetails() {
+    if (!detailDialog) return;
+    let top = 0;
+    let height = window.innerHeight;
+    try {
+      if (window.frameElement) {
+        const rect = window.frameElement.getBoundingClientRect();
+        top = Math.max(0, -rect.top);
+        height = Math.max(0, Math.min(rect.bottom, window.parent.innerHeight) - Math.max(rect.top, 0));
+      }
+    } catch (_) { /* Standalone dashboard. */ }
+    detailDialog.style.setProperty("--detail-top", (top + 12) + "px");
+    detailDialog.style.setProperty("--detail-height", Math.max(120, height - 24) + "px");
+  }
+
+  function renderKpiDetails() {
+    if (!detailState) return;
+    const { data, pageSize } = detailState;
+    const query = String(detailSearch.value || "").trim().toLowerCase();
+    let rows = data.rows.filter(row => !query || row.some(cell => String(cell ?? "").toLowerCase().includes(query)));
+    if (detailState.sort >= 0) {
+      const col = detailState.sort;
+      rows = [...rows].sort((a, b) => detailState.direction * String(a[col] ?? "").localeCompare(String(b[col] ?? ""), undefined, { numeric: true }));
+    }
+    const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+    detailState.page = Math.min(Math.max(0, detailState.page), pages - 1);
+    const first = detailState.page * pageSize;
+    const visible = rows.slice(first, first + pageSize);
+    document.getElementById("kpiDetailsCount").textContent =
+      number(rows.length) + " of " + number(data.rows.length) + " " + data.unit + (query ? " match search" : "");
+    const area = document.getElementById("kpiDetailsTable");
+    area.innerHTML = visible.length ? '<table class="data-table"><thead><tr>' +
+      data.headers.map((label, index) => '<th scope="col" aria-sort="' + (detailState.sort === index ? (detailState.direction === 1 ? "ascending" : "descending") : "none") + '"><button type="button" data-detail-sort="' + index + '">' + escapeHtml(label) + (detailState.sort === index ? (detailState.direction === 1 ? " ↑" : " ↓") : "") + '</button></th>').join("") +
+      '</tr></thead><tbody>' + visible.map(row => '<tr>' + row.map(cell => '<td>' + escapeHtml(cell == null || cell === "" ? "—" : cell) + '</td>').join("") + '</tr>').join("") + '</tbody></table>'
+      : emptyState(query ? "No records match your search." : "No records match the current dashboard filters.");
+    document.getElementById("kpiDetailsPage").textContent = "Page " + (detailState.page + 1) + " of " + pages;
+    document.getElementById("kpiDetailsPrevious").disabled = detailState.page === 0;
+    document.getElementById("kpiDetailsNext").disabled = detailState.page + 1 >= pages;
+  }
+
+  function closeKpiDetails() {
+    if (detailDialog?.open) detailDialog.close();
+  }
+
+  function openKpiDetails(button) {
+    if (!state.data || !detailDialog) return;
+    const data = kpiDetailData(button.dataset.kpiDetails);
+    if (!data) return;
+    detailState = { data, page: 0, pageSize: 25, sort: -1, direction: 1, trigger: button };
+    document.getElementById("kpiDetailsTitle").textContent = button.dataset.kpiTitle;
+    document.getElementById("kpiDetailsContext").textContent =
+      "Dashboard value: " + button.dataset.kpiValue + " · " + (els.activeFilterSummary.textContent || "No filters") +
+      (button.dataset.kpiDetails === "diaryComplete" && button.dataset.kpiTitle === "Completion" ? " · Completed records (numerator)" : "") +
+      (button.dataset.kpiDetails === "overdue" ? " · Return window: " + state.returnWindowDays + " days" : "");
+    detailSearch.value = "";
+    positionKpiDetails();
+    detailDialog.showModal();
+    positionKpiDetails();
+    renderKpiDetails();
+    detailSearch.focus({ preventScroll: true });
+  }
+
+  document.addEventListener("click", event => {
+    const button = event.target.closest("[data-kpi-details]");
+    if (button) openKpiDetails(button);
+    const sort = event.target.closest("[data-detail-sort]");
+    if (sort && detailState) {
+      const col = Number(sort.dataset.detailSort);
+      detailState.direction = detailState.sort === col ? -detailState.direction : 1;
+      detailState.sort = col;
+      detailState.page = 0;
+      renderKpiDetails();
+      detailDialog.querySelector('[data-detail-sort="' + col + '"]')?.focus({ preventScroll: true });
+    }
+  });
+  detailSearch.addEventListener("input", () => { if (detailState) { detailState.page = 0; renderKpiDetails(); } });
+  document.getElementById("kpiDetailsClose").addEventListener("click", closeKpiDetails);
+  document.getElementById("kpiDetailsPrevious").addEventListener("click", () => { if (detailState) { detailState.page--; renderKpiDetails(); } });
+  document.getElementById("kpiDetailsNext").addEventListener("click", () => { if (detailState) { detailState.page++; renderKpiDetails(); } });
+  detailDialog.addEventListener("close", () => { if (detailDialog.open) return; const trigger = detailState?.trigger; detailState = null; document.getElementById("kpiDetailsTable").replaceChildren(); if (trigger?.isConnected) trigger.focus({ preventScroll: true }); });
+  window.addEventListener("resize", positionKpiDetails);
+  try {
+    if (window.parent !== window) {
+      window.parent.addEventListener("scroll", positionKpiDetails, { passive: true });
+      window.parent.addEventListener("resize", positionKpiDetails);
+      window.addEventListener("pagehide", () => {
+        window.parent.removeEventListener("scroll", positionKpiDetails);
+        window.parent.removeEventListener("resize", positionKpiDetails);
+      }, { once: true });
+    }
+  } catch (_) {}
+
   function kpiCard(label, value, tone = "info", note = "") {
+    const key = Object.prototype.hasOwnProperty.call(KPI_DETAIL_KEYS, label) ? KPI_DETAIL_KEYS[label] : null;
+    const tag = key ? "button" : "article";
+    const attributes = key ? `type="button" data-kpi-details="${escapeHtml(key)}" data-kpi-title="${escapeHtml(label)}" data-kpi-value="${escapeHtml(value)}" aria-haspopup="dialog" aria-label="${escapeHtml(label + ": " + value + ". View matching records")}"` : "";
     return `
-      <article class="kpi-card ${tone}">
+      <${tag} class="kpi-card ${tone}${key ? " kpi-drilldown" : ""}" ${attributes}>
         <span class="kpi-label">${escapeHtml(label)}</span>
         <strong class="kpi-value">${escapeHtml(value)}</strong>
         ${note ? `<span class="kpi-note">${escapeHtml(note)}</span>` : ""}
-      </article>
+        ${key ? `<span class="kpi-detail-affordance" aria-hidden="true">View records ↗</span>` : ""}
+      </${tag}>
     `;
   }
 
@@ -419,11 +603,20 @@
     els.collectorFilter.value = state.filters.collector;
     els.dateFromFilter.value = state.filters.dateFrom;
     els.dateToFilter.value = state.filters.dateTo;
+    els.dateFromFilter.max = state.filters.dateTo || "";
+    els.dateToFilter.min = state.filters.dateFrom || "";
+    if (state.returnWindowDays != null) els.returnWindowFilter.value = String(state.returnWindowDays);
   }
 
   function setDimensionFilter(dimension, value, { toggle = false } = {}) {
     const nextValue = normalizeFilterValue(value);
     const currentValue = normalizeFilterValue(state.filters[dimension]);
+    if ((dimension === "dateFrom" && nextValue && state.filters.dateTo && nextValue > state.filters.dateTo) ||
+        (dimension === "dateTo" && nextValue && state.filters.dateFrom && nextValue < state.filters.dateFrom)) {
+      syncFilterControls();
+      showDashboardToast("warning", "Check date range", "From date must be on or before To date.");
+      return;
+    }
 
     state.filters[dimension] =
       toggle && nextValue && sameFilterValue(currentValue, nextValue)
@@ -443,9 +636,18 @@
     setDimensionFilter("collector", value, { toggle: true });
   }
 
+  function defaultReturnWindowDays() {
+    const options = state.data?.config?.returnWindowOptions || [1, 2, 3, 5, 7, 10, 14];
+    const configured = Number(state.data?.config?.returnWindowDays);
+    return configured > 0 ? configured : options.map(Number).includes(3) ? 3 : Number(options[0]) || 3;
+  }
+
   function clearSingleFilter(dimension) {
-    if (!Object.prototype.hasOwnProperty.call(state.filters, dimension)) return;
-    state.filters[dimension] = "";
+    if (dimension === "returnWindow") state.returnWindowDays = defaultReturnWindowDays();
+    else {
+      if (!Object.prototype.hasOwnProperty.call(state.filters, dimension)) return;
+      state.filters[dimension] = "";
+    }
     syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
@@ -482,6 +684,9 @@
       });
     }
 
+    if (state.returnWindowDays != null && Number(state.returnWindowDays) !== defaultReturnWindowDays()) {
+      chips.push({ dimension: "returnWindow", label: `Return window: ${state.returnWindowDays} days` });
+    }
     const hasFilters = chips.length > 0;
 
     if (els.activeFilterSummary) {
@@ -537,8 +742,13 @@
 
   function populateFilters() {
     const participants = state.data?.participants || [];
-    const facilities = unique([...FACILITIES, ...participants.map((r) => r.facility)]);
-    const collectors = unique(participants.map((r) => r.dataCollector));
+    const diaries = state.data?.activityDiaries || [];
+    const distributions = state.data?.deviceDistributions || [];
+    const returns = state.data?.deviceReturns || [];
+    const facilities = unique([...FACILITIES, ...participants.map(r => r.facility), ...diaries.map(r => r.facility), ...distributions.map(r => r.facility), ...returns.map(r => r.returnFacility)]);
+    const collectors = unique([...participants, ...diaries, ...distributions, ...returns].map(r => r.dataCollector || "Unassigned")).sort((a,b) => a.localeCompare(b));
+    if (state.filters.facility && !facilities.includes(state.filters.facility)) state.filters.facility = "";
+    if (state.filters.collector && !collectors.includes(state.filters.collector)) state.filters.collector = "";
 
     els.facilityFilter.innerHTML =
       '<option value="">All facilities</option>' +
@@ -552,15 +762,14 @@
     els.collectorFilter.value = state.filters.collector;
 
     const options = state.data?.config?.returnWindowOptions || [1, 2, 3, 5, 7, 10, 14];
-    const configured = state.data?.config?.returnWindowDays;
-    if (state.returnWindowDays === null) {
-      state.returnWindowDays = configured || options.find((v) => Number(v) === 3) || options[0] || 3;
+    if (state.returnWindowDays === null || !options.map(Number).includes(Number(state.returnWindowDays))) {
+      state.returnWindowDays = defaultReturnWindowDays();
     }
 
     els.returnWindowFilter.innerHTML = options
       .map((days) => `<option value="${days}">${days} day${Number(days) === 1 ? "" : "s"}</option>`)
       .join("");
-    els.returnWindowFilter.value = String(state.returnWindowDays);
+    syncFilterControls();
   }
 
   function renderFreshness() {
@@ -585,15 +794,18 @@
     `;
   }
 
+  function diaryCompletionScope(participants, diaries) {
+    const recordedOnly = Boolean(state.filters.collector || state.filters.dateFrom || state.filters.dateTo);
+    const expected = recordedOnly ? diaries.length : participants.length * Number(state.data?.config?.activityDiariesExpectedPerParticipant || 6);
+    return { expected, recordedOnly };
+  }
+
   function getOverviewMetrics() {
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const target = Number(state.data?.config?.participantTarget || 200);
     const overallEnrolled = (state.data?.participants || []).length;
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
-    const diaryExpected = participants.length * expectedPerParticipant;
+    const { expected: diaryExpected, recordedOnly: diaryRecordedOnly } = diaryCompletionScope(participants, diaries);
     const diaryComplete = diaries.filter((r) => r.diaryComplete).length;
     const sameDay = diaries.filter((r) => r.sameDayInterview === "Yes").length;
     const delayed = diaries.filter((r) => r.sameDayInterview === "No").length;
@@ -615,6 +827,7 @@
         (r) => r.enrollmentComplete && r.maternalRecordComplete && r.physicalExamComplete
       ).length,
       diaryExpected,
+      diaryRecordedOnly,
       diaryComplete,
       diaryOutstanding: Math.max(diaryExpected - diaryComplete, 0),
       diaryCompletionPct: percent(diaryComplete, diaryExpected),
@@ -641,7 +854,7 @@
       { label: "Enrollment Form", expected: m.enrolled, completed: m.enrollmentComplete },
       { label: "Maternal Record Book", expected: m.enrolled, completed: m.maternalComplete },
       { label: "Case Report Form (CRF)", expected: m.enrolled, completed: m.physicalComplete },
-      { label: "Activity Diary", expected: m.diaryExpected, completed: m.diaryComplete }
+      { label: m.diaryRecordedOnly ? "Activity Diary (recorded)" : "Activity Diary", expected: m.diaryExpected, completed: m.diaryComplete }
     ];
 
     content.innerHTML = `
@@ -658,7 +871,7 @@
         )}
         ${kpiCard("Overall Study Target", number(m.target), "neutral", "Study-level target across four facilities")}
         ${kpiCard("Overall Recruitment Progress", `${number(m.recruitmentPct, 1)}%`, "positive", `${m.remaining} participants remaining overall`)}
-        ${kpiCard("Activity Diaries Complete", number(m.diaryComplete), m.diaryOutstanding ? "warning" : "positive", `${m.diaryOutstanding} outstanding of ${m.diaryExpected}`)}
+        ${kpiCard("Activity Diaries Complete", number(m.diaryComplete), m.diaryOutstanding ? "warning" : "positive", m.diaryRecordedOnly ? `${m.diaryOutstanding} incomplete of ${m.diaryExpected} recorded` : `${m.diaryOutstanding} outstanding of ${m.diaryExpected}`)}
         ${kpiCard("Enrollment Forms Complete", number(m.enrollmentComplete), "positive")}
         ${kpiCard("Maternal Records Complete", number(m.maternalComplete), "positive")}
         ${kpiCard("Physical Exams Complete", number(m.physicalComplete), "positive")}
@@ -840,9 +1053,7 @@
   }
 
   function formRows(participants, diaries) {
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
+    const diaryScope = diaryCompletionScope(participants, diaries);
     return [
       {
         form: "Enrollment Form",
@@ -860,8 +1071,8 @@
         completed: participants.filter((r) => r.physicalExamComplete).length
       },
       {
-        form: "Activity Diary",
-        expected: participants.length * expectedPerParticipant,
+        form: diaryScope.recordedOnly ? "Activity Diary (recorded)" : "Activity Diary",
+        expected: diaryScope.expected,
         completed: diaries.filter((r) => r.diaryComplete).length
       }
     ].map((r) => ({
@@ -876,13 +1087,14 @@
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const forms = formRows(participants, diaries);
+    const diaryScope = diaryCompletionScope(participants, diaries);
 
     content.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard("Enrollment Complete", number(forms[0].completed), forms[0].missing ? "warning" : "positive")}
         ${kpiCard("Maternal Records Complete", number(forms[1].completed), forms[1].missing ? "warning" : "positive")}
         ${kpiCard("Physical Exams Complete", number(forms[2].completed), forms[2].missing ? "warning" : "positive")}
-        ${kpiCard("Activity Diaries Complete", number(forms[3].completed), forms[3].missing ? "warning" : "positive", `${forms[3].missing} outstanding`)}
+        ${kpiCard("Activity Diaries Complete", number(forms[3].completed), forms[3].missing ? "warning" : "positive", diaryScope.recordedOnly ? `${forms[3].missing} recorded forms incomplete` : `${forms[3].missing} outstanding`)}
       </div>
 
       <div class="dashboard-grid">
@@ -970,9 +1182,7 @@
     const content = document.getElementById("diaryContent");
     const diaries = filteredDiaries();
     const participants = filteredParticipants();
-    const expected = participants.length * Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
+    const { expected, recordedOnly } = diaryCompletionScope(participants, diaries);
     const complete = diaries.filter((r) => r.diaryComplete).length;
     const sameDay = diaries.filter((r) => r.sameDayInterview === "Yes").length;
     const delayed = diaries.filter((r) => r.sameDayInterview === "No").length;
@@ -1019,7 +1229,7 @@
 
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
-        ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}`)}
+        ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}${recordedOnly ? " recorded" : " expected"}`)}
         ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, sameDay + delayed), 1)}%`, "positive", `${sameDay} Yes`)}
         ${kpiCard("Delayed Interviews", `${number(percent(delayed, sameDay + delayed), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
         ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} exact attempts; More excluded`)}
@@ -1156,11 +1366,9 @@
     const deviceSets = filteredDeviceSets();
     const returns = filteredReturns();
     const distributions = filteredDistributions();
-    const componentsReturned = sumBy(
-      returns.filter((r) => Number.isFinite(Number(r.componentsReturned))),
-      "componentsReturned"
-    );
-    const componentsExpected = sumBy(returns, "componentsExpected");
+    const knownComponents = componentRows();
+    const componentsReturned = sumBy(knownComponents, "componentsReturned");
+    const componentsExpected = sumBy(knownComponents, "componentsExpected");
     const completeReturns = returns.filter(
       (r) => r.returnCompletenessStatus === "Complete"
     ).length;
@@ -1173,7 +1381,7 @@
     const hasReturns = returns.length > 0;
     const hasComponentData = componentsExpected > 0;
 
-    const returnsByFacility = FACILITIES.map((facility) => ({
+    const returnsByFacility = unique([...FACILITIES, ...returns.map(r => r.returnFacility)]).map((facility) => ({
       facility,
       returned: returns.filter((row) => row.returnFacility === facility).length
     }));
@@ -1184,10 +1392,10 @@
         row.currentReturnCompleteness === "Complete"
     ).length;
     const currentIncomplete = deviceSets.filter(
-      (row) =>
-        row.currentStatus === "Returned" &&
-        row.currentReturnCompleteness === "Incomplete"
+      (row) => row.currentStatus === "Returned" && row.currentReturnCompleteness === "Incomplete"
     ).length;
+    const currentUnknown = deviceSets.filter(r => r.currentStatus === "Returned" && !["Complete","Incomplete"].includes(r.currentReturnCompleteness)).length;
+    const hasCurrentReturns = currentComplete + currentIncomplete + currentUnknown > 0;
 
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
@@ -1205,7 +1413,7 @@
               "Component Completeness",
               "—",
               "neutral",
-              "No device returns recorded yet"
+              hasReturns ? "No verified component totals for these returns" : "No device returns recorded yet"
             )}
         ${kpiCard("Return Window", `${state.returnWindowDays} days`, "neutral", state.data?.config?.returnWindowDays ? "Project policy" : "Scenario selection")}
         ${kpiCard("Overdue Devices", number(overdue), overdue ? "problem" : "positive")}
@@ -1221,7 +1429,7 @@
         )}
         ${panel(
           "Current Device Return Status",
-          hasReturns
+          hasCurrentReturns
             ? chartCanvas("deviceStatus")
             : emptyState("No returned device sets are available to classify as complete or incomplete."),
           6
@@ -1233,7 +1441,7 @@
             ["Device Set", "Lifecycle", "Return Completeness", "Facility", "Study ID", "Distributed", "Returned", "Components", "Missing Components"],
             deviceSets.map((r) => {
               const scenario = deviceStatusWithWindow(r, state.returnWindowDays);
-              const facility = r.latestReturnFacility || r.latestFacility || "—";
+              const facility = currentDeviceFacility(r) || "—";
               const completeness =
                 r.currentReturnCompleteness ||
                 (r.currentStatus === "Returned" ? "Unknown" : "Awaiting return");
@@ -1246,14 +1454,14 @@
                 escapeHtml(r.latestStudyId || "—"),
                 escapeHtml(formatDate(r.latestDistributionDate)),
                 escapeHtml(formatDate(r.latestReturnDate)),
-                r.componentsExpected && r.componentsReturned !== null
+                r.currentStatus === "Returned" && r.componentsExpected && r.componentsReturned != null
                   ? `${number(r.componentsReturned)} / ${number(r.componentsExpected)}`
                   : "—",
-                escapeHtml(r.missingComponents || "—")
+                escapeHtml(r.currentStatus === "Returned" ? r.missingComponents || "—" : "—")
               ];
             }),
             deviceSets.map((r) =>
-              `data-filter-facility="${escapeHtml(r.latestReturnFacility || r.latestFacility || "")}"`
+              `data-filter-facility="${escapeHtml(currentDeviceFacility(r))}"`
             )
           ),
           12
@@ -1286,7 +1494,7 @@
     const allWeeks = unique([
       ...distributionWeeks.map((row) => row.weekStart),
       ...returnWeeks.map((row) => row.weekStart)
-    ]);
+    ]).sort();
     const distributionWeekMap = new Map(
       distributionWeeks.map((row) => [row.weekStart, row.count])
     );
@@ -1315,34 +1523,31 @@
       }
     });
 
-    if (hasReturns) {
+    if (hasCurrentReturns) {
       buildChart("deviceStatus", {
         type: "bar",
         data: {
-          labels: ["Complete", "Incomplete"],
+          labels: ["Complete", "Incomplete", "Unknown"],
           datasets: [{
             label: "Device Sets",
-            data: [currentComplete, currentIncomplete],
-            backgroundColor: [COLORS.green, COLORS.red],
+            data: [currentComplete, currentIncomplete, currentUnknown],
+            backgroundColor: [COLORS.green, COLORS.red, COLORS.slate],
             borderRadius: 5
           }]
         },
         options: { plugins: { legend: { display: false } } }
       });
     } else {
-      destroyChart("deviceFacility");
       destroyChart("deviceStatus");
     }
+    if (!hasReturns) destroyChart("deviceFacility");
   }
 
   function dataQualityIssues() {
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
     const returns = filteredReturns();
-    const expectedPerParticipant = Number(
-      state.data?.config?.activityDiariesExpectedPerParticipant || 6
-    );
-    const expectedDiaries = participants.length * expectedPerParticipant;
+    const { expected: expectedDiaries, recordedOnly } = diaryCompletionScope(participants, diaries);
     const completedDiaries = diaries.filter((r) => r.diaryComplete).length;
     const sourceStatus = state.data?.sourceStatus || {};
     const targetConfig = state.data?.config?.facilityTargets || {};
@@ -1353,13 +1558,13 @@
 
     return [
       {
-        name: "Outstanding Activity Diaries",
+        name: recordedOnly ? "Incomplete Recorded Activity Diaries" : "Outstanding Activity Diaries",
         count: Math.max(expectedDiaries - completedDiaries, 0),
         severity: "High"
       },
       {
         name: "Incomplete Device Returns",
-        count: returns.filter((r) => !r.allComponentsReturned).length,
+        count: returns.filter(incompleteReturn).length,
         severity: "High"
       },
       {
@@ -1417,14 +1622,15 @@
     const issues = dataQualityIssues();
     const diaries = filteredDiaries();
     const delayed = diaries.filter((r) => r.sameDayInterview === "No");
-    const incompleteReturns = filteredReturns().filter((r) => !r.allComponentsReturned);
+    const incompleteReturns = filteredReturns().filter(incompleteReturn);
+    const recordedOnly = diaryCompletionScope(filteredParticipants(), diaries).recordedOnly;
     const majorIssueCount = issues.filter((r) => ["High", "Critical"].includes(r.severity))
       .reduce((sum, r) => sum + r.count, 0);
 
     content.innerHTML = `
       <div class="kpi-grid">
         ${kpiCard("High / Critical Issues", number(majorIssueCount), majorIssueCount ? "problem" : "positive")}
-        ${kpiCard("Outstanding Diaries", number(issues.find((r) => r.name === "Outstanding Activity Diaries")?.count || 0), "warning")}
+        ${kpiCard(recordedOnly ? "Incomplete Recorded Diaries" : "Outstanding Diaries", number(issues.find((r) => r.name === (recordedOnly ? "Incomplete Recorded Activity Diaries" : "Outstanding Activity Diaries"))?.count || 0), "warning", recordedOnly ? "Within selected records" : "Planned study-level gap")}
         ${kpiCard("Incomplete Returns", number(incompleteReturns.length), incompleteReturns.length ? "problem" : "positive")}
         ${kpiCard("Delayed Interviews", number(delayed.length), delayed.length ? "warning" : "positive")}
       </div>
@@ -1538,7 +1744,7 @@
   function collectorPerformanceRows() {
     const participants = filteredParticipants();
     const diaries = filteredDiaries();
-    const collectors = unique(participants.map((r) => r.dataCollector));
+    const collectors = unique([...participants, ...diaries].map(r => r.dataCollector));
 
     return collectors.map((collector) => {
       const collectorParticipants = participants.filter((r) => r.dataCollector === collector);
@@ -1554,7 +1760,7 @@
 
       return {
         collector,
-        facility: unique(collectorParticipants.map((r) => r.facility)).join(", "),
+        facility: unique([...collectorParticipants, ...collectorDiaries].map(r => r.facility)).join(", "),
         participants: collectorParticipants.length,
         tasksRecorded,
         tasksCompleted,
@@ -1879,6 +2085,7 @@
   }
 
   function renderCurrentSection() {
+    closeKpiDetails();
     if (!state.data) return;
 
     const renderers = {
@@ -1899,11 +2106,16 @@
     if (state.section === "performance") {
       wirePerformanceConfiguration();
     }
+    const note = document.getElementById("filterScopeNote");
+    if (note) note.textContent = state.section === "sync" ? "Sync status is study-wide." :
+      state.section === "devices" ? "Dates select return/distribution events and the latest event for current inventory. Return window changes overdue status." :
+      (state.filters.collector || state.filters.dateFrom || state.filters.dateTo) && ["overview","forms","diary","quality"].includes(state.section) ?
+      "Diary completion uses recorded forms within these filters; planned lifetime diary targets cannot be allocated to individual dates or collectors." : "";
   }
 
   function wireInteractiveRows() {
     document
-      .querySelectorAll("tr[data-filter-facility], tr[data-filter-collector]")
+      .querySelectorAll(".dashboard-section.active-section tr[data-filter-facility], .dashboard-section.active-section tr[data-filter-collector]")
       .forEach((row) => {
         const facility = normalizeFilterValue(row.dataset.filterFacility);
         const collector = normalizeFilterValue(row.dataset.filterCollector);
@@ -1924,7 +2136,7 @@
           ? "Click again to remove this row filter"
           : "Click to filter the dashboard to this row";
 
-        row.addEventListener("click", () => {
+        row.onclick = () => {
           const isSameSelection =
             represented.length > 0 &&
             represented.every(([dimension, value]) =>
@@ -1938,11 +2150,12 @@
           syncFilterControls();
           renderActiveFilterSummary();
           renderCurrentSection();
-        });
+        };
       });
   }
 
   function showSection(sectionId) {
+    closeKpiDetails();
     state.section = sectionId;
     document.querySelectorAll(".dashboard-section").forEach((section) => {
       section.classList.toggle("active-section", section.id === sectionId);
@@ -2137,6 +2350,7 @@
     state.refreshState = projectData.wp2RefreshState || {};
 
     if (!isVerifiedProductionSnapshot(publishedSnapshot)) {
+      closeKpiDetails();
       state.data = null;
       ["overview", "recruitment", "forms", "diary", "devices", "quality", "sync", "performance"].forEach(section => {
         const content = document.getElementById(section + "Content");
@@ -2443,6 +2657,7 @@
       dateFrom: "",
       dateTo: ""
     };
+    state.returnWindowDays = defaultReturnWindowDays();
     syncFilterControls();
     renderActiveFilterSummary();
     renderCurrentSection();
@@ -2452,33 +2667,15 @@
     button.addEventListener("click", () => showSection(button.dataset.section));
   });
 
-  els.facilityFilter.addEventListener("change", () => {
-    state.filters.facility = els.facilityFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.collectorFilter.addEventListener("change", () => {
-    state.filters.collector = els.collectorFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.dateFromFilter.addEventListener("change", () => {
-    state.filters.dateFrom = els.dateFromFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
-  });
-
-  els.dateToFilter.addEventListener("change", () => {
-    state.filters.dateTo = els.dateToFilter.value;
-    renderActiveFilterSummary();
-    renderCurrentSection();
+  [["facility", els.facilityFilter], ["collector", els.collectorFilter], ["dateFrom", els.dateFromFilter], ["dateTo", els.dateToFilter]].forEach(([dimension, control]) => {
+    control.addEventListener("change", () => setDimensionFilter(dimension, control.value));
   });
 
   els.returnWindowFilter.addEventListener("change", () => {
-    state.returnWindowDays = Number(els.returnWindowFilter.value) || 3;
-    if (state.section === "devices") renderDevices();
+    state.returnWindowDays = Number(els.returnWindowFilter.value) || defaultReturnWindowDays();
+    syncFilterControls();
+    renderActiveFilterSummary();
+    renderCurrentSection();
   });
 
   document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);

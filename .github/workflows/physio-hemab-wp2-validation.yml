@@ -12,6 +12,9 @@ on:
       - "public/projects/physio-hemab-wp2/**"
       - "integrations/physio-hemab-wp2/**"
       - "scripts/validate-physio-hemab-wp2.js"
+      - "scripts/test-wp2-interactions.js"
+      - "scripts/test-wp2-browser.js"
+      - "public/css/styles.css"
       - "package.json"
       - ".github/workflows/physio-hemab-wp2-validation.yml"
       - ".github/workflows/physio-hemab-wp2-refresh.yml"
@@ -26,6 +29,9 @@ on:
       - "public/projects/physio-hemab-wp2/**"
       - "integrations/physio-hemab-wp2/**"
       - "scripts/validate-physio-hemab-wp2.js"
+      - "scripts/test-wp2-interactions.js"
+      - "scripts/test-wp2-browser.js"
+      - "public/css/styles.css"
       - "package.json"
       - ".github/workflows/physio-hemab-wp2-validation.yml"
       - ".github/workflows/physio-hemab-wp2-refresh.yml"
@@ -36,7 +42,7 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out repository
@@ -66,6 +72,17 @@ jobs:
             fs.writeFileSync(file, original, "utf8");
           }
           JS
+
+      - name: Test live filter predicates and KPI drill-down records
+        run: node scripts/test-wp2-interactions.js
+
+      - name: Install browser regression dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1 chart.js@4.4.7
+          npx playwright install chromium --with-deps
+
+      - name: Test filter interactions, KPI dialogs and section resizing in Chromium
+        run: node scripts/test-wp2-browser.js
 
       - name: Check native dashboard JavaScript syntax
         run: |
