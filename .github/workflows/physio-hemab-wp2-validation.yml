@@ -76,6 +76,14 @@ jobs:
       - name: Test live filter predicates and KPI drill-down records
         run: node scripts/test-wp2-interactions.js
 
+      - name: Install browser regression dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1 chart.js@4.4.7
+          npx playwright install chromium --with-deps
+
+      - name: Test filter interactions, KPI dialogs and section resizing in Chromium
+        run: node scripts/test-wp2-browser.js
+
       - name: Check native dashboard JavaScript syntax
         run: |
           node --check public/projects/physio-hemab-wp2/dashboard.js
