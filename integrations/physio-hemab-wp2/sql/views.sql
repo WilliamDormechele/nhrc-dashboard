@@ -109,8 +109,10 @@ SELECT
     (r.payload ->> 'enrollment_form_complete') = '2' AS enrollment_complete,
     (r.payload ->> 'maternal_record_book_baseline_complete') = '2'
         AS maternal_record_book_complete,
-    (r.payload ->> 'physical_examination_form_complete') = '2'
-        AS physical_examination_complete,
+    (CASE WHEN r.payload ? 'case_report_form_complete'
+        THEN r.payload ->> 'case_report_form_complete'
+        ELSE r.payload ->> 'physical_examination_form_complete'
+    END) = '2' AS physical_examination_complete,
     NULLIF(r.payload ->> 'crf_date', '')::date AS physical_examination_date,
     physio_hemab_wp2.canonical_facility(
         physio_hemab_wp2.choice_label(
@@ -251,7 +253,8 @@ SELECT
         NULLIF(trim(a.data_collector), ''),
         'Unassigned'
     ) AS data_collector,
-    NULLIF(r.payload ->> 'dashboard_interview_type', '') AS interview_type
+    NULLIF(r.payload ->> 'dashboard_interview_type', '') AS interview_type,
+    NULLIF(r.payload ->> 'dashboard_call_attempt_label', '') AS call_attempt_label
 FROM physio_hemab_wp2.raw_records r
 LEFT JOIN physio_hemab_wp2.vw_participants p
     ON p.record_id = r.record_id

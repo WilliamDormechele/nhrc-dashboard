@@ -7,7 +7,7 @@ from typing import Any
 from config import REDCAP_PROJECTS, load_redcap_settings
 from redcap_client import RedcapClient
 from sync import dashboard_fields
-from production_fields import select_fields, diary_metrics
+from production_fields import select_fields, diary_metrics, crf_completion_field
 
 
 SENSITIVE_FIELDS = {
@@ -156,7 +156,7 @@ def main() -> None:
         forms = [
             "enrollment_form_complete",
             "maternal_record_book_baseline_complete",
-            "physical_examination_form_complete",
+            crf_completion_field(metadata_map),
             "activity_diary_complete",
         ]
         completion_labels = {

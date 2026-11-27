@@ -10,16 +10,26 @@ VALUES
 
 INSERT INTO physio_hemab_wp2.raw_records(source_project,record_id,repeat_instrument,repeat_instance,payload,payload_hash)
 VALUES
- ('main','synthetic','','','{"enroll_studid":"synthetic","enrollment_form_complete":"2","maternal_record_book_baseline_complete":"2","physical_examination_form_complete":"1"}','synthetic1'),
- ('main','synthetic','activity_diary','1','{"ad_date":"2026-11-26","call_date":"0","dashboard_calls_made":2,"dashboard_interview_type":"Phone","activity_diary_complete":"2"}','synthetic2'),
+ ('main','synthetic','','','{"enroll_studid":"synthetic","enrollment_form_complete":"2","maternal_record_book_baseline_complete":"2","case_report_form_complete":"1"}','synthetic1'),
+ ('main','synthetic','activity_diary','1','{"ad_date":"2026-11-26","call_date":"0","dashboard_calls_made":2,"dashboard_call_attempt_label":"2","dashboard_interview_type":"Phone","activity_diary_complete":"2"}','synthetic2'),
  ('devices','synthetic','','','{"devices_date":"2026-11-25","return_date":"2026-11-26","distributed_a1":"0","returned_a1":"0","complete_a1":"1","missings_a1___2":"1"}','synthetic3');
 
-DO $$
+INSERT INTO physio_hemab_wp2.raw_records(source_project,record_id,repeat_instrument,repeat_instance,payload,payload_hash)
+VALUES ('main','synthetic_complete','','','{"enroll_studid":"synthetic_complete","case_report_form_complete":"2"}','synthetic4'),
+       ('main','synthetic','activity_diary','2','{"ad_date":"2026-11-27","dashboard_call_attempt_label":"More","dashboard_interview_type":"No interview","activity_diary_complete":"2"}','synthetic5');
+
+DO $
 BEGIN
+ IF (SELECT count(*) FROM physio_hemab_wp2.vw_participants WHERE physical_examination_complete) <> 1 THEN
+   RAISE EXCEPTION 'Production CRF completion regression';
+ END IF;
+ IF (SELECT count(*) FROM physio_hemab_wp2.vw_activity_diaries WHERE calls_made IS NULL AND call_attempt_label='More') <> 1 THEN
+   RAISE EXCEPTION 'Categorical call-count regression';
+ END IF;
  IF (SELECT count(*) FROM physio_hemab_wp2.vw_participants WHERE enrollment_complete AND maternal_record_book_complete AND NOT physical_examination_complete) <> 1 THEN
    RAISE EXCEPTION 'Completion KPI regression';
  END IF;
- IF (SELECT count(*) FROM physio_hemab_wp2.vw_activity_diaries WHERE diary_complete AND calls_made=2 AND interview_type='Phone' AND same_day_interview='Yes') <> 1 THEN
+ IF (SELECT count(*) FROM physio_hemab_wp2.vw_activity_diaries WHERE diary_complete AND calls_made=2 AND interview_type='Phone' AND call_attempt_label='2' AND same_day_interview='Yes') <> 1 THEN
    RAISE EXCEPTION 'Revised activity diary reporting regression';
  END IF;
  IF (SELECT count(*) FROM physio_hemab_wp2.vw_device_distributions) <> 1 OR

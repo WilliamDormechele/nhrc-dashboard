@@ -20,12 +20,32 @@ def choice_map(field):
     return result
 
 
+CRF_STATUS_FIELDS = {
+    "case_report_form_complete",
+    "physical_examination_form_complete",
+}
+
+
+def crf_completion_field(fields):
+    instrument = fields.get("crf_date", {}).get("form_name")
+    status = f"{instrument}_complete"
+    if status not in CRF_STATUS_FIELDS:
+        raise RuntimeError("Unknown CRF instrument in REDCap metadata; cannot verify form completion.")
+    return status
+
+
 def select_fields(project, expected, metadata):
     fields = metadata_fields(metadata)
     forms = {m.get("form_name") for m in metadata}
     selected = []
     missing = []
     for name in expected:
+        if project == "main" and name in CRF_STATUS_FIELDS:
+            # REDCap completion fields are derived from the real instrument name.
+            # Never request the retired test instrument status from production.
+            name = crf_completion_field(fields)
+            if name in selected:
+                continue
         present = name in fields or (name.endswith("_complete") and name[:-9] in forms)
         if present:
             selected.append(name)
@@ -59,14 +79,20 @@ def decode_choice(row, name, field):
 
 def diary_metrics(row, fields):
     count = None
+    call_label = None
     for name in ("ad_call_number", "ad_call_numb"):
         answered, label = decode_choice(row, name, fields.get(name))
         if answered:
+            call_label = label
             match = re.fullmatch(r"\s*(\d+)\s*(?:calls?|attempts?|times?)?\s*", label or "", re.I)
             count = int(match.group(1)) if match else None
             break
     _, interview_type = decode_choice(row, "ad_dc_interview", fields.get("ad_dc_interview"))
-    return {"dashboard_calls_made": count, "dashboard_interview_type": interview_type}
+    return {
+        "dashboard_calls_made": count,
+        "dashboard_call_attempt_label": call_label,
+        "dashboard_interview_type": interview_type,
+    }
 
 
 def validate_project_identity(data, expected_pid, expected_title):

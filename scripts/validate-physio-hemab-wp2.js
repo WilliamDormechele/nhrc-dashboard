@@ -114,7 +114,7 @@ assert(
     wp2DashboardJs.includes('canvas.addEventListener("click"') &&
     wp2DashboardJs.includes("delete options.onClick") &&
     wp2Html.includes("activeFilterChipList") &&
-    wp2Html.includes("WP2 UI build 2026-11-26.1"),
+    wp2Html.includes("WP2 UI build 2026-11-27.2"),
   "Repeat-click chart/table filter clearing is missing."
 );
 
@@ -270,7 +270,7 @@ assert(
 assert(
   mainFieldMap.includes('"pid": 115') &&
     mainFieldMap.includes('"health_facility_enrollment"') &&
-    mainFieldMap.includes('"ad_call_number"') && mainFieldMap.includes('"ad_call_numb"') && mainFieldMap.includes('"ad_dc_interview"'),
+    mainFieldMap.includes('"case_report_form_complete"') && mainFieldMap.includes('"ad_call_number"') && mainFieldMap.includes('"ad_call_numb"') && mainFieldMap.includes('"ad_dc_interview"'),
   "Main REDCap field mapping is incomplete."
 );
 

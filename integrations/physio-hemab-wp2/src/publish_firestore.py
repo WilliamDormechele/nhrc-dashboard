@@ -127,6 +127,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
             delay_days,
             calls_made,
             interview_type,
+            call_attempt_label,
             diary_complete
         FROM physio_hemab_wp2.vw_activity_diaries
         ORDER BY diary_date NULLS LAST, study_id, diary_instance
@@ -335,6 +336,7 @@ def _build_snapshot(connection, project_document: dict[str, Any]) -> dict[str, A
                 "delayDays": row.get("delay_days"),
                 "callsMade": row.get("calls_made"),
                 "interviewType": row.get("interview_type") or "",
+                "callAttemptLabel": row.get("call_attempt_label") or "",
                 "diaryComplete": bool(row.get("diary_complete")),
             }
             for row in activity_diaries

@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from production_fields import select_fields, diary_metrics, validate_project_identity
+from production_fields import select_fields, diary_metrics, validate_project_identity, crf_completion_field
 
 def field(name, kind, choices="", form="activity_diary"):
     return {"field_name": name, "field_type": kind, "select_choices_or_calculations": choices, "form_name": form}
@@ -17,7 +17,27 @@ class ProductionFieldsTests(unittest.TestCase):
 
     def test_new_choices_are_labels_not_raw_codes(self):
         fields = {"ad_call_number": field("ad_call_number", "radio", "0, 1 | 1, 2 | 2, 3"), "ad_dc_interview": field("ad_dc_interview", "radio", "1, Phone | 2, In person")}
-        self.assertEqual(diary_metrics({"ad_call_number":"0","ad_dc_interview":"2"},fields), {"dashboard_calls_made":1,"dashboard_interview_type":"In person"})
+        self.assertEqual(diary_metrics({"ad_call_number":"0","ad_dc_interview":"2"},fields), {"dashboard_calls_made":1,"dashboard_call_attempt_label":"1","dashboard_interview_type":"In person"})
+    def test_production_crf_and_call_choices(self):
+        metadata = [
+            field("crf_date", "text", form="case_report_form"),
+            field("ad_call_numb", "dropdown", "0, 1|1, 2|2, 3|3, More"),
+            field("ad_dc_interview", "radio", "0, Phone interview|1, In-person interview|2, No interview"),
+        ]
+        fields = {m["field_name"]: m for m in metadata}
+        self.assertEqual(select_fields("main", ["physical_examination_form_complete", "ad_call_numb", "ad_call_number"], metadata),
+                         ["case_report_form_complete", "ad_call_numb"])
+        self.assertEqual(diary_metrics({"ad_call_numb":"0"},fields)["dashboard_calls_made"],1)
+        more = diary_metrics({"ad_call_numb":"3","ad_dc_interview":"2"},fields)
+        self.assertIsNone(more["dashboard_calls_made"])
+        self.assertEqual(more["dashboard_call_attempt_label"],"More")
+        self.assertEqual(more["dashboard_interview_type"],"No interview")
+        with self.assertRaises(RuntimeError):
+            crf_completion_field({})
+        legacy = [field("crf_date", "text", form="physical_examination_form"), metadata[1]]
+        self.assertEqual(select_fields("main", ["case_report_form_complete","ad_call_numb"], legacy),
+                         ["physical_examination_form_complete","ad_call_numb"])
+
     def test_blank_and_ambiguous_do_not_become_zero(self):
         fields={"ad_call_number":field("ad_call_number","checkbox","0, 1 | 1, 2")}
         self.assertIsNone(diary_metrics({},fields)["dashboard_calls_made"])

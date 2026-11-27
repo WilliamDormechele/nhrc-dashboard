@@ -73,7 +73,12 @@ $run = $null
 for ($i = 0; $i -lt 30 -and -not $run; $i++) {
     $json = & gh run list --repo $Repo --workflow $Workflow --branch main --event workflow_dispatch --limit 20 --json databaseId,displayTitle
     if ($LASTEXITCODE -ne 0) { throw "Could not locate the refresh workflow." }
-    $run = @($json | ConvertFrom-Json | Where-Object { $_.displayTitle -like "*$source*" }) | Select-Object -First 1
+    foreach ($candidate in (ConvertFrom-Json -InputObject ($json -join "`n"))) {
+        if ([string]$candidate.displayTitle -like "*$source*") {
+            $run = $candidate
+            break
+        }
+    }
     if (-not $run) { Start-Sleep -Seconds 4 }
 }
 if (-not $run) { throw "Refresh was requested but its run ID could not be confirmed. Check the workflow in GitHub Actions before proceeding." }
