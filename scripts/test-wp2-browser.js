@@ -14,6 +14,7 @@ const deviceReturns = Array.from({length: 30},(_,i)=>({redcapRecordId:"RETURN-"+
 const snapshot={participants,activityDiaries,deviceReturns,deviceDistributions:[],deviceSets:[{deviceSet:"A1",currentStatus:"Distributed",latestFacility:f1,latestDistributionCollector:"Collector A",latestDistributionDate:new Date(Date.now()-7*86400000).toISOString().slice(0,10),latestDistributionRecordId:"DIST-01"}],sourceStatus:{main:{verified:true,pid:115,sourceHost:"redcap.uk-halle.de",status:"success"},devices:{verified:true,pid:116,sourceHost:"redcap.uk-halle.de",status:"success"}},config:{participantTarget:200,activityDiariesExpectedPerParticipant:6,returnWindowOptions:[1,3,7,14]},fetchedAt:"2026-11-27T09:21:06Z"};
 const parentSource=fs.readFileSync(path.join(root,"js/projects.js"),"utf8");
 const autoHeightSource=parentSource.slice(parentSource.indexOf("let nativeDashboardResizeObserver"),parentSource.indexOf("function clearNativeDashboardLayout"));
+snapshot.participants[29].maternalRecordComplete = false;
 const harness='<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/styles.css"><style>body{margin:0;height:auto;display:block}#frame{width:100%;border:0;display:block}</style><div class="native-dashboard-container"><iframe id="frame"></iframe></div><script>window.currentUserProfile={role:"project_pi",assignedProjects:["physio-hemab-wp2"]};window.nhrcFirestore={collection:()=>({doc:()=>({get:async()=>({exists:true,data:()=>({wp2Snapshot:'+JSON.stringify(snapshot)+'})})})})};'+autoHeightSource+';const frame=document.getElementById("frame");enableNativeDashboardAutoHeight(frame);frame.src="'+wp+'index.html";</script>';
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,"http://localhost");
@@ -36,6 +37,18 @@ async function run(){
   const f=page.frameLocator("#frame");
   const kpi=(label)=>f.locator('[data-kpi-title="'+label+'"]');
   await kpi("Participants Enrolled").waitFor();
+  await f.locator('#facilityFilter').selectOption(f1);
+  await f.locator('#collectorFilter').selectOption('Collector B');
+  assert.equal(await kpi('On-Time Interviews').getAttribute('data-kpi-value'),'Unavailable');
+  await f.locator('[data-section="diary"]').click();
+  assert.equal(await kpi('Same-Day Interviews').getAttribute('data-kpi-value'),'Unavailable');
+  assert.equal(await kpi('Delayed Interviews').getAttribute('data-kpi-value'),'Unavailable');
+  await f.locator('#clearFiltersBtn').click();
+  await f.locator('[data-section="performance"]').click();
+  const rates = f.locator('article').filter({has:f.getByRole('heading',{name:'Facility completion rates',exact:true})});
+  assert.match(await rates.innerText(), /97\.8%/);
+  assert.ok(!(await rates.innerText()).includes('97.777'));
+  await f.locator('[data-section="overview"]').click();
   await f.locator("#facilityFilter").selectOption(f1);
   await kpi("Participants in Filtered View").waitFor();
   assert.equal(await kpi("Participants in Filtered View").getAttribute("data-kpi-value"),"15");
@@ -109,6 +122,12 @@ async function run(){
     await f.locator("#"+section+"Content").waitFor({state:"visible"});
   }
   await page.setViewportSize({width:390,height:844});
+  await f.locator('[data-section="overview"]').click();
+  assert.equal(await page.evaluate(()=>document.documentElement.clientWidth),390);
+  assert.ok(await f.locator('html').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'mobile dashboard must not overflow horizontally');
+  await f.locator('[data-section="timeline"]').click();
+  await f.locator('#timelineContent input').fill('S30');
+  assert.match(await f.locator('#timelineContent [role="status"]').innerText(),/5 of 180/);
   await f.locator('[data-section="overview"]').click();
   await page.screenshot({path:path.join(__dirname,"../logs/wp2-review-mobile.png"),fullPage:true});
   assert.deepEqual(errors,[]);

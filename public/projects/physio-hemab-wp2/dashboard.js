@@ -118,6 +118,10 @@
     return (100 * n) / d;
   }
 
+  function interviewRate(numerator, denominator) {
+    return denominator > 0 ? `${number(percent(numerator, denominator), 1)}%` : "Unavailable";
+  }
+
   function formatDate(value, includeTime = false) {
     if (!value) return "—";
     const date = new Date(includeTime ? value : `${value}T00:00:00Z`);
@@ -893,7 +897,7 @@
         ${kpiCard("Enrollment Forms Complete", number(m.enrollmentComplete), "positive")}
         ${kpiCard("Maternal Records Complete", number(m.maternalComplete), "positive")}
         ${kpiCard("Physical Exams Complete", number(m.physicalComplete), "positive")}
-        ${kpiCard("On-Time Interviews", `${number(m.onTimePct, 1)}%`, m.onTimePct >= 80 ? "positive" : "warning")}
+        ${kpiCard("On-Time Interviews", interviewRate(m.sameDay, m.sameDay + m.delayed), m.sameDay + m.delayed ? (m.onTimePct >= 80 ? "positive" : "warning") : "info", m.sameDay + m.delayed ? "" : "No recorded Yes/No responses in this selection")}
       </div>
 
       <div class="dashboard-grid">
@@ -1248,8 +1252,8 @@
     content.innerHTML = `
       <div class="kpi-grid kpi-grid-6">
         ${kpiCard("Completion", `${number(percent(complete, expected), 1)}%`, complete < expected ? "warning" : "positive", `${complete} of ${expected}${recordedOnly ? " recorded" : " expected"}`)}
-        ${kpiCard("Same-Day Interviews", `${number(percent(sameDay, sameDay + delayed), 1)}%`, "positive", `${sameDay} Yes`)}
-        ${kpiCard("Delayed Interviews", `${number(percent(delayed, sameDay + delayed), 1)}%`, delayed ? "problem" : "positive", `${delayed} No`)}
+        ${kpiCard("Same-Day Interviews", interviewRate(sameDay, sameDay + delayed), sameDay + delayed ? "positive" : "info", sameDay + delayed ? `${sameDay} Yes` : "No recorded Yes/No responses in this selection")}
+        ${kpiCard("Delayed Interviews", interviewRate(delayed, sameDay + delayed), sameDay + delayed ? (delayed ? "problem" : "positive") : "info", sameDay + delayed ? `${delayed} No` : "No recorded Yes/No responses in this selection")}
         ${kpiCard("Avg Call Attempts", number(avgCalls, 2), "info", `${calls} exact attempts; More excluded`)}
         ${kpiCard("Avg Delay", number(avgDelay, 2), avgDelay > 0 ? "warning" : "positive", "Days")}
         ${kpiCard("Max Delay", number(maxDelay), maxDelay > 0 ? "problem" : "positive", "Days")}
@@ -2204,7 +2208,7 @@
       content.insertAdjacentHTML("beforeend", panel("Facility completion rates", '<p>Core completion: completed enrollment, maternal record and CRF forms / (3 × filtered participants). Diary completion: completed / recorded diaries. These rates describe selected records, not individual staff performance.</p>' + table(["Facility", "Core complete / expected", "Core rate", "Diaries complete / recorded", "Diary rate"], unique([...filteredParticipants(), ...filteredDiaries()].map(r => r.facility)).map(facility => {
         const p = filteredParticipants().filter(r => r.facility === facility); const d = filteredDiaries().filter(r => r.facility === facility);
         const n = p.reduce((s, r) => s + Number(!!r.enrollmentComplete) + Number(!!r.maternalRecordComplete) + Number(!!r.physicalExamComplete), 0); const c = d.filter(r => r.diaryComplete).length;
-        return [escapeHtml(facility || "Unassigned"), n + " / " + p.length * 3, p.length ? percent(n, p.length * 3) + "%" : "—", c + " / " + d.length, d.length ? percent(c, d.length) + "%" : "—"];
+        return [escapeHtml(facility || "Unassigned"), n + " / " + p.length * 3, p.length ? number(percent(n, p.length * 3), 1) + "%" : "—", c + " / " + d.length, d.length ? number(percent(c, d.length), 1) + "%" : "—"];
       })), 12));
     }
     if (state.section === "devices") {
