@@ -1357,7 +1357,7 @@ auth.onAuthStateChanged(async (user) => {
       window.NHRCUI?.showToast(
         "success",
         "Signed out",
-        "Your session has been closed securely."
+        "You have been signed out."
       );
     }
 
@@ -1371,7 +1371,7 @@ auth.onAuthStateChanged(async (user) => {
       title: pendingAuthAction === "signin" ? "Signing you in" : "Restoring your workspace",
       text: pendingAuthAction === "signin"
         ? "Loading your profile, permissions and assigned projects."
-        : "Restoring your secure session and assigned workspace."
+        : "Loading your session and assigned workspace."
     });
 
     const profile = await fetchUserProfile(user.uid);
@@ -1498,7 +1498,7 @@ window.addEventListener("DOMContentLoaded", function () {
       window.NHRCUI?.setButtonBusy(logoutBtn, true, "Signing out");
       window.NHRCUI?.showBusy({
         title: "Signing you out",
-        text: "Closing your secure session safely."
+        text: "Signing you out."
       });
 
       try {

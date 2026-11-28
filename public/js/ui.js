@@ -66,7 +66,7 @@
     if (message) {
       message.textContent =
         options.text ||
-        "Checking your secure session and loading your assigned workspace.";
+        "Loading your session and assigned workspace.";
     }
 
     overlay.classList.remove("is-hidden");

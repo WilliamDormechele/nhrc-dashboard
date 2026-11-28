@@ -390,7 +390,7 @@ async function signInUser() {
     window.NHRCUI?.setButtonBusy(loginBtn, true, "Signing in");
     window.NHRCUI?.showBusy({
       title: "Signing you in",
-      text: "Verifying your credentials and preparing your secure workspace."
+      text: "Signing in and loading your workspace."
     });
 
     await auth.signInWithEmailAndPassword(email, password);

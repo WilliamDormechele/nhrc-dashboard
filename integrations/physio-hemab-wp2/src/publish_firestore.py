@@ -543,7 +543,7 @@ def main() -> int:
             "code": PROJECT_CODE,
             "name": "Physio-HeMAB WP2",
             "description": (
-                "Secure native Physio-HeMAB Work Package 2 operational "
+                "Physio-HeMAB Work Package 2 operational "
                 "monitoring dashboard."
             ),
             "dashboardMode": "native",

@@ -1750,7 +1750,7 @@
         ${kpiCard("Data Current To", formatDate(state.data?.fetchedAt, true), allCurrent ? "positive" : "warning")}
         ${kpiCard("Main REDCap", main.status === "success" ? "Current" : "Error", main.status === "success" ? "positive" : "problem", `PID ${main.pid || 115}`)}
         ${kpiCard("Devices REDCap", devices.status === "success" ? "Current" : "Error", devices.status === "success" ? "positive" : "problem", `PID ${devices.pid || 116}`)}
-        ${kpiCard("Access Mode", "Secure", "info", "Firebase-authenticated callable")}
+        ${kpiCard("Access", "Signed in", "info", "Project access required")}
       </div>
 
       <div class="dashboard-grid">
@@ -2361,7 +2361,7 @@
         "A short refresh cooldown is active.";
     } else {
       els.refreshButton.title =
-        "Securely fetch fresh REDCap data and update this dashboard.";
+        "Fetch fresh REDCap data and update this dashboard.";
     }
 
     if (state.refreshCooldownTimer) {
@@ -2424,7 +2424,7 @@
 
     updateRefreshProgress({
       title: "Refreshing Physio-HeMAB WP2",
-      message: "Starting the secure REDCap refresh.",
+      message: "Starting the REDCap refresh.",
       stage: "Starting",
       status: "working"
     });
@@ -2562,7 +2562,7 @@
 
     updateRefreshProgress({
       title: "Refresh in progress",
-      message: "The secure refresh has started. Waiting for the updated dashboard snapshot.",
+      message: "The refresh has started. Waiting for the updated dashboard snapshot.",
       stage: "Workflow running",
       status: "working"
     });
@@ -2580,7 +2580,7 @@
       } else if (attempt === 18) {
         updateRefreshProgress({
           title: "Refresh in progress",
-          message: "The secure refresh is still running. Waiting for the latest completed snapshot to be published.",
+          message: "The refresh is still running. Waiting for the latest completed snapshot to be published.",
           stage: "Waiting for snapshot",
           status: "working"
         });
@@ -2588,7 +2588,7 @@
         updateRefreshProgress({
           title: "Refresh still running",
           message: "The data workflow is taking longer than usual, but the dashboard is continuing to wait for completion.",
-          stage: "Secure processing",
+          stage: "Processing data",
           status: "working"
         });
       }
@@ -2671,7 +2671,7 @@
     try {
       updateRefreshProgress({
         title: "Authorising refresh",
-        message: "Verifying your secure session before starting the REDCap refresh.",
+        message: "Checking your session before starting the REDCap refresh.",
         stage: "Authorising",
         status: "working"
       });
@@ -2680,7 +2680,7 @@
       const endpoint = state.refreshEndpoint.replace(/\/+$/, "");
 
       updateRefreshProgress({
-        title: "Starting secure refresh",
+        title: "Starting refresh",
         message: "Submitting the refresh request to the protected data service.",
         stage: "Starting workflow",
         status: "working"
@@ -2719,7 +2719,7 @@
       if (!response.ok || payload.accepted !== true) {
         throw new Error(
           payload.error ||
-          "The secure refresh service could not start the REDCap refresh."
+          "The refresh service could not start the REDCap refresh."
         );
       }
 
@@ -2746,8 +2746,8 @@
       } else {
         updateRefreshProgress({
           title: "Refresh still processing",
-          message: "The secure refresh is taking longer than expected. The latest completed snapshot will remain visible.",
-          stage: "Continuing securely",
+          message: "The refresh is taking longer than expected. The latest completed snapshot will remain visible.",
+          stage: "Refresh running",
           status: "warning"
         });
 

@@ -620,7 +620,7 @@ function setAdminLoading(elementId, message = "Processing...") {
 }
 
 /**
- * Free-tier secure admin operations backend.
+ * Admin operations backend.
  * These actions used to depend on Firebase callable functions, which are not
  * available in the current Spark/hosting-only deployment.
  */
@@ -648,7 +648,7 @@ async function callAdminOps(path, payload = {}) {
     });
   } catch (error) {
     throw new Error(
-      "The secure admin service is unavailable. Check the admin backend deployment and try again."
+      "The admin service is unavailable. Check the admin backend deployment and try again."
     );
   }
 
@@ -661,7 +661,7 @@ async function callAdminOps(path, payload = {}) {
 
   if (!response.ok) {
     throw new Error(
-      body.error || "The secure admin service could not complete this action."
+      body.error || "The admin service could not complete this action."
     );
   }
 
